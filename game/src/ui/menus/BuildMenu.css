@@ -18,10 +18,10 @@
 
 .build-menu {
   display: flex;
-  width: 80vw;
-  max-width: 1100px;
-  height: 70vh;
-  max-height: 650px;
+  width: 85vw;
+  max-width: 1200px;
+  height: 80vh;
+  max-height: 750px;
   background: rgba(12, 14, 30, 0.95);
   border: 1px solid rgba(80, 100, 200, 0.4);
   border-radius: 12px;
@@ -32,6 +32,7 @@
 /* Left: Categories */
 .build-menu-categories {
   width: 200px;
+  min-width: 200px;
   background: rgba(8, 10, 25, 0.9);
   border-right: 1px solid rgba(60, 80, 160, 0.3);
   display: flex;
@@ -86,25 +87,54 @@
 .build-menu-list {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 8px;
-  align-content: start;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
+/* Subcategory wrapper */
+.build-subcategory {
+  margin-bottom: 8px;
+}
+
+.subcategory-header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #6688aa;
+  padding: 8px 4px 6px;
+  border-bottom: 1px solid rgba(60, 80, 160, 0.2);
+  margin-bottom: 8px;
+}
+
+/* Grid for building items within subcategory */
+.subcategory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 6px;
+}
+
+/* Special items get a bigger grid */
+.subcategory-grid.special-grid {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+
+/* Building item button */
 .build-menu-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: 14px 8px;
+  padding: 12px 6px;
   background: rgba(25, 30, 60, 0.7);
   border: 1px solid rgba(60, 80, 160, 0.2);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.15s;
   color: #aabbcc;
+  min-height: 70px;
 }
 
 .build-menu-item:hover {
@@ -114,25 +144,43 @@
   transform: translateY(-1px);
 }
 
+/* Special category items — bigger */
+.build-menu-item-special {
+  padding: 20px 12px;
+  min-height: 100px;
+  gap: 10px;
+}
+
+.build-menu-item-special .item-icon {
+  font-size: 44px;
+}
+
+.build-menu-item-special .item-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .item-icon {
-  font-size: 32px;
+  font-size: 28px;
 }
 
 .item-name {
-  font-size: 12px;
+  font-size: 11px;
   text-align: center;
   line-height: 1.3;
 }
 
 /* Right: Details panel */
 .build-menu-details {
-  width: 250px;
+  width: 280px;
+  min-width: 280px;
   background: rgba(15, 18, 35, 0.9);
   border-left: 1px solid rgba(60, 80, 160, 0.3);
   padding: 24px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  overflow-y: auto;
 }
 
 .detail-icon {
@@ -157,7 +205,7 @@
   font-size: 13px;
   color: #8899aa;
   text-align: center;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .detail-hint {
@@ -183,4 +231,17 @@
 
 .build-menu-list::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 130, 255, 0.6);
+}
+
+.build-menu-details::-webkit-scrollbar {
+  width: 4px;
+}
+
+.build-menu-details::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.build-menu-details::-webkit-scrollbar-thumb {
+  background: rgba(80, 100, 200, 0.3);
+  border-radius: 2px;
 }

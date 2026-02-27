@@ -99,7 +99,7 @@ function App() {
         onClose={handleCloseBuildMenu}
         onSelectBuilding={handleSelectBuilding}
       />
-    </div>
+      </div>
   );
 }
 

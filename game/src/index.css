@@ -33,7 +33,7 @@ html, body, #root {
 
 ::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.1);
-}
+  }
 
 ::-webkit-scrollbar-thumb {
   background: rgba(100, 120, 200, 0.3);

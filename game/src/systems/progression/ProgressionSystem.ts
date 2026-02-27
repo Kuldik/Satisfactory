@@ -60,50 +60,89 @@ export class ProgressionSystem {
     console.log(`[Progression] Initialized with ${milestones.length} milestones`);
   }
 
-  /** Initialize Space Elevator phases (from Satisfactory data) */
+  /** Initialize Space Elevator phases (from Satisfactory wiki, accurate data) */
   private initSpaceElevator(): void {
-    // Phase 1-6 (from Docs.json space elevator parts)
+    // Item IDs:
+    // Smart Plating           = Desc_SpaceElevatorPart_1_C
+    // Automated Wiring        = Desc_SpaceElevatorPart_2_C (Automated Wiring)
+    // Versatile Framework     = Desc_SpaceElevatorPart_3_C
+    // Adaptive Control Unit   = Desc_SpaceElevatorPart_4_C
+    // Modular Engine          = Desc_SpaceElevatorPart_5_C
+    // Assembly Director System = Desc_SpaceElevatorPart_6_C
+    // Magnetic Field Generator = Desc_SpaceElevatorPart_7_C
+    // Nuclear Pasta           = Desc_SpaceElevatorPart_8_C
+    // Thermal Propulsion Rocket = Desc_SpaceElevatorPart_9_C
+    // Biochemical Sculptor    = Desc_SpaceElevatorPart_10_C
+    // AI Expansion Server     = Desc_SpaceElevatorPart_11_C
+    // Ballistic Warp Drive    = Desc_SpaceElevatorPart_12_C
+
     this.spaceElevatorPhases = [
+      // Phase 1 — Platform (unlocks Tiers 3-4)
       {
         phase: 1,
         requirements: [
-          { itemId: 'Desc_SpaceElevatorPart_1_C', amount: 50 },
+          { itemId: 'Desc_SpaceElevatorPart_1_C', amount: 50 },   // 50 Smart Plating
         ],
         delivered: new Map(),
         isComplete: false,
       },
+      // Phase 2 — Framework (unlocks Tiers 5-6)
       {
         phase: 2,
         requirements: [
-          { itemId: 'Desc_SpaceElevatorPart_2_C', amount: 500 },
-          { itemId: 'Desc_SpaceElevatorPart_1_C', amount: 100 },
+          { itemId: 'Desc_SpaceElevatorPart_1_C', amount: 1000 },  // 1000 Smart Plating
+          { itemId: 'Desc_SpaceElevatorPart_2_C', amount: 100 },   // 100 Automated Wiring
+          { itemId: 'Desc_SpaceElevatorPart_3_C', amount: 1000 },  // 1000 Versatile Framework
         ],
         delivered: new Map(),
         isComplete: false,
       },
+      // Phase 3 — Systems (unlocks Tiers 7-8)
       {
         phase: 3,
         requirements: [
-          { itemId: 'Desc_SpaceElevatorPart_3_C', amount: 500 },
-          { itemId: 'Desc_SpaceElevatorPart_2_C', amount: 500 },
+          { itemId: 'Desc_SpaceElevatorPart_1_C', amount: 1000 },  // 1000 Smart Plating
+          { itemId: 'Desc_SpaceElevatorPart_2_C', amount: 750 },   // 750 Automated Wiring
+          { itemId: 'Desc_SpaceElevatorPart_3_C', amount: 2500 },  // 2500 Versatile Framework
+          { itemId: 'Desc_SpaceElevatorPart_4_C', amount: 100 },   // 100 Adaptive Control Unit
+          { itemId: 'Desc_SpaceElevatorPart_5_C', amount: 500 },   // 500 Modular Engine
         ],
         delivered: new Map(),
         isComplete: false,
       },
+      // Phase 4 — Propulsion (unlocks Employee of the Planet cup)
       {
         phase: 4,
         requirements: [
-          { itemId: 'Desc_SpaceElevatorPart_4_C', amount: 1000 },
-          { itemId: 'Desc_SpaceElevatorPart_3_C', amount: 500 },
+          { itemId: 'Desc_SpaceElevatorPart_1_C', amount: 2500 },  // 2500 Smart Plating
+          { itemId: 'Desc_SpaceElevatorPart_2_C', amount: 5000 },  // 5000 Automated Wiring
+          { itemId: 'Desc_SpaceElevatorPart_3_C', amount: 2500 },  // 2500 Versatile Framework
+          { itemId: 'Desc_SpaceElevatorPart_4_C', amount: 1000 },  // 1000 Adaptive Control Unit
+          { itemId: 'Desc_SpaceElevatorPart_5_C', amount: 1250 },  // 1250 Modular Engine
+          { itemId: 'Desc_SpaceElevatorPart_6_C', amount: 500 },   // 500 Assembly Director System
+          { itemId: 'Desc_SpaceElevatorPart_7_C', amount: 500 },   // 500 Magnetic Field Generator
+          { itemId: 'Desc_SpaceElevatorPart_8_C', amount: 100 },   // 100 Nuclear Pasta
+          { itemId: 'Desc_SpaceElevatorPart_9_C', amount: 250 },   // 250 Thermal Propulsion Rocket
         ],
         delivered: new Map(),
         isComplete: false,
       },
+      // Phase 5 — Final (endgame)
       {
         phase: 5,
         requirements: [
-          { itemId: 'Desc_SpaceElevatorPart_5_C', amount: 1000 },
-          { itemId: 'Desc_SpaceElevatorPart_4_C', amount: 1000 },
+          { itemId: 'Desc_SpaceElevatorPart_1_C', amount: 1000 },   // 1000 Smart Plating
+          { itemId: 'Desc_SpaceElevatorPart_2_C', amount: 640 },    // 640 Automated Wiring
+          { itemId: 'Desc_SpaceElevatorPart_3_C', amount: 2500 },   // 2500 Versatile Framework
+          { itemId: 'Desc_SpaceElevatorPart_4_C', amount: 500 },    // 500 Adaptive Control Unit
+          { itemId: 'Desc_SpaceElevatorPart_5_C', amount: 500 },    // 500 Modular Engine
+          { itemId: 'Desc_SpaceElevatorPart_6_C', amount: 250 },    // 250 Assembly Director System
+          { itemId: 'Desc_SpaceElevatorPart_7_C', amount: 256 },    // 256 Magnetic Field Generator
+          { itemId: 'Desc_SpaceElevatorPart_8_C', amount: 1100 },   // 1100 Nuclear Pasta
+          { itemId: 'Desc_SpaceElevatorPart_9_C', amount: 200 },    // 200 Thermal Propulsion Rocket
+          { itemId: 'Desc_SpaceElevatorPart_10_C', amount: 1000 },  // 1000 Biochemical Sculptor
+          { itemId: 'Desc_SpaceElevatorPart_11_C', amount: 256 },   // 256 AI Expansion Server
+          { itemId: 'Desc_SpaceElevatorPart_12_C', amount: 200 },   // 200 Ballistic Warp Drive
         ],
         delivered: new Map(),
         isComplete: false,

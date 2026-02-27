@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { CAMERA, GRID_CELL_SIZE, ORE_COLORS } from '../core/constants.ts';
 import { CameraController } from './CameraController.ts';
 import { GridRenderer } from './GridRenderer.ts';
+import { ModelGallery } from './ModelGallery.ts';
 
 export class SceneManager {
   readonly scene: THREE.Scene;
@@ -14,6 +15,7 @@ export class SceneManager {
   readonly cameraController: CameraController;
   readonly gridRenderer: GridRenderer;
 
+  private modelGallery: ModelGallery | null = null;
   private clock = new THREE.Clock();
   private _visibleFloor = 0;
 
@@ -21,7 +23,7 @@ export class SceneManager {
     // Scene
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x1a1a2e);
-    this.scene.fog = new THREE.Fog(0x1a1a2e, 200, 800);
+    this.scene.fog = new THREE.Fog(0x1a1a2e, 300, 1200);
 
     // Camera
     this.camera = new THREE.PerspectiveCamera(
@@ -58,8 +60,11 @@ export class SceneManager {
     // Ground plane
     this.setupGround();
 
-    // Demo ore nodes
+    // Demo ore nodes (improved rocks)
     this.addDemoOres();
+
+    // Load model gallery from all kits
+    this.loadModelGallery();
   }
 
   private setupLighting(): void {
@@ -87,7 +92,7 @@ export class SceneManager {
   }
 
   private setupGround(): void {
-    const groundGeo = new THREE.PlaneGeometry(2000, 2000);
+    const groundGeo = new THREE.PlaneGeometry(4000, 4000);
     const groundMat = new THREE.MeshStandardMaterial({
       color: 0x2d5a27,
       roughness: 0.9,
@@ -100,50 +105,141 @@ export class SceneManager {
     this.scene.add(ground);
   }
 
+  /** Create a natural-looking rock mesh for ore nodes */
+  private createRockMesh(radius: number, color: number, isEmissive = false): THREE.Mesh {
+    // Use IcosahedronGeometry with detail=2 for smoother base
+    const geo = new THREE.IcosahedronGeometry(radius, 2);
+    const positions = geo.attributes.position;
+
+    // Seed-based pseudo-random for consistent deformation
+    const seed = color * 17 + radius * 31;
+    const pseudoRandom = (i: number) => {
+      const x = Math.sin(seed + i * 127.1) * 43758.5453;
+      return x - Math.floor(x);
+    };
+
+    // Gentle vertex displacement for natural rock look
+    for (let i = 0; i < positions.count; i++) {
+      const px = positions.getX(i);
+      const py = positions.getY(i);
+      const pz = positions.getZ(i);
+
+      // Noise factor: gentle displacement (0.85–1.15)
+      const noise = 0.85 + pseudoRandom(i) * 0.3;
+      // Flatten bottom slightly
+      const yScale = py < 0 ? 0.5 : 0.9;
+
+      positions.setXYZ(
+        i,
+        px * noise,
+        py * noise * yScale,
+        pz * noise,
+      );
+    }
+    geo.computeVertexNormals();
+
+    const mat = new THREE.MeshStandardMaterial({
+      color,
+      roughness: 0.75,
+      metalness: 0.15,
+      flatShading: false, // smooth shading for natural look
+    });
+
+    if (isEmissive) {
+      mat.emissive = new THREE.Color(0x39FF14);
+      mat.emissiveIntensity = 0.5;
+    }
+
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+
+    return mesh;
+  }
+
   /** Add demo ore nodes to visualize the color scheme */
   private addDemoOres(): void {
     const oreTypes = Object.entries(ORE_COLORS);
-    const radius = 2;
+    const radius = 1.8;
 
     oreTypes.forEach(([type, color], index) => {
-      const x = (index % 5) * 12 - 24;
-      const z = Math.floor(index / 5) * 12 + 20;
+      const x = (index % 5) * 10 - 20;
+      const z = Math.floor(index / 5) * 10 - 30;
 
-      // Create a rock-like shape for ores
-      const geo = new THREE.DodecahedronGeometry(radius, 1);
-      // Randomize vertices slightly for organic look
-      const positions = geo.attributes.position;
-      for (let i = 0; i < positions.count; i++) {
-        const px = positions.getX(i);
-        const py = positions.getY(i);
-        const pz = positions.getZ(i);
-        const noise = 0.8 + Math.random() * 0.4;
-        positions.setXYZ(i, px * noise, py * noise * 0.6, pz * noise);
+      // Create main rock
+      const rock = this.createRockMesh(radius, color, type === 'uranium');
+      rock.position.set(x, radius * 0.35, z);
+      rock.userData = { type: 'ore_node', oreType: type };
+
+      // Add 2-3 smaller rocks around the main one for cluster look
+      const clusterGroup = new THREE.Group();
+      clusterGroup.add(rock);
+
+      for (let j = 0; j < 3; j++) {
+        const smallRadius = radius * (0.35 + Math.random() * 0.3);
+        const angle = (j / 3) * Math.PI * 2 + Math.random() * 0.5;
+        const dist = radius * 0.8 + Math.random() * 0.5;
+
+        const smallRock = this.createRockMesh(smallRadius, color, type === 'uranium');
+        smallRock.position.set(
+          Math.cos(angle) * dist,
+          smallRadius * 0.3,
+          Math.sin(angle) * dist,
+        );
+        smallRock.rotation.set(
+          Math.random() * 0.3,
+          Math.random() * Math.PI * 2,
+          Math.random() * 0.3,
+        );
+        clusterGroup.add(smallRock);
       }
-      geo.computeVertexNormals();
 
-      const mat = new THREE.MeshStandardMaterial({
-        color,
-        roughness: 0.8,
-        metalness: 0.1,
-      });
+      clusterGroup.position.set(x, 0, z);
+      rock.position.set(0, radius * 0.35, 0);
+      this.scene.add(clusterGroup);
 
-      // Uranium gets emissive glow
-      if (type === 'uranium') {
-        mat.emissive = new THREE.Color(0x39FF14);
-        mat.emissiveIntensity = 0.5;
-      }
-
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(x, radius * 0.5, z);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      mesh.userData = { type: 'ore_node', oreType: type };
-      this.scene.add(mesh);
-
-      // Label
-      // (Labels will be handled by CSS2DRenderer or sprites later)
+      // Add text label as a sprite
+      this.addTextSprite(type, x, radius * 2.5, z);
     });
+  }
+
+  /** Create a text sprite label */
+  private addTextSprite(text: string, x: number, y: number, z: number): void {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    canvas.width = 256;
+    canvas.height = 64;
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.roundRect(0, 0, 256, 64, 8);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text.replace(/_/g, ' '), 128, 32);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+
+    const mat = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      depthWrite: false,
+    });
+    const sprite = new THREE.Sprite(mat);
+    sprite.position.set(x, y, z);
+    sprite.scale.set(6, 1.5, 1);
+    this.scene.add(sprite);
+  }
+
+  /** Load and display all 3D models from kits on the map */
+  private async loadModelGallery(): Promise<void> {
+    this.modelGallery = new ModelGallery(this.scene);
+    await this.modelGallery.loadAll();
   }
 
   /** Render the scene */

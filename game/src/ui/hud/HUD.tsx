@@ -60,8 +60,9 @@ export const HUD: FC<HUDProps> = ({ gameState, onOpenBuildMenu, onOpenInventory 
 
       {/* Controls hint (bottom right) */}
       <div className="hud-controls">
+        <div>WASD — перемещение камеры</div>
         <div>ПКМ / СКМ — вращение камеры</div>
-        <div>Shift+ЛКМ — перемещение</div>
+        <div>Shift+ЛКМ — перемещение мышью</div>
         <div>Колесо — масштаб</div>
         <div>PgUp/PgDn — этаж ↑↓</div>
       </div>

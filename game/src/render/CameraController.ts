@@ -1,5 +1,5 @@
 // ============================================================
-// CameraController — orbital camera with pan, rotate, zoom
+// CameraController — orbital camera with pan, rotate, zoom, WASD
 // ============================================================
 
 import * as THREE from 'three';
@@ -23,6 +23,9 @@ export class CameraController {
   private previousMouse = new THREE.Vector2();
   private currentMouse = new THREE.Vector2();
 
+  // Keyboard state (for WASD)
+  private keysDown = new Set<string>();
+
   // Smoothing
   private targetSpherical = new THREE.Spherical(
     CAMERA.defaultDistance,
@@ -31,6 +34,9 @@ export class CameraController {
   );
   private targetTarget = new THREE.Vector3(0, 0, 0);
   private smoothFactor = 0.1;
+
+  /** WASD move speed (meters per second at default zoom). Scales with distance. */
+  private readonly MOVE_SPEED = 0.8;
 
   constructor(camera: THREE.PerspectiveCamera, domElement: HTMLElement) {
     this.camera = camera;
@@ -46,7 +52,13 @@ export class CameraController {
     this.domElement.addEventListener('mouseup', this.onMouseUp);
     this.domElement.addEventListener('wheel', this.onWheel, { passive: false });
     this.domElement.addEventListener('contextmenu', this.onContextMenu);
+
+    // Keyboard for WASD movement
+    window.addEventListener('keydown', this.onKeyDown);
+    window.addEventListener('keyup', this.onKeyUp);
   }
+
+  // ---- Mouse events ----
 
   private onMouseDown = (e: MouseEvent): void => {
     // Middle mouse button OR right mouse button = rotate
@@ -119,8 +131,51 @@ export class CameraController {
     e.preventDefault();
   };
 
-  /** Smoothly update camera position */
+  // ---- Keyboard events (WASD) ----
+
+  private onKeyDown = (e: KeyboardEvent): void => {
+    this.keysDown.add(e.code);
+  };
+
+  private onKeyUp = (e: KeyboardEvent): void => {
+    this.keysDown.delete(e.code);
+  };
+
+  /** Process WASD movement. Called every frame from update(). */
+  private processKeyboardMovement(): void {
+    // Don't move if no movement keys pressed
+    const w = this.keysDown.has('KeyW');
+    const a = this.keysDown.has('KeyA');
+    const s = this.keysDown.has('KeyS');
+    const d = this.keysDown.has('KeyD');
+
+    if (!w && !a && !s && !d) return;
+
+    // Movement speed scales with zoom distance (farther = faster)
+    const speed = this.MOVE_SPEED * (this.spherical.radius / CAMERA.defaultDistance);
+
+    // Forward direction = camera look direction projected onto XZ plane
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    forward.y = 0;
+    forward.normalize();
+
+    // Right direction = perpendicular to forward on XZ plane
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
+    right.y = 0;
+    right.normalize();
+
+    // Accumulate movement
+    if (w) this.targetTarget.addScaledVector(forward, speed);
+    if (s) this.targetTarget.addScaledVector(forward, -speed);
+    if (d) this.targetTarget.addScaledVector(right, speed);
+    if (a) this.targetTarget.addScaledVector(right, -speed);
+  }
+
+  /** Smoothly update camera position (called every frame) */
   update(): void {
+    // Process WASD input
+    this.processKeyboardMovement();
+
     // Lerp spherical coordinates
     this.spherical.radius += (this.targetSpherical.radius - this.spherical.radius) * this.smoothFactor;
     this.spherical.theta += (this.targetSpherical.theta - this.spherical.theta) * this.smoothFactor;
@@ -164,5 +219,7 @@ export class CameraController {
     this.domElement.removeEventListener('mouseup', this.onMouseUp);
     this.domElement.removeEventListener('wheel', this.onWheel);
     this.domElement.removeEventListener('contextmenu', this.onContextMenu);
+    window.removeEventListener('keydown', this.onKeyDown);
+    window.removeEventListener('keyup', this.onKeyUp);
   }
 }
