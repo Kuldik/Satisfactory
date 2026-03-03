@@ -10,145 +10,92 @@ import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 interface KitDefinition {
   name: string;
   basePath: string;
-  models: string[];
+  overviewPath: string;
+  fallbackModels?: string[];
 }
+
+type ModelCategory = 'belts' | 'pipes' | 'trains' | 'buildings' | 'other';
+
+/**
+ * Manual per-kit, per-category size control (max bounding dimension in meters).
+ * Tune these values to scale categories independently.
+ */
+const KIT_CATEGORY_MAX_SIZE: Record<string, Record<ModelCategory, number>> = {
+  'Conveyor Kit': {
+    belts: 6,
+    pipes: 6,
+    trains: 6,
+    buildings: 6,
+    other: 6,
+  },
+  'Train Kit': {
+    belts: 25,
+    pipes: 25,
+    trains: 25,
+    buildings: 25,
+    other: 25,
+  },
+  'Modular Space Kit': {
+    belts: 10,
+    pipes: 10,
+    trains: 10,
+    buildings: 10,
+    other: 10,
+  },
+  'Space Station Kit': {
+    belts: 6,
+    pipes: 6,
+    trains: 6,
+    buildings: 6,
+    other: 6,
+  },
+  'City Kit Industrial': {
+    belts: 25,
+    pipes: 25,
+    trains: 25,
+    buildings: 25,
+    other: 25,
+  },
+  'Modular Buildings': {
+    belts: 15,
+    pipes: 15,
+    trains: 15,
+    buildings: 15,
+    other: 15,
+  },
+};
 
 /** All available kits with their GLB model files */
 const KITS: KitDefinition[] = [
   {
     name: 'Conveyor Kit',
     basePath: '/kits/Conveyor Kit/Models/GLB format/',
-    models: [
-      'conveyor.glb', 'conveyor-stripe.glb', 'conveyor-stripe-sides.glb',
-      'conveyor-sides.glb', 'conveyor-long.glb', 'conveyor-long-stripe.glb',
-      'conveyor-long-stripe-sides.glb', 'conveyor-long-sides.glb',
-      'conveyor-bars.glb', 'conveyor-bars-stripe.glb',
-      'conveyor-bars-stripe-side.glb', 'conveyor-bars-stripe-high.glb',
-      'conveyor-bars-stripe-fence.glb', 'conveyor-bars-sides.glb',
-      'conveyor-bars-high.glb', 'conveyor-bars-fence.glb',
-      'robot-arm-a.glb', 'robot-arm-b.glb',
-      'scanner-low.glb', 'scanner-high.glb',
-      'box-small.glb', 'box-wide.glb', 'box-long.glb', 'box-large.glb',
-      'arrow.glb', 'arrow-basic.glb',
-      'cover.glb', 'cover-window.glb', 'cover-top.glb',
-      'cover-stripe.glb', 'cover-stripe-window.glb', 'cover-stripe-top.glb',
-      'cover-stripe-hopper.glb', 'cover-stripe-corner.glb', 'cover-stripe-bar.glb',
-      'cover-hopper.glb', 'cover-corner.glb', 'cover-bar.glb',
-      'door.glb', 'door-wide-open.glb', 'door-wide-half.glb', 'door-wide-closed.glb',
-      'floor.glb', 'floor-large.glb', 'top.glb', 'top-large.glb',
-      'structure-tall.glb', 'structure-short.glb', 'structure-medium.glb', 'structure-high.glb',
-      'structure-wall.glb', 'structure-window.glb', 'structure-window-wide.glb',
-      'structure-doorway.glb', 'structure-doorway-wide.glb',
-      'structure-corner-outer.glb', 'structure-corner-inner.glb',
-      'structure-yellow-tall.glb', 'structure-yellow-short.glb',
-      'structure-yellow-medium.glb', 'structure-yellow-high.glb',
-    ],
+    overviewPath: '/kits/Conveyor Kit/Overview.html',
   },
   {
     name: 'Train Kit',
     basePath: '/kits/kenney_train-kit/Models/GLB format/',
-    models: [
-      'train-locomotive-a.glb', 'train-locomotive-b.glb', 'train-locomotive-c.glb',
-      'train-locomotive-passenger-a.glb', 'train-locomotive-passenger-b.glb',
-      'train-diesel-a.glb', 'train-diesel-b.glb', 'train-diesel-c.glb',
-      'train-diesel-box-a.glb', 'train-diesel-box-b.glb', 'train-diesel-box-c.glb',
-      'train-electric-bullet-a.glb', 'train-electric-bullet-b.glb', 'train-electric-bullet-c.glb',
-      'train-electric-city-a.glb', 'train-electric-city-b.glb', 'train-electric-city-c.glb',
-      'train-electric-double-a.glb', 'train-electric-double-b.glb', 'train-electric-double-c.glb',
-      'train-electric-square-a.glb', 'train-electric-square-b.glb', 'train-electric-square-c.glb',
-      'train-electric-subway-a.glb', 'train-electric-subway-b.glb', 'train-electric-subway-c.glb',
-      'train-tram-classic.glb', 'train-tram-modern.glb', 'train-tram-round.glb',
-      'train-carriage-box.glb', 'train-carriage-coal.glb', 'train-carriage-dirt.glb',
-      'train-carriage-container-blue.glb', 'train-carriage-container-green.glb',
-      'train-carriage-container-red.glb', 'train-carriage-flatbed.glb',
-      'train-carriage-flatbed-wood.glb', 'train-carriage-lumber.glb',
-      'train-carriage-tank.glb', 'train-carriage-tank-large.glb', 'train-carriage-wood.glb',
-      'train-connector.glb',
-      'railroad-straight.glb', 'railroad-straight-bend.glb', 'railroad-straight-bend-large.glb',
-      'railroad-straight-skew-left.glb', 'railroad-straight-skew-right.glb',
-      'railroad-straight-hill-beginning.glb', 'railroad-straight-hill-complete.glb',
-      'railroad-straight-hill-end.glb',
-      'railroad-rail-curve.glb', 'railroad-rail-corner-small.glb',
-      'railroad-rail-corner-large.glb',
-    ],
+    overviewPath: '/kits/kenney_train-kit/Overview.html',
   },
   {
     name: 'Modular Space Kit',
     basePath: '/kits/Modular Space Kit/Models/GLB format/',
-    models: [
-      'corridor.glb', 'corridor-wide.glb', 'corridor-wide-junction.glb',
-      'corridor-wide-intersection.glb', 'corridor-wide-end.glb', 'corridor-wide-corner.glb',
-      'corridor-transition.glb', 'corridor-junction.glb', 'corridor-intersection.glb',
-      'corridor-end.glb', 'corridor-corner.glb',
-      'room-wide.glb', 'room-wide-variation.glb', 'room-small.glb',
-      'room-small-variation.glb', 'room-large.glb', 'room-large-variation.glb', 'room-corner.glb',
-      'gate.glb', 'gate-lasers.glb', 'gate-door.glb', 'gate-door-window.glb',
-      'stairs.glb', 'stairs-wide.glb', 'cables.glb',
-      'template-wall.glb', 'template-wall-top.glb', 'template-wall-stairs.glb',
-      'template-wall-half.glb', 'template-wall-detail-a.glb', 'template-wall-corner.glb',
-      'template-floor.glb', 'template-floor-layer.glb', 'template-floor-layer-raised.glb',
-      'template-floor-layer-hole.glb', 'template-floor-detail.glb',
-      'template-floor-detail-a.glb', 'template-floor-big.glb',
-      'template-detail.glb', 'template-corner.glb',
-    ],
+    overviewPath: '/kits/Modular Space Kit/Overview.html',
   },
   {
     name: 'Space Station Kit',
     basePath: '/kits/kenney_space-station-kit/Models/GLB format/',
-    models: [
-      'pipe.glb', 'pipe-ring.glb', 'pipe-ring-colored.glb',
-      'pipe-end.glb', 'pipe-end-colored.glb', 'pipe-bend.glb', 'pipe-bend-diagonal.glb',
-      'container.glb', 'container-wide.glb', 'container-tall.glb',
-      'container-flat.glb', 'container-flat-open.glb',
-      'computer.glb', 'computer-wide.glb', 'computer-system.glb', 'computer-screen.glb',
-      'table.glb', 'table-large.glb', 'table-inset.glb', 'table-inset-small.glb',
-      'table-display.glb', 'table-display-small.glb', 'table-display-planet.glb',
-      'display-wall.glb', 'display-wall-wide.glb',
-      'wall.glb', 'wall-window.glb', 'wall-window-frame.glb',
-      'wall-switch.glb', 'wall-pillar.glb', 'wall-door.glb', 'wall-door-wide.glb',
-      'wall-detail.glb', 'wall-corner.glb', 'wall-corner-round.glb',
-      'floor.glb', 'floor-panel.glb', 'floor-panel-straight.glb',
-      'floor-panel-end.glb', 'floor-panel-corner.glb', 'floor-detail.glb', 'floor-corner.glb',
-      'stairs.glb', 'stairs-ramp.glb', 'stairs-corner.glb',
-      'structure.glb', 'structure-panel.glb', 'structure-barrier.glb', 'structure-barrier-high.glb',
-      'rocks.glb', 'skip.glb', 'skip-rocks.glb',
-      'rail.glb', 'rail-narrow.glb',
-      'door-single.glb', 'door-single-half.glb', 'door-single-closed.glb',
-      'door-double.glb', 'door-double-half.glb', 'door-double-closed.glb',
-      'balcony-rail.glb', 'balcony-floor.glb',
-    ],
+    overviewPath: '/kits/kenney_space-station-kit/Overview.html',
   },
   {
     name: 'City Kit Industrial',
     basePath: '/kits/City Kit Industrial/Models/GLB format/',
-    models: [
-      'building-a.glb', 'building-b.glb', 'building-c.glb', 'building-d.glb',
-      'building-e.glb', 'building-f.glb', 'building-g.glb', 'building-h.glb',
-      'building-i.glb', 'building-j.glb', 'building-k.glb', 'building-l.glb',
-      'building-m.glb', 'building-n.glb', 'building-o.glb', 'building-p.glb',
-      'building-q.glb', 'building-r.glb', 'building-s.glb', 'building-t.glb',
-      'chimney-basic.glb', 'chimney-small.glb', 'chimney-medium.glb', 'chimney-large.glb',
-      'detail-tank.glb',
-    ],
+    overviewPath: '/kits/City Kit Industrial/Overview.html',
   },
   {
     name: 'Modular Buildings',
     basePath: '/kits/Modular Buildings/Models/GLB format/',
-    models: [
-      'building-corner.glb', 'building-corner-window.glb',
-      'building-door.glb', 'building-door-window.glb',
-      'building-window.glb', 'building-window-wide.glb', 'building-window-large.glb',
-      'building-windows.glb', 'building-windows-sills.glb',
-      'building-edges-door.glb', 'building-steps-wide.glb', 'building-steps-narrow.glb',
-      'building-sample-house-a.glb', 'building-sample-house-b.glb', 'building-sample-house-c.glb',
-      'building-sample-tower-a.glb', 'building-sample-tower-b.glb',
-      'building-sample-tower-c.glb', 'building-sample-tower-d.glb',
-      'roof-flat-top.glb', 'roof-flat-center.glb', 'roof-flat-corner.glb',
-      'roof-slanted.glb', 'roof-gable.glb', 'roof-gable-end.glb',
-      'door-white.glb', 'door-brown.glb',
-      'window-white.glb', 'window-brown.glb',
-      'detail-ac-a.glb', 'detail-ac-b.glb',
-    ],
+    overviewPath: '/kits/Modular Buildings/Overview.html',
   },
 ];
 
@@ -158,11 +105,11 @@ export class ModelGallery {
   private galleryGroup: THREE.Group;
 
   /** Spacing between models in the gallery */
-  private readonly SPACING_X = 160;
-  private readonly SPACING_Z = 240;
+  private readonly SPACING_X = 28;  // 8m between models in a row
+  private readonly SPACING_Z = 32; // 12m between rows
   private readonly MODELS_PER_ROW = 12;
-  private readonly GALLERY_OFFSET_Z = 1000;
-  private readonly GALLERY_OFFSET_X = -1000;
+  private readonly GALLERY_OFFSET_Z = 50; // Start gallery 50m ahead of center
+  private readonly GALLERY_OFFSET_X = -50; // Center the gallery
 
   private loadedCount = 0;
   private totalCount = 0;
@@ -177,13 +124,20 @@ export class ModelGallery {
 
   /** Load all models from all kits and place them on the map */
   async loadAll(): Promise<void> {
+    const kitsWithModels = await Promise.all(
+      KITS.map(async (kit) => ({
+        ...kit,
+        models: await this.discoverModelsFromOverview(kit),
+      })),
+    );
+
     // Calculate total count
-    this.totalCount = KITS.reduce((sum, kit) => sum + kit.models.length, 0);
-    console.log(`[ModelGallery] Loading ${this.totalCount} models from ${KITS.length} kits...`);
+    this.totalCount = kitsWithModels.reduce((sum, kit) => sum + kit.models.length, 0);
+    console.log(`[ModelGallery] Loading ${this.totalCount} models from ${kitsWithModels.length} kits...`);
 
     let globalIndex = 0;
 
-    for (const kit of KITS) {
+    for (const kit of kitsWithModels) {
       // Add kit title banner
       const kitStartRow = Math.floor(globalIndex / this.MODELS_PER_ROW);
       this.addKitBanner(
@@ -211,11 +165,44 @@ export class ModelGallery {
     console.log(`[ModelGallery] Loaded ${this.loadedCount}/${this.totalCount} models`);
   }
 
+  /** Parse kit Overview.html and extract all model names as *.glb */
+  private async discoverModelsFromOverview(kit: KitDefinition): Promise<string[]> {
+    try {
+      const response = await fetch(kit.overviewPath, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const html = await response.text();
+      const modelNameRegex = /<br>([^<]+)<\/div>/g;
+      const discoveredNames: string[] = [];
+
+      for (const match of html.matchAll(modelNameRegex)) {
+        const modelName = match[1]?.trim();
+        if (modelName) {
+          discoveredNames.push(`${modelName}.glb`);
+        }
+      }
+
+      const uniqueModels = Array.from(new Set(discoveredNames));
+      if (uniqueModels.length > 0) {
+        console.log(`[ModelGallery] ${kit.name}: discovered ${uniqueModels.length} models from Overview.html`);
+        return uniqueModels;
+      }
+    } catch (err) {
+      console.warn(`[ModelGallery] ${kit.name}: failed to parse ${kit.overviewPath}`, err);
+    }
+
+    const fallback = kit.fallbackModels ?? [];
+    console.warn(`[ModelGallery] ${kit.name}: using fallback list (${fallback.length})`);
+    return fallback;
+  }
+
   /** Load a single model and place it at the correct grid position */
   private async loadAndPlace(
     fullPath: string,
     fileName: string,
-    _kitName: string,
+    kitName: string,
     globalIndex: number,
   ): Promise<void> {
     const col = globalIndex % this.MODELS_PER_ROW;
@@ -226,12 +213,14 @@ export class ModelGallery {
     try {
       const gltf = await this.loadGLB(fullPath);
       const model = gltf.scene;
+      const category = this.resolveCategory(kitName, fileName);
+      const targetMaxSize = KIT_CATEGORY_MAX_SIZE[kitName]?.[category] ?? 4;
 
-      // Normalize model size: fit within an 80m bounding box
+      // Normalize model size: fit configured category size
       const box = new THREE.Box3().setFromObject(model);
       const size = box.getSize(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z);
-      const scale = maxDim > 0 ? 80 / maxDim : 1;
+      const scale = maxDim > 0 ? targetMaxSize / maxDim : 1;
       model.scale.setScalar(scale);
 
       // Recompute bounding box after scaling
@@ -265,7 +254,8 @@ export class ModelGallery {
 
       // Add label below
       const label = fileName.replace('.glb', '');
-      this.addModelLabel(label, x, z);
+      const labelY = category === 'buildings' ? box.max.y + 1.5 : -0.5;
+      this.addModelLabel(label, x, labelY, z);
 
       this.loadedCount++;
     } catch (err) {
@@ -282,8 +272,32 @@ export class ModelGallery {
     });
   }
 
+  /** Resolve manual scale category for model */
+  private resolveCategory(kitName: string, fileName: string): ModelCategory {
+    const name = fileName.toLowerCase();
+
+    if (kitName === 'Train Kit') return 'trains';
+    if (name.startsWith('pipe')) return 'pipes';
+    if (name.startsWith('conveyor')) return 'belts';
+
+    if (
+      kitName === 'City Kit Industrial' ||
+      kitName === 'Modular Buildings' ||
+      name.startsWith('building') ||
+      name.startsWith('structure') ||
+      name.startsWith('wall') ||
+      name.startsWith('room') ||
+      name.startsWith('corridor') ||
+      name.startsWith('roof')
+    ) {
+      return 'buildings';
+    }
+
+    return 'other';
+  }
+
   /** Add a text label under a model */
-  private addModelLabel(text: string, x: number, z: number): void {
+  private addModelLabel(text: string, x: number, y: number, z: number): void {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -315,8 +329,8 @@ export class ModelGallery {
       depthWrite: false,
     });
     const sprite = new THREE.Sprite(mat);
-    sprite.position.set(x, -1, z + 60);
-    sprite.scale.set(140, 18, 1);
+    sprite.position.set(x, y, z + 3);
+    sprite.scale.set(7, 0.9, 1);
     this.galleryGroup.add(sprite);
   }
 
@@ -354,20 +368,20 @@ export class ModelGallery {
       depthWrite: false,
     });
     const sprite = new THREE.Sprite(mat);
-    sprite.position.set(x - 120, 100, z);
-    sprite.scale.set(240, 40, 1);
+    sprite.position.set(x - 6, 5, z);
+    sprite.scale.set(12, 2, 1);
     this.galleryGroup.add(sprite);
   }
 
   /** Place a red error cube when model fails to load */
   private addErrorMarker(fileName: string, x: number, z: number): void {
-    const geo = new THREE.BoxGeometry(20, 20, 20);
+    const geo = new THREE.BoxGeometry(1, 1, 1);
     const mat = new THREE.MeshStandardMaterial({ color: 0xff3333, roughness: 0.5 });
     const cube = new THREE.Mesh(geo, mat);
-    cube.position.set(x, 10, z);
+    cube.position.set(x, 0.5, z);
     this.galleryGroup.add(cube);
 
     // Still add label
-    this.addModelLabel(`❌ ${fileName.replace('.glb', '')}`, x, z);
+    this.addModelLabel(`❌ ${fileName.replace('.glb', '')}`, x, -0.5, z);
   }
 }

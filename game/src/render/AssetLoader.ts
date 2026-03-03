@@ -20,13 +20,22 @@ const MODEL_REGISTRY: Record<string, string> = {
   'splitter':       '/assets/models/conveyor/conveyorSplitter.glb',
   'merger':         '/assets/models/conveyor/conveyorMerger.glb',
 
-  // Modular Space Kit models (factories)
-  'constructor':    '/assets/models/space/corridorCross.glb',
-  'assembler':      '/assets/models/space/room.glb',
+  // City Kit Industrial mappings for key factory buildings
+  'hub':                   '/kits/City Kit Industrial/Models/GLB format/building-a.glb',
+  'resource_sink':         '/kits/City Kit Industrial/Models/GLB format/building-o.glb',
+  'constructor':           '/kits/City Kit Industrial/Models/GLB format/building-p.glb',
+  'assembler':             '/kits/City Kit Industrial/Models/GLB format/building-q.glb',
+  'manufacturer':          '/kits/City Kit Industrial/Models/GLB format/building-t.glb',
+  'packager':              '/kits/City Kit Industrial/Models/GLB format/building-r.glb',
+  'refinery':              '/kits/City Kit Industrial/Models/GLB format/building-l.glb',
+  'blender':               '/kits/City Kit Industrial/Models/GLB format/building-c.glb',
+  'particle_accelerator':  '/kits/City Kit Industrial/Models/GLB format/building-g.glb',
+  'converter':             '/kits/City Kit Industrial/Models/GLB format/building-e.glb',
+  'quantum_encoder':       '/kits/City Kit Industrial/Models/GLB format/building-f.glb',
+
+  // Other placeholders / temporary mappings
   'smelter':        '/assets/models/space/corridorStraight.glb',
 
-  // City Kit Industrial
-  'refinery':       '/assets/models/industrial/buildingE.glb',
   'coal_generator': '/assets/models/industrial/chimney.glb',
 
   // Train Kit

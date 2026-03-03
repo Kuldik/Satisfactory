@@ -13,6 +13,7 @@ interface BuildMenuItem {
   description: string;
   category: BuildingCategory;
   subcategory: string;
+  modelPath?: string;
   iconPath?: string;
 }
 
@@ -27,31 +28,53 @@ interface BuildMenuProps {
 const ALL_BUILDINGS: BuildMenuItem[] = [
   // ============ SPECIAL ============
   { id: 'hub', name: 'HUB', nameRu: 'ХАБ', category: BuildingCategory.Special, subcategory: 'Особые строения',
+    modelPath: '/kits/City Kit Industrial/Models/GLB format/building-a.glb',
+    iconPath: '/kits/City Kit Industrial/Previews/building-a.png',
     description: 'Центральное здание вашей фабрики. Через ХАБ происходит разблокировка новых технологий посредством вехных заданий (Milestones). Имеет 6 входов для конвейерных лент для автоматической загрузки ресурсов.' },
   { id: 'space_elevator', name: 'Space Elevator', nameRu: 'Космический лифт', category: BuildingCategory.Special, subcategory: 'Особые строения',
     description: 'Массивное сооружение, необходимое для глобальной прогрессии проекта. Доставка специальных деталей (Smart Plating, Versatile Framework и др.) открывает новые уровни технологий. Всего 5 фаз.' },
   { id: 'resource_sink', name: 'AWESOME Sink', nameRu: 'Утилизатор', category: BuildingCategory.Special, subcategory: 'Особые строения',
+    modelPath: '/kits/City Kit Industrial/Models/GLB format/building-o.glb',
+    iconPath: '/kits/City Kit Industrial/Previews/building-o.png',
     description: 'Уничтожает любые предметы (кроме радиоактивных отходов) и начисляет за них купоны AWESOME Shop. Идеален для утилизации излишков производства. Потребляет 30 МВт.' },
 
   // ============ PRODUCTION ============
   // — Производство деталей —
   { id: 'constructor', name: 'Constructor', nameRu: 'Конструктор', category: BuildingCategory.Production, subcategory: 'Производство деталей',
+    modelPath: '/kits/City Kit Industrial/Models/GLB format/building-p.glb',
+    iconPath: '/kits/City Kit Industrial/Previews/building-p.png',
     description: 'Базовая производственная машина. Принимает 1 тип предмета на входе и производит 1 тип предмета на выходе. Используется для простых рецептов: железные пластины, провода, винты и др. Потребляет 4 МВт.' },
   { id: 'assembler', name: 'Assembler', nameRu: 'Сборщик', category: BuildingCategory.Production, subcategory: 'Производство деталей',
+    modelPath: '/kits/City Kit Industrial/Models/GLB format/building-q.glb',
+    iconPath: '/kits/City Kit Industrial/Previews/building-q.png',
     description: 'Комбинирует 2 типа предметов в один. Имеет 2 конвейерных входа и 1 выход. Производит промежуточные детали: усиленные пластины, роторы, модульные рамы и др. Потребляет 15 МВт.' },
   { id: 'manufacturer', name: 'Manufacturer', nameRu: 'Изготовитель', category: BuildingCategory.Production, subcategory: 'Производство деталей',
+    modelPath: '/kits/City Kit Industrial/Models/GLB format/building-t.glb',
+    iconPath: '/kits/City Kit Industrial/Previews/building-t.png',
     description: 'Продвинутая машина для сложных рецептов из 3-4 ингредиентов. Имеет 4 конвейерных входа и 1 выход. Производит компьютеры, тяжёлые модульные рамы, турбомоторы и др. Потребляет 55 МВт.' },
   { id: 'packager', name: 'Packager', nameRu: 'Упаковщик', category: BuildingCategory.Production, subcategory: 'Производство деталей',
+    modelPath: '/kits/City Kit Industrial/Models/GLB format/building-r.glb',
+    iconPath: '/kits/City Kit Industrial/Previews/building-r.png',
     description: 'Упаковывает жидкости/газы в канистры для транспортировки по конвейеру, или распаковывает обратно. 1 конвейерный вход/выход + 1 трубный вход/выход. Потребляет 10 МВт.' },
   { id: 'refinery', name: 'Refinery', nameRu: 'Очистительный завод', category: BuildingCategory.Production, subcategory: 'Производство деталей',
+    modelPath: '/kits/City Kit Industrial/Models/GLB format/building-l.glb',
+    iconPath: '/kits/City Kit Industrial/Previews/building-l.png',
     description: 'Перерабатывает нефть в пластик, резину, топливо; бокситы в алюминий; и др. 1 конвейерный и 1 трубный вход, 1 конвейерный и 1 трубный выход. Потребляет 30 МВт.' },
   { id: 'blender', name: 'Blender', nameRu: 'Смеситель', category: BuildingCategory.Production, subcategory: 'Производство деталей',
+    modelPath: '/kits/City Kit Industrial/Models/GLB format/building-c.glb',
+    iconPath: '/kits/City Kit Industrial/Previews/building-c.png',
     description: 'Смешивает твёрдые материалы с жидкостями/газами для создания продвинутых ресурсов. 2 конвейерных + 2 трубных входа, 1 конвейерный + 1 трубный выход. Потребляет 75 МВт.' },
   { id: 'particle_accelerator', name: 'Particle Accelerator', nameRu: 'Ускоритель частиц', category: BuildingCategory.Production, subcategory: 'Производство деталей',
+    modelPath: '/kits/City Kit Industrial/Models/GLB format/building-g.glb',
+    iconPath: '/kits/City Kit Industrial/Previews/building-g.png',
     description: 'Мощнейшая установка для производства ядерной пасты, плутониевых стержней и фиксония. 2 конвейерных входа + 1 трубный, 1 конвейерный выход. Потребление варьируется: 250–1500 МВт.' },
   { id: 'converter', name: 'Converter', nameRu: 'Преобразователь', category: BuildingCategory.Production, subcategory: 'Производство деталей',
+    modelPath: '/kits/City Kit Industrial/Models/GLB format/building-e.glb',
+    iconPath: '/kits/City Kit Industrial/Previews/building-e.png',
     description: 'Преобразует один материал в другой с использованием активированной СИМ и других ресурсов. 1 конвейерный и 1 трубный вход/выход. Потребляет 100 МВт.' },
   { id: 'quantum_encoder', name: 'Quantum Encoder', nameRu: 'Квантовый шифратор', category: BuildingCategory.Production, subcategory: 'Производство деталей',
+    modelPath: '/kits/City Kit Industrial/Models/GLB format/building-f.glb',
+    iconPath: '/kits/City Kit Industrial/Previews/building-f.png',
     description: 'Самая сложная и дорогая производственная машина в игре. Использует возбуждённую фотонную энергию из преобразователя для создания финальных компонентов. 1 конвейерный выход. Потребление: 0–2000 МВт.' },
 
   // — Добыча ресурсов —
@@ -266,7 +289,11 @@ export const BuildMenu: FC<BuildMenuProps> = ({ isOpen, onClose, onSelectBuildin
                     onMouseEnter={() => setHoveredItem(building)}
                     onMouseLeave={() => setHoveredItem(null)}
                   >
-                    <div className="item-icon">{isSpecial ? '🏛️' : '🏭'}</div>
+                    {building.iconPath ? (
+                      <img className="item-icon-preview" src={building.iconPath} alt={building.nameRu} />
+                    ) : (
+                      <div className="item-icon">{isSpecial ? '🏛️' : '🏭'}</div>
+                    )}
                     <div className="item-name">{building.nameRu}</div>
                   </button>
                 ))}
@@ -279,9 +306,14 @@ export const BuildMenu: FC<BuildMenuProps> = ({ isOpen, onClose, onSelectBuildin
         <div className="build-menu-details">
           {hoveredItem ? (
             <>
-              <div className="detail-icon">🏭</div>
+              {hoveredItem.iconPath ? (
+                <img className="detail-icon-preview" src={hoveredItem.iconPath} alt={hoveredItem.nameRu} />
+              ) : (
+                <div className="detail-icon">🏭</div>
+              )}
               <h3>{hoveredItem.nameRu}</h3>
               <p className="detail-name-en">{hoveredItem.name}</p>
+              {hoveredItem.modelPath && <p className="detail-name-en">Модель: {hoveredItem.modelPath}</p>}
               <p className="detail-desc">{hoveredItem.description}</p>
             </>
           ) : (

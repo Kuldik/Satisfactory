@@ -164,6 +164,16 @@
   font-size: 28px;
 }
 
+.item-icon-preview {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  image-rendering: auto;
+  border-radius: 6px;
+  background: rgba(9, 11, 23, 0.6);
+  padding: 4px;
+}
+
 .item-name {
   font-size: 11px;
   text-align: center;
@@ -185,6 +195,16 @@
 
 .detail-icon {
   font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.detail-icon-preview {
+  width: 128px;
+  height: 128px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: rgba(9, 11, 23, 0.7);
+  padding: 8px;
   margin-bottom: 16px;
 }
 
