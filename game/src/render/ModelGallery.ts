@@ -63,6 +63,20 @@ const KIT_CATEGORY_MAX_SIZE: Record<string, Record<ModelCategory, number>> = {
     buildings: 15,
     other: 15,
   },
+  'City Kit Commercial': {
+    belts: 20,
+    pipes: 20,
+    trains: 20,
+    buildings: 20,
+    other: 20,
+  },
+  'Building Kit': {
+    belts: 10,
+    pipes: 10,
+    trains: 10,
+    buildings: 10,
+    other: 10,
+  },
 };
 
 /** All available kits with their GLB model files */
@@ -96,6 +110,16 @@ const KITS: KitDefinition[] = [
     name: 'Modular Buildings',
     basePath: '/kits/Modular Buildings/Models/GLB format/',
     overviewPath: '/kits/Modular Buildings/Overview.html',
+  },
+  {
+    name: 'City Kit Commercial',
+    basePath: '/kits/kenney_city-kit-commercial_2.1/Models/GLB format/',
+    overviewPath: '/kits/kenney_city-kit-commercial_2.1/Overview.html',
+  },
+  {
+    name: 'Building Kit',
+    basePath: '/kits/kenney_building-kit/Models/GLB format/',
+    overviewPath: '/kits/kenney_building-kit/Overview.html',
   },
 ];
 
@@ -162,6 +186,7 @@ export class ModelGallery {
       globalIndex += kit.models.length;
     }
 
+    await this.addBuildingKitExamples();
     console.log(`[ModelGallery] Loaded ${this.loadedCount}/${this.totalCount} models`);
   }
 
@@ -288,7 +313,13 @@ export class ModelGallery {
       name.startsWith('wall') ||
       name.startsWith('room') ||
       name.startsWith('corridor') ||
-      name.startsWith('roof')
+      name.startsWith('roof') ||
+      name.startsWith('floor') ||
+      name.startsWith('stairs') ||
+      name.startsWith('column') ||
+      name.startsWith('border') ||
+      name.startsWith('plating') ||
+      name.startsWith('gutter')
     ) {
       return 'buildings';
     }
@@ -383,5 +414,98 @@ export class ModelGallery {
 
     // Still add label
     this.addModelLabel(`❌ ${fileName.replace('.glb', '')}`, x, -0.5, z);
+  }
+
+  /** Add 2 hand-made examples assembled from Building Kit parts */
+  private async addBuildingKitExamples(): Promise<void> {
+    const buildingKitBase = '/kits/kenney_building-kit/Models/GLB format/';
+    const anchorX = this.GALLERY_OFFSET_X - 220;
+    const anchorZ = this.GALLERY_OFFSET_Z - 35;
+    const moduleSize = 4;
+
+    const parts = [
+      'wall.glb',
+      'wall-window-square.glb',
+      'wall-doorway-square.glb',
+      'floor.glb',
+      'roof-flat-center.glb',
+      'stairs-open.glb',
+    ];
+
+    const loaded = await Promise.all(
+      parts.map(async (part) => {
+        const gltf = await this.loadGLB(buildingKitBase + part);
+        return [part, gltf.scene] as const;
+      }),
+    );
+    const partMap = new Map<string, THREE.Group>(loaded);
+
+    // Derive one common scale so modular pieces still fit each other.
+    const wallRef = partMap.get('wall.glb')?.clone();
+    if (!wallRef) return;
+    const wallBox = new THREE.Box3().setFromObject(wallRef);
+    const wallSize = wallBox.getSize(new THREE.Vector3());
+    const wallMaxHorizontal = Math.max(wallSize.x, wallSize.z);
+    const commonScale = wallMaxHorizontal > 0 ? moduleSize / wallMaxHorizontal : 1;
+
+    const spawnPart = (name: string, x: number, z: number, rotY = 0): THREE.Group => {
+      const src = partMap.get(name);
+      if (!src) return new THREE.Group();
+      const model = src.clone();
+      model.scale.setScalar(commonScale);
+
+      const box = new THREE.Box3().setFromObject(model);
+      const center = box.getCenter(new THREE.Vector3());
+      model.position.set(x - center.x, -box.min.y, z - center.z);
+      model.rotation.y = rotY;
+
+      model.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+
+      return model;
+    };
+
+    const machineHall = new THREE.Group();
+    machineHall.name = 'building-kit-example-machine-hall';
+    machineHall.add(spawnPart('floor.glb', anchorX, anchorZ));
+    machineHall.add(spawnPart('roof-flat-center.glb', anchorX, anchorZ));
+    machineHall.add(spawnPart('wall.glb', anchorX, anchorZ - moduleSize / 2));
+    machineHall.add(spawnPart('wall-window-square.glb', anchorX + moduleSize / 2, anchorZ, Math.PI / 2));
+    machineHall.add(spawnPart('wall-window-square.glb', anchorX - moduleSize / 2, anchorZ, Math.PI / 2));
+    machineHall.add(spawnPart('wall-doorway-square.glb', anchorX, anchorZ + moduleSize / 2, Math.PI));
+    this.galleryGroup.add(machineHall);
+    this.addModelLabel('Building Kit Example: Hall', anchorX, moduleSize + 1.5, anchorZ);
+
+    const centerX = 120;
+    const centerZ = 80;
+    const g = new THREE.Group();
+
+    g.add(spawnPart('floor.glb', centerX, centerZ));
+    g.add(spawnPart('wall.glb', centerX, centerZ - moduleSize / 2));
+    g.add(spawnPart('wall-window-square.glb', centerX + moduleSize / 2, centerZ, Math.PI / 2));
+    g.add(spawnPart('wall-window-square.glb', centerX - moduleSize / 2, centerZ, Math.PI / 2));
+    g.add(spawnPart('wall-doorway-square.glb', centerX, centerZ + moduleSize / 2, Math.PI));
+    g.add(spawnPart('roof-flat-center.glb', centerX, centerZ));
+
+    this.galleryGroup.add(g);
+    this.addModelLabel('Custom Module', centerX, moduleSize + 1.5, centerZ);
+
+    const stairTowerX = anchorX + 28;
+    const stairTowerZ = anchorZ;
+    const stairTower = new THREE.Group();
+    stairTower.name = 'building-kit-example-stair-tower';
+    stairTower.add(spawnPart('floor.glb', stairTowerX, stairTowerZ));
+    stairTower.add(spawnPart('wall-window-square.glb', stairTowerX, stairTowerZ - moduleSize / 2));
+    stairTower.add(spawnPart('wall.glb', stairTowerX + moduleSize / 2, stairTowerZ, Math.PI / 2));
+    stairTower.add(spawnPart('stairs-open.glb', stairTowerX - 0.4, stairTowerZ + 0.4, Math.PI / 2));
+    stairTower.add(spawnPart('roof-flat-center.glb', stairTowerX, stairTowerZ));
+    this.galleryGroup.add(stairTower);
+    this.addModelLabel('Building Kit Example: Stair Tower', stairTowerX, moduleSize + 1.5, stairTowerZ);
+
+    this.addKitBanner('Building Kit Examples', anchorX - 10, anchorZ - 18);
   }
 }

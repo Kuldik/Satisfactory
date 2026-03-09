@@ -32,6 +32,8 @@ const ALL_BUILDINGS: BuildMenuItem[] = [
     iconPath: '/kits/City Kit Industrial/Previews/building-a.png',
     description: 'Центральное здание вашей фабрики. Через ХАБ происходит разблокировка новых технологий посредством вехных заданий (Milestones). Имеет 6 входов для конвейерных лент для автоматической загрузки ресурсов.' },
   { id: 'space_elevator', name: 'Space Elevator', nameRu: 'Космический лифт', category: BuildingCategory.Special, subcategory: 'Особые строения',
+    modelPath: '/kits/kenney_city-kit-commercial_2.1/Models/GLB format/low-detail-building-m.glb',
+    iconPath: '/kits/kenney_city-kit-commercial_2.1/Previews/low-detail-building-m.png',
     description: 'Массивное сооружение, необходимое для глобальной прогрессии проекта. Доставка специальных деталей (Smart Plating, Versatile Framework и др.) открывает новые уровни технологий. Всего 5 фаз.' },
   { id: 'resource_sink', name: 'AWESOME Sink', nameRu: 'Утилизатор', category: BuildingCategory.Special, subcategory: 'Особые строения',
     modelPath: '/kits/City Kit Industrial/Models/GLB format/building-o.glb',

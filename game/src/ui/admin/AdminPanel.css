@@ -1,0 +1,292 @@
+/* ============================================================
+   AdminPanel — DEV visual builder, dark sci-fi style
+   ============================================================ */
+
+.admin-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  backdrop-filter: blur(3px);
+}
+
+.admin-panel {
+  display: flex;
+  flex-direction: column;
+  width: 92vw;
+  max-width: 1300px;
+  height: 85vh;
+  background: rgba(10, 12, 26, 0.97);
+  border: 1px solid rgba(255, 200, 50, 0.35);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 0 60px rgba(255, 180, 0, 0.12), 0 8px 60px rgba(0, 0, 0, 0.85);
+}
+
+/* Header */
+.admin-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  background: rgba(40, 30, 5, 0.9);
+  border-bottom: 1px solid rgba(255, 180, 0, 0.25);
+  flex-shrink: 0;
+}
+
+.admin-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffcc44;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.admin-builder-hint {
+  flex: 1;
+  font-size: 12px;
+  color: #88ddff;
+  text-align: center;
+  padding: 4px 12px;
+  background: rgba(0, 100, 180, 0.2);
+  border: 1px solid rgba(0, 150, 255, 0.3);
+  border-radius: 6px;
+  animation: pulse-hint 2s ease-in-out infinite;
+}
+
+@keyframes pulse-hint {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.65; }
+}
+
+.admin-close-btn {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid rgba(255, 100, 80, 0.4);
+  color: #ff8877;
+  font-size: 18px;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  line-height: 1;
+  transition: all 0.15s;
+}
+.admin-close-btn:hover {
+  background: rgba(255, 80, 60, 0.25);
+  color: #ffffff;
+}
+
+/* Body */
+.admin-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Left: categories */
+.admin-categories {
+  width: 130px;
+  min-width: 130px;
+  background: rgba(8, 10, 22, 0.95);
+  border-right: 1px solid rgba(255, 180, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  padding: 10px 0;
+  overflow-y: auto;
+}
+
+.admin-cat-btn {
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  color: #8899aa;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.12s;
+}
+.admin-cat-btn:hover {
+  background: rgba(255, 180, 0, 0.06);
+  color: #ddcc88;
+}
+.admin-cat-btn.active {
+  background: rgba(255, 180, 0, 0.1);
+  border-left-color: #ffcc44;
+  color: #ffcc44;
+}
+
+/* Center: parts grid */
+.admin-parts-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 8px;
+  padding: 14px;
+  overflow-y: auto;
+  align-content: start;
+}
+
+.admin-part-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px;
+  background: rgba(20, 24, 50, 0.8);
+  border: 1px solid rgba(80, 100, 180, 0.25);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.13s;
+  color: #aabbcc;
+}
+.admin-part-item:hover {
+  background: rgba(40, 50, 100, 0.9);
+  border-color: rgba(255, 180, 0, 0.5);
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(255, 180, 0, 0.12);
+}
+
+.admin-part-img {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  background: rgba(8, 10, 22, 0.6);
+  border-radius: 6px;
+  padding: 4px;
+}
+
+.admin-part-label {
+  font-size: 10px;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* Right: composition panel */
+.admin-composition {
+  width: 240px;
+  min-width: 240px;
+  background: rgba(8, 10, 22, 0.95);
+  border-left: 1px solid rgba(255, 180, 0, 0.12);
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.admin-comp-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffcc44;
+  letter-spacing: 1px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 180, 0, 0.15);
+}
+
+.admin-comp-stat {
+  font-size: 14px;
+  color: #aabbcc;
+}
+.admin-comp-stat strong {
+  color: #ffffff;
+  font-size: 18px;
+}
+
+.admin-comp-hint {
+  font-size: 11px;
+  color: #667788;
+  line-height: 1.6;
+}
+
+.admin-btn {
+  padding: 8px 12px;
+  background: rgba(40, 50, 100, 0.7);
+  border: 1px solid rgba(80, 100, 200, 0.4);
+  border-radius: 7px;
+  color: #aabbff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.13s;
+  text-align: center;
+}
+.admin-btn:hover:not(:disabled) {
+  background: rgba(60, 80, 160, 0.8);
+  border-color: rgba(100, 140, 255, 0.6);
+  color: #ffffff;
+}
+.admin-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.admin-btn-export {
+  background: rgba(30, 60, 20, 0.7);
+  border-color: rgba(60, 160, 60, 0.4);
+  color: #88dd88;
+}
+.admin-btn-export:hover:not(:disabled) {
+  background: rgba(40, 90, 30, 0.8);
+  border-color: rgba(80, 200, 80, 0.6);
+  color: #aaffaa;
+}
+
+.admin-btn-danger {
+  background: rgba(60, 15, 15, 0.7);
+  border-color: rgba(180, 50, 50, 0.4);
+  color: #ff8877;
+  margin-top: auto;
+}
+.admin-btn-danger:hover:not(:disabled) {
+  background: rgba(90, 20, 20, 0.9);
+  border-color: rgba(230, 80, 80, 0.6);
+  color: #ffcccc;
+}
+
+.admin-btn-row {
+  display: flex;
+  gap: 8px;
+}
+.admin-btn-row .admin-btn {
+  flex: 1;
+  font-size: 12px;
+  padding: 6px 8px;
+}
+
+.admin-json-area {
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  background: rgba(5, 7, 15, 0.9);
+  border: 1px solid rgba(60, 80, 160, 0.3);
+  border-radius: 6px;
+  color: #88bbff;
+  padding: 8px;
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.4;
+}
+
+/* Scrollbars */
+.admin-categories::-webkit-scrollbar,
+.admin-parts-grid::-webkit-scrollbar,
+.admin-composition::-webkit-scrollbar {
+  width: 5px;
+}
+.admin-categories::-webkit-scrollbar-track,
+.admin-parts-grid::-webkit-scrollbar-track,
+.admin-composition::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+.admin-categories::-webkit-scrollbar-thumb,
+.admin-parts-grid::-webkit-scrollbar-thumb,
+.admin-composition::-webkit-scrollbar-thumb {
+  background: rgba(255, 180, 0, 0.25);
+  border-radius: 3px;
+}

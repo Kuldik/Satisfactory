@@ -187,6 +187,82 @@ export class Engine {
     return this.gridManager;
   }
 
+  // ---- Admin Builder API ----
+
+  async enterBuilderPartMode(partPath: string): Promise<void> {
+    await this.sceneManager.setBuilderGhost(partPath);
+  }
+
+  updateBuilderGhost(ndcX: number, ndcY: number): void {
+    this.sceneManager.updateBuilderGhostPosition(ndcX, ndcY);
+  }
+
+  placeBuilderPart(): boolean {
+    return this.sceneManager.placeBuilderPart();
+  }
+
+  rotateBuilderGhost(dir: 1 | -1): void {
+    this.sceneManager.rotateBuilderGhost(dir);
+  }
+
+  cancelBuilderGhost(): void {
+    this.sceneManager.clearBuilderGhost();
+  }
+
+  clearBuilderComposition(): void {
+    this.sceneManager.clearBuilderComposition();
+  }
+
+  exportBuilderComposition(): string {
+    return this.sceneManager.exportBuilderComposition();
+  }
+
+  async importBuilderComposition(json: string): Promise<number> {
+    return this.sceneManager.importBuilderComposition(json);
+  }
+
+  adjustBuilderScale(delta: number): number {
+    return this.sceneManager.adjustBuilderScale(delta);
+  }
+
+  getBuilderScale(): number {
+    return this.sceneManager.getBuilderScale();
+  }
+
+  cycleBuilderMode(): 'single' | 'line' {
+    return this.sceneManager.cycleBuilderMode();
+  }
+
+  setBuilderMode(mode: 'single' | 'line'): void {
+    this.sceneManager.setBuilderMode(mode);
+  }
+
+  getBuilderMode(): 'single' | 'line' {
+    return this.sceneManager.getBuilderMode();
+  }
+
+  toggleBuilderDeconstructMode(): boolean {
+    return this.sceneManager.toggleBuilderDeconstructMode();
+  }
+
+  setBuilderDeconstructMode(enabled: boolean): void {
+    this.sceneManager.setBuilderDeconstructMode(enabled);
+  }
+
+  isBuilderDeconstructMode(): boolean {
+    return this.sceneManager.isBuilderDeconstructMode();
+  }
+
+  getBuilderPlacedCount(): number {
+    return this.sceneManager.getBuilderPlacedCount();
+  }
+
+  isBuilderGhostActive(): boolean {
+    return this.sceneManager.isBuilderGhostActive();
+  }
+
+  // ---- Handle window resize ----
+
   /** Handle window resize */
   resize(width: number, height: number): void {
     this.sceneManager.resize(width, height);

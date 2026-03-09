@@ -11,9 +11,12 @@ interface HUDProps {
   gameState: GameState;
   onOpenBuildMenu: () => void;
   onOpenInventory: () => void;
+  /** DEV only — shows admin builder button when provided */
+  onOpenAdminPanel?: () => void;
+  isBuilderActive?: boolean;
 }
 
-export const HUD: FC<HUDProps> = ({ gameState, onOpenBuildMenu, onOpenInventory }) => {
+export const HUD: FC<HUDProps> = ({ gameState, onOpenBuildMenu, onOpenInventory, onOpenAdminPanel, isBuilderActive }) => {
   const formatTime = (seconds: number): string => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -48,13 +51,22 @@ export const HUD: FC<HUDProps> = ({ gameState, onOpenBuildMenu, onOpenInventory 
         <button className="hud-action-btn" onClick={onOpenInventory} title="B">
           📦 Инвентарь (B)
         </button>
+        {onOpenAdminPanel && (
+          <button
+            className={`hud-action-btn hud-action-btn-admin${isBuilderActive ? ' active' : ''}`}
+            onClick={onOpenAdminPanel}
+            title="~ — Конструктор (DEV)"
+          >
+            👑 Конструктор
+          </button>
+        )}
       </div>
 
       {/* Build preview info */}
       {gameState.selectedBuilding && (
         <div className="hud-build-info">
           Размещение: <strong>{gameState.selectedBuilding}</strong>
-          <span className="hud-hint">ЛКМ — поставить | R — повернуть | Esc — отмена</span>
+          <span className="hud-hint">ЛКМ — поставить | T — повернуть | R — режим | F — деконстр. | Esc — отмена</span>
         </div>
       )}
 

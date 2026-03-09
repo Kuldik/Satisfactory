@@ -22,6 +22,7 @@ const MODEL_REGISTRY: Record<string, string> = {
 
   // City Kit Industrial mappings for key factory buildings
   'hub':                   '/kits/City Kit Industrial/Models/GLB format/building-a.glb',
+  'space_elevator':        '/kits/kenney_city-kit-commercial_2.1/Models/GLB format/low-detail-building-m.glb',
   'resource_sink':         '/kits/City Kit Industrial/Models/GLB format/building-o.glb',
   'constructor':           '/kits/City Kit Industrial/Models/GLB format/building-p.glb',
   'assembler':             '/kits/City Kit Industrial/Models/GLB format/building-q.glb',
@@ -50,6 +51,11 @@ const MODEL_REGISTRY: Record<string, string> = {
 
   // Power poles (placeholder geometry)
   'power_pole_mk1': '/assets/models/station/computerScreen.glb',
+};
+
+/** Optional per-building model scale multiplier */
+const MODEL_SCALE_OVERRIDES: Record<string, number> = {
+  space_elevator: 20,
 };
 
 export class AssetLoader {
@@ -118,7 +124,12 @@ export class AssetLoader {
     try {
       const model = await this.loadModel(modelPath, buildingId);
       // Clone the scene for instancing
-      return model.scene.clone();
+      const instance = model.scene.clone();
+      const scale = MODEL_SCALE_OVERRIDES[buildingId] ?? 1;
+      if (scale !== 1) {
+        instance.scale.multiplyScalar(scale);
+      }
+      return instance;
     } catch {
       return null;
     }
