@@ -11,7 +11,7 @@ import { BuildMenu } from './ui/menus/BuildMenu.tsx';
 import { AdminPanel } from './ui/admin/AdminPanel.tsx';
 import './App.css';
 
-const IS_DEV = import.meta.env.DEV !== false;
+const IS_DEV = true; // TODO: revert to `import.meta.env.DEV !== false` for dev-only access
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
