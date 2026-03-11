@@ -1,0 +1,28 @@
+{
+  "parts": [
+    {
+      "partName": "gutter-vertical-bottom.glb",
+      "position": { "x": 0, "y": 0, "z": 3 },
+      "rotationY": 6.2832,
+      "scale": 20
+    },
+    {
+      "partName": "gutter-vertical-top.glb",
+      "position": { "x": 0, "y": 6, "z": 3 },
+      "rotationY": 3.1416,
+      "scale": 20
+    },
+    {
+      "partName": "gutter-vertical-bottom.glb",
+      "position": { "x": 0, "y": 0, "z": -3 },
+      "rotationY": 3.1416,
+      "scale": 20
+    },
+    {
+      "partName": "gutter-vertical-top.glb",
+      "position": { "x": 0, "y": 6, "z": -3 },
+      "rotationY": 0,
+      "scale": 20
+    }
+  ]
+}

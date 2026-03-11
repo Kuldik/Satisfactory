@@ -1,0 +1,614 @@
+{
+  "parts": [
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": -14.493,
+        "y": 0,
+        "z": 6.048
+      },
+      "rotationY": 4.7124,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": -8.493,
+        "y": 0,
+        "z": 6.048
+      },
+      "rotationY": 4.7124,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": -2.493,
+        "y": 0,
+        "z": 6.048
+      },
+      "rotationY": 4.7124,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 3.507,
+        "y": 0,
+        "z": 6.048
+      },
+      "rotationY": 4.7124,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 9.507,
+        "y": 0,
+        "z": 6.048
+      },
+      "rotationY": 4.7124,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 12.357,
+        "y": 0,
+        "z": 2.898
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 12.357,
+        "y": 0,
+        "z": -3.102
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 9.507,
+        "y": 0,
+        "z": -6.252
+      },
+      "rotationY": 4.7124,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 3.507,
+        "y": 0,
+        "z": -6.252
+      },
+      "rotationY": 4.7124,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": -2.493,
+        "y": 0,
+        "z": -6.252
+      },
+      "rotationY": 4.7124,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": -8.493,
+        "y": 0,
+        "z": -6.252
+      },
+      "rotationY": 4.7124,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": -14.493,
+        "y": 0,
+        "z": -6.252
+      },
+      "rotationY": 4.7124,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": -17.343,
+        "y": 0,
+        "z": 2.898
+      },
+      "rotationY": 6.2832,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": -17.343,
+        "y": 0,
+        "z": -3.102
+      },
+      "rotationY": 6.2832,
+      "scale": 3
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": -14.593,
+        "y": 7.2,
+        "z": -3.302
+      },
+      "rotationY": 3.1416,
+      "scale": 3.1
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": -14.593,
+        "y": 7.2,
+        "z": 2.898
+      },
+      "rotationY": 3.1416,
+      "scale": 3.1
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": -8.393,
+        "y": 7.2,
+        "z": -3.302
+      },
+      "rotationY": 3.1416,
+      "scale": 3.1
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": -2.193,
+        "y": 7.2,
+        "z": -3.302
+      },
+      "rotationY": 3.1416,
+      "scale": 3.1
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": 4.007,
+        "y": 7.2,
+        "z": -3.302
+      },
+      "rotationY": 3.1416,
+      "scale": 3.1
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": 10.207,
+        "y": 7.2,
+        "z": -3.302
+      },
+      "rotationY": 3.1416,
+      "scale": 3.1
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": -8.393,
+        "y": 7.2,
+        "z": 3.098
+      },
+      "rotationY": 3.1416,
+      "scale": 3.1
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": -2.193,
+        "y": 7.2,
+        "z": 3.098
+      },
+      "rotationY": 3.1416,
+      "scale": 3.1
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": 4.007,
+        "y": 7.2,
+        "z": 3.098
+      },
+      "rotationY": 3.1416,
+      "scale": 3.1
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": 10.207,
+        "y": 7.2,
+        "z": 3.098
+      },
+      "rotationY": 3.1416,
+      "scale": 3.1
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 12.657,
+        "y": 0,
+        "z": 6.048
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 12.657,
+        "y": 0,
+        "z": 0.048
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 12.657,
+        "y": 0,
+        "z": -5.952
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 13.107,
+        "y": 0,
+        "z": 6.048
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 13.107,
+        "y": 0,
+        "z": 0.048
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 13.107,
+        "y": 0,
+        "z": -5.952
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "detail-pipe.glb",
+      "position": {
+        "x": -12.493,
+        "y": 7.51,
+        "z": 4.048
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "detail-pipe.glb",
+      "position": {
+        "x": -12.493,
+        "y": 7.51,
+        "z": 2.745
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "detail-pipe.glb",
+      "position": {
+        "x": -12.493,
+        "y": 7.51,
+        "z": 1.443
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "detail-pipe.glb",
+      "position": {
+        "x": -12.493,
+        "y": 7.51,
+        "z": 0.14
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "detail-pipe.glb",
+      "position": {
+        "x": -12.493,
+        "y": 7.51,
+        "z": -1.162
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "detail-pipe.glb",
+      "position": {
+        "x": -12.493,
+        "y": 7.51,
+        "z": -2.465
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "detail-pipe.glb",
+      "position": {
+        "x": -12.493,
+        "y": 7.51,
+        "z": -3.767
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 10.597,
+        "y": 7.51,
+        "z": -3.102
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 10.597,
+        "y": 7.51,
+        "z": 0.118
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 7.377,
+        "y": 7.51,
+        "z": -3.102
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 7.377,
+        "y": 7.51,
+        "z": 0.118
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 7.377,
+        "y": 18.55,
+        "z": -3.102
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 10.597,
+        "y": 18.55,
+        "z": 0.118
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 7.377,
+        "y": 18.55,
+        "z": 0.118
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 10.597,
+        "y": 18.55,
+        "z": -3.102
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 7.377,
+        "y": 7.51,
+        "z": 3.338
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 10.597,
+        "y": 7.51,
+        "z": 3.338
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 7.377,
+        "y": 18.55,
+        "z": 3.338
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 10.597,
+        "y": 18.55,
+        "z": 3.338
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 4.157,
+        "y": 7.51,
+        "z": 0.118
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "wall-doorway-wide-square.glb",
+      "position": {
+        "x": -18.013,
+        "y": 0,
+        "z": -0.002
+      },
+      "rotationY": 3.1416,
+      "scale": 3.2
+    },
+    {
+      "partName": "roof-flat-side.glb",
+      "position": {
+        "x": -1.773,
+        "y": 7.51,
+        "z": -3.302
+      },
+      "rotationY": 0,
+      "scale": 3.2
+    },
+    {
+      "partName": "roof-flat-side.glb",
+      "position": {
+        "x": -1.773,
+        "y": 7.51,
+        "z": 3.098
+      },
+      "rotationY": 0,
+      "scale": 3.2
+    },
+    {
+      "partName": "stairs-center-short.glb",
+      "position": {
+        "x": 10.207,
+        "y": 0,
+        "z": 9.398
+      },
+      "rotationY": 3.1416,
+      "scale": 3.2
+    },
+    {
+      "partName": "stairs-center-short.glb",
+      "position": {
+        "x": 10.207,
+        "y": 0,
+        "z": -9.602
+      },
+      "rotationY": 6.2832,
+      "scale": 3.2
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": -18.013,
+        "y": 0,
+        "z": 7.518
+      },
+      "rotationY": 0,
+      "scale": 3.2
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": -18.013,
+        "y": 0,
+        "z": -7.522
+      },
+      "rotationY": 0,
+      "scale": 3.2
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 14.077,
+        "y": 0,
+        "z": 10.168
+      },
+      "rotationY": 0,
+      "scale": 3.2
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 14.077,
+        "y": 0,
+        "z": -10.072
+      },
+      "rotationY": 0,
+      "scale": 3.2
+    },
+    {
+      "partName": "gutter-vertical-wall.glb",
+      "position": {
+        "x": -17.987,
+        "y": 7.68,
+        "z": 6.048
+      },
+      "rotationY": 0,
+      "scale": 3.2
+    },
+    {
+      "partName": "gutter-vertical-wall.glb",
+      "position": {
+        "x": -17.987,
+        "y": 7.68,
+        "z": -5.908
+      },
+      "rotationY": 0,
+      "scale": 3.2
+    }
+  ]
+}

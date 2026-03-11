@@ -1,0 +1,984 @@
+{
+  "parts": [
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": -14.078,
+        "y": 0,
+        "z": 5.267
+      },
+      "rotationY": 4.7124,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": -8.078,
+        "y": 0,
+        "z": 5.267
+      },
+      "rotationY": 4.7124,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": -2.078,
+        "y": 0,
+        "z": 5.267
+      },
+      "rotationY": 4.7124,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 3.922,
+        "y": 0,
+        "z": 5.267
+      },
+      "rotationY": 4.7124,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 9.922,
+        "y": 0,
+        "z": 5.267
+      },
+      "rotationY": 4.7124,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 12.772,
+        "y": 0,
+        "z": 2.117
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 12.772,
+        "y": 0,
+        "z": -3.883
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 9.922,
+        "y": 0,
+        "z": -7.033
+      },
+      "rotationY": 4.7124,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 3.922,
+        "y": 0,
+        "z": -7.033
+      },
+      "rotationY": 4.7124,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": -2.078,
+        "y": 0,
+        "z": -7.033
+      },
+      "rotationY": 4.7124,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": -8.078,
+        "y": 0,
+        "z": -7.033
+      },
+      "rotationY": 4.7124,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": -14.078,
+        "y": 0,
+        "z": -7.033
+      },
+      "rotationY": 4.7124,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": -16.928,
+        "y": 0,
+        "z": 2.117
+      },
+      "rotationY": 6.2832,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": -16.928,
+        "y": 0,
+        "z": -3.883
+      },
+      "rotationY": 6.2832,
+      "scale": 3
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": -14.178,
+        "y": 7.2,
+        "z": -4.083
+      },
+      "rotationY": 3.1416,
+      "scale": 3.1
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": -7.978,
+        "y": 7.2,
+        "z": -4.083
+      },
+      "rotationY": 3.1416,
+      "scale": 3.1
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": -1.778,
+        "y": 7.2,
+        "z": -4.083
+      },
+      "rotationY": 3.1416,
+      "scale": 3.1
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": 4.422,
+        "y": 7.2,
+        "z": -4.083
+      },
+      "rotationY": 3.1416,
+      "scale": 3.1
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": -7.978,
+        "y": 7.2,
+        "z": 2.317
+      },
+      "rotationY": 3.1416,
+      "scale": 3.1
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": -1.778,
+        "y": 7.2,
+        "z": 2.317
+      },
+      "rotationY": 3.1416,
+      "scale": 3.1
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": 4.422,
+        "y": 7.2,
+        "z": 2.317
+      },
+      "rotationY": 3.1416,
+      "scale": 3.1
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": 10.622,
+        "y": 7.2,
+        "z": 2.317
+      },
+      "rotationY": 3.1416,
+      "scale": 3.1
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 13.072,
+        "y": 0,
+        "z": 5.267
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 13.072,
+        "y": 0,
+        "z": -0.733
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 13.072,
+        "y": 0,
+        "z": -6.733
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 13.522,
+        "y": 0,
+        "z": 5.267
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 13.522,
+        "y": 0,
+        "z": -0.733
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "wall.glb",
+      "position": {
+        "x": 13.522,
+        "y": 0,
+        "z": -6.733
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 11.012,
+        "y": 7.51,
+        "z": -3.883
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 11.012,
+        "y": 7.51,
+        "z": -0.663
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 7.792,
+        "y": 7.51,
+        "z": -3.883
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 7.792,
+        "y": 7.51,
+        "z": -0.663
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 7.792,
+        "y": 18.55,
+        "z": -3.883
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 11.012,
+        "y": 18.55,
+        "z": -0.663
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 7.792,
+        "y": 18.55,
+        "z": -0.663
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 11.012,
+        "y": 18.55,
+        "z": -3.883
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 7.792,
+        "y": 7.51,
+        "z": 2.557
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 11.012,
+        "y": 7.51,
+        "z": 2.557
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 7.792,
+        "y": 18.55,
+        "z": 2.557
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 11.012,
+        "y": 18.55,
+        "z": 2.557
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 4.572,
+        "y": 7.51,
+        "z": -0.663
+      },
+      "rotationY": 3.1416,
+      "scale": 4.6
+    },
+    {
+      "partName": "wall-doorway-wide-square.glb",
+      "position": {
+        "x": -17.598,
+        "y": 0,
+        "z": -0.783
+      },
+      "rotationY": 3.1416,
+      "scale": 3.2
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": -17.598,
+        "y": 0,
+        "z": 6.737
+      },
+      "rotationY": 0,
+      "scale": 3.2
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": -17.598,
+        "y": 0,
+        "z": -8.303
+      },
+      "rotationY": 0,
+      "scale": 3.2
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 14.492,
+        "y": 0,
+        "z": 9.387
+      },
+      "rotationY": 0,
+      "scale": 3.2
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 14.492,
+        "y": 0,
+        "z": -10.853
+      },
+      "rotationY": 0,
+      "scale": 3.2
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 4.607,
+        "y": 18.55,
+        "z": -0.663
+      },
+      "rotationY": 0,
+      "scale": 4.5
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 80.415,
+        "y": 0,
+        "z": 79.219
+      },
+      "rotationY": 0,
+      "scale": 4.5
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 1.387,
+        "y": 7.51,
+        "z": -0.663
+      },
+      "rotationY": 0,
+      "scale": 4.5
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": {
+        "x": 1.457,
+        "y": 18.31,
+        "z": -0.663
+      },
+      "rotationY": 0,
+      "scale": 4.5
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": -14.078,
+        "y": 7.2,
+        "z": 1.967
+      },
+      "rotationY": 0,
+      "scale": 3
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": -14.078,
+        "y": 7.51,
+        "z": -4.083
+      },
+      "rotationY": 0,
+      "scale": 3
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": -14.078,
+        "y": 7.5,
+        "z": 1.917
+      },
+      "rotationY": 0,
+      "scale": 3
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": -8.078,
+        "y": 7.51,
+        "z": -4.083
+      },
+      "rotationY": 0,
+      "scale": 3
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": -8.078,
+        "y": 7.51,
+        "z": 1.917
+      },
+      "rotationY": 0,
+      "scale": 3
+    },
+    {
+      "partName": "roof-flat-corner.glb",
+      "position": {
+        "x": -7.848,
+        "y": 7.81,
+        "z": -4.083
+      },
+      "rotationY": 1.5708,
+      "scale": 2.7
+    },
+    {
+      "partName": "roof-flat-corner.glb",
+      "position": {
+        "x": -13.788,
+        "y": 7.81,
+        "z": -4.083
+      },
+      "rotationY": 3.1416,
+      "scale": 2.7
+    },
+    {
+      "partName": "roof-flat-corner.glb",
+      "position": {
+        "x": -7.848,
+        "y": 7.8,
+        "z": 1.857
+      },
+      "rotationY": 6.2832,
+      "scale": 2.7
+    },
+    {
+      "partName": "roof-flat-corner.glb",
+      "position": {
+        "x": -13.788,
+        "y": 7.8,
+        "z": 1.857
+      },
+      "rotationY": 4.7124,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": -13.778,
+        "y": 0,
+        "z": 6.737
+      },
+      "rotationY": 1.5708,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": -8.378,
+        "y": 0,
+        "z": 6.737
+      },
+      "rotationY": 7.854,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": -2.978,
+        "y": 0,
+        "z": 6.737
+      },
+      "rotationY": 7.854,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": 2.422,
+        "y": 0,
+        "z": 6.737
+      },
+      "rotationY": 7.854,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": -13.778,
+        "y": 2.7,
+        "z": 7.075
+      },
+      "rotationY": 7.854,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": -8.378,
+        "y": 2.7,
+        "z": 7.075
+      },
+      "rotationY": 7.854,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": -2.978,
+        "y": 2.7,
+        "z": 7.075
+      },
+      "rotationY": 7.854,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": 2.422,
+        "y": 2.7,
+        "z": 7.075
+      },
+      "rotationY": 7.854,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": -13.778,
+        "y": 5.4,
+        "z": 7.244
+      },
+      "rotationY": 7.854,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": -8.378,
+        "y": 5.4,
+        "z": 7.244
+      },
+      "rotationY": 7.854,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": -2.978,
+        "y": 5.4,
+        "z": 7.244
+      },
+      "rotationY": 7.854,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": 2.422,
+        "y": 5.4,
+        "z": 7.244
+      },
+      "rotationY": 7.854,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": -13.778,
+        "y": 0,
+        "z": -8.303
+      },
+      "rotationY": 1.5708,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": -8.378,
+        "y": 0,
+        "z": -8.303
+      },
+      "rotationY": 1.5708,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": -2.978,
+        "y": 0,
+        "z": -8.303
+      },
+      "rotationY": 1.5708,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": 2.422,
+        "y": 0,
+        "z": -8.303
+      },
+      "rotationY": 1.5708,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": 2.422,
+        "y": 2.7,
+        "z": -8.64
+      },
+      "rotationY": 1.5708,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": -2.978,
+        "y": 2.7,
+        "z": -8.64
+      },
+      "rotationY": 1.5708,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": -8.378,
+        "y": 2.7,
+        "z": -8.64
+      },
+      "rotationY": 1.5708,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": -13.778,
+        "y": 2.7,
+        "z": -8.64
+      },
+      "rotationY": 1.5708,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": -13.778,
+        "y": 5.4,
+        "z": -8.64
+      },
+      "rotationY": 1.5708,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": -8.378,
+        "y": 5.4,
+        "z": -8.64
+      },
+      "rotationY": 1.5708,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": -2.978,
+        "y": 5.4,
+        "z": -8.64
+      },
+      "rotationY": 1.5708,
+      "scale": 2.7
+    },
+    {
+      "partName": "plating-detailed-wide.glb",
+      "position": {
+        "x": 2.422,
+        "y": 5.4,
+        "z": -8.64
+      },
+      "rotationY": 1.5708,
+      "scale": 2.7
+    },
+    {
+      "partName": "roof-flat-center.glb",
+      "position": {
+        "x": 10.622,
+        "y": 7.2,
+        "z": -4.483
+      },
+      "rotationY": 1.5708,
+      "scale": 2.7
+    },
+    {
+      "partName": "stairs-sides.glb",
+      "position": {
+        "x": 9.922,
+        "y": 0,
+        "z": 10.817
+      },
+      "rotationY": 3.1416,
+      "scale": 2.7
+    },
+    {
+      "partName": "stairs-sides.glb",
+      "position": {
+        "x": 9.922,
+        "y": 0,
+        "z": -12.583
+      },
+      "rotationY": 0,
+      "scale": 2.7
+    },
+    {
+      "partName": "gutter-vertical-wall.glb",
+      "position": {
+        "x": -16.894,
+        "y": 7.81,
+        "z": -8.888
+      },
+      "rotationY": 0,
+      "scale": 2.7
+    },
+    {
+      "partName": "gutter-vertical-wall.glb",
+      "position": {
+        "x": -16.894,
+        "y": 7.68,
+        "z": 7.244
+      },
+      "rotationY": 0,
+      "scale": 2.7
+    },
+    {
+      "partName": "gutter-vertical-wall.glb",
+      "position": {
+        "x": -4.462,
+        "y": 8.88,
+        "z": 2.317
+      },
+      "rotationY": 0,
+      "scale": 2.7
+    },
+    {
+      "partName": "gutter-vertical-wall.glb",
+      "position": {
+        "x": -4.462,
+        "y": 8.89,
+        "z": -4.083
+      },
+      "rotationY": 0,
+      "scale": 2.7
+    },
+    {
+      "partName": "column-thin.glb",
+      "position": {
+        "x": -19.258,
+        "y": 0,
+        "z": -8.303
+      },
+      "rotationY": 0,
+      "scale": 2.7
+    },
+    {
+      "partName": "column-thin.glb",
+      "position": {
+        "x": -19.258,
+        "y": 0,
+        "z": 6.737
+      },
+      "rotationY": 0,
+      "scale": 2.7
+    },
+    {
+      "partName": "column-thin.glb",
+      "position": {
+        "x": 16.152,
+        "y": 0,
+        "z": -10.853
+      },
+      "rotationY": 0,
+      "scale": 2.7
+    },
+    {
+      "partName": "column-thin.glb",
+      "position": {
+        "x": 16.152,
+        "y": 0,
+        "z": 9.387
+      },
+      "rotationY": 0,
+      "scale": 2.7
+    },
+    {
+      "partName": "detail-pipe.glb",
+      "position": {
+        "x": 10.415,
+        "y": 29.59,
+        "z": 3.219
+      },
+      "rotationY": 0,
+      "scale": 2.7
+    },
+    {
+      "partName": "detail-pipe.glb",
+      "position": {
+        "x": 8.657,
+        "y": 29.59,
+        "z": 3.219
+      },
+      "rotationY": 0,
+      "scale": 2.7
+    },
+    {
+      "partName": "detail-pipe.glb",
+      "position": {
+        "x": 8.816,
+        "y": 29.59,
+        "z": -4.907
+      },
+      "rotationY": 0,
+      "scale": 2.7
+    },
+    {
+      "partName": "detail-pipe.glb",
+      "position": {
+        "x": 10.574,
+        "y": 29.59,
+        "z": -4.907
+      },
+      "rotationY": 0,
+      "scale": 2.7
+    }
+  ]
+}

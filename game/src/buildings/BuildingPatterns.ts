@@ -5,7 +5,11 @@
 // composite structure as a single unit.
 // ============================================================
 
-import diggerlvl1 from './diggerlvl1.json';
+import diggerlvl1 from "./miners/diggerlvl1.json";
+import diggerlvl2 from "./miners/diggerlvl2.json";
+import diggerlvl3 from "./miners/diggerlvl3.json";
+import circleDetail from "../scenes/Detailing/circle.json";
+import extractor from "./waterSupply/extractor.json";
 
 export interface PatternPart {
   partName: string;
@@ -21,11 +25,11 @@ export interface BuildingPattern {
 }
 
 const raw: Record<string, { parts: PatternPart[] }> = {
-  'miner_mk1': diggerlvl1 as { parts: PatternPart[] },
-  // Add more patterns here as they are created:
-  // 'miner_mk2': diggerlvl2,
-  // 'constructor': constructorPattern,
-  // 'smelter': smelterPattern,
+  miner_mk1: diggerlvl1 as { parts: PatternPart[] },
+  miner_mk2: diggerlvl2 as { parts: PatternPart[] },
+  miner_mk3: diggerlvl3 as { parts: PatternPart[] },
+  detail_circle: circleDetail as { parts: PatternPart[] },
+  water_extractor: extractor as { parts: PatternPart[] },
 };
 
 const registry = new Map<string, BuildingPattern>();

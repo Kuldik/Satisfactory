@@ -90,6 +90,7 @@ const ALL_BUILDINGS: BuildMenuItem[] = [
 
   // — Экстракторы —
   { id: 'water_extractor', name: 'Water Extractor', nameRu: 'Экстрактор воды', category: BuildingCategory.Production, subcategory: 'Экстракторы',
+    iconPath: '/kits/kenney_building-kit/Previews/gutter-vertical-top.png',
     description: 'Добывает воду из водоёмов и направляет её по трубам. Производит 120 м³/мин. 1 трубный выход. Потребляет 20 МВт.' },
   { id: 'oil_extractor', name: 'Oil Extractor', nameRu: 'Экстрактор нефти', category: BuildingCategory.Production, subcategory: 'Экстракторы',
     description: 'Устанавливается на нефтяном узле для добычи сырой нефти. Производительность зависит от чистоты узла. 1 трубный выход. Потребляет 40 МВт.' },

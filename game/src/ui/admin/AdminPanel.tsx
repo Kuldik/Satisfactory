@@ -97,6 +97,7 @@ const BUILDER_PARTS: Record<string, PartDef[]> = {
     { name: 'border-high-corner-small',     label: 'Выс. мал.' },
   ],
   'Детали': [
+    { name: 'composition-detail_circle', label: 'Круг (детализация)' },
     { name: 'plating',                label: 'Обшивка' },
     { name: 'plating-wide',           label: 'Обш. шир.' },
     { name: 'plating-detailed',       label: 'Обш. дет.' },
@@ -127,6 +128,7 @@ interface AdminPanelProps {
   builderMode: 'single' | 'line';
   onClose: () => void;
   onSelectPart: (partPath: string) => void;
+  onSelectComposition?: (compositionId: string) => void;
   onClearComposition: () => void;
   onExportRequest: () => string;
   onImportRequest: (json: string) => Promise<number>;
@@ -144,6 +146,7 @@ export const AdminPanel: FC<AdminPanelProps> = ({
   builderMode,
   onClose,
   onSelectPart,
+  onSelectComposition,
   onClearComposition,
   onExportRequest,
   onImportRequest,
@@ -161,7 +164,23 @@ export const AdminPanel: FC<AdminPanelProps> = ({
   const currentParts = BUILDER_PARTS[selectedCategory] ?? [];
 
   const handleExport = useCallback(() => {
-    setExportJson(onExportRequest());
+    let raw = '';
+    try {
+      raw = onExportRequest();
+    } catch {
+      raw = '';
+    }
+    // Всегда выставляем валидный JSON: пустая строка или невалидный вывод не должны попадать в файл
+    if (!raw || typeof raw !== 'string') {
+      setExportJson('{\n  "parts": []\n}');
+      return;
+    }
+    try {
+      JSON.parse(raw);
+      setExportJson(raw);
+    } catch {
+      setExportJson('{\n  "parts": []\n}');
+    }
   }, [onExportRequest]);
 
   const handleCopy = useCallback(() => {
@@ -228,25 +247,38 @@ export const AdminPanel: FC<AdminPanelProps> = ({
 
           {/* Center: parts grid */}
           <div className="admin-parts-grid">
-            {currentParts.map(part => (
-              <button
-                key={part.name}
-                className="admin-part-item"
-                title={part.name}
-                onClick={() => {
-                  onSelectPart(`${KIT_MODEL_BASE}/${part.name}.glb`);
-                  onClose();
-                }}
-              >
-                <img
-                  src={`${KIT_PREVIEW_BASE}/${part.name}.png`}
-                  alt={part.label}
-                  className="admin-part-img"
-                  onError={e => { (e.target as HTMLImageElement).style.opacity = '0.25'; }}
-                />
-                <span className="admin-part-label">{part.label}</span>
-              </button>
-            ))}
+            {currentParts.map(part => {
+              const isComposition = part.name.startsWith('composition-');
+              const compositionId = isComposition ? part.name.replace('composition-', '') : null;
+              return (
+                <button
+                  key={part.name}
+                  className={`admin-part-item${isComposition ? ' admin-part-composition' : ''}`}
+                  title={part.name}
+                  onClick={() => {
+                    if (isComposition && compositionId && onSelectComposition) {
+                      onSelectComposition(compositionId);
+                      onClose();
+                    } else if (!isComposition) {
+                      onSelectPart(`${KIT_MODEL_BASE}/${part.name}.glb`);
+                      onClose();
+                    }
+                  }}
+                >
+                  {isComposition ? (
+                    <span className="admin-part-composition-icon" title={part.label}>⭕</span>
+                  ) : (
+                    <img
+                      src={`${KIT_PREVIEW_BASE}/${part.name}.png`}
+                      alt={part.label}
+                      className="admin-part-img"
+                      onError={e => { (e.target as HTMLImageElement).style.opacity = '0.25'; }}
+                    />
+                  )}
+                  <span className="admin-part-label">{part.label}</span>
+                </button>
+              );
+            })}
           </div>
 
           {/* Right: composition panel */}
@@ -267,8 +299,8 @@ export const AdminPanel: FC<AdminPanelProps> = ({
             </div>
 
             <div className="admin-btn-row">
-              <button className="admin-btn" onClick={() => onAdjustScale(-0.1)}>−</button>
-              <button className="admin-btn" onClick={() => onAdjustScale(0.1)}>+</button>
+              <button type="button" className="admin-btn" onClick={(e) => { e.stopPropagation(); onAdjustScale(-0.1); }}>−</button>
+              <button type="button" className="admin-btn" onClick={(e) => { e.stopPropagation(); onAdjustScale(0.1); }}>+</button>
             </div>
             <div className="admin-btn-row">
               <button className="admin-btn" onClick={() => onSetBuilderMode('single')}>Single</button>

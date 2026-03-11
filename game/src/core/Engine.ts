@@ -167,7 +167,11 @@ export class Engine {
       this.gameState.mode = GameMode.BuildMode;
       const pattern = getBuildingPattern(buildingId);
       if (pattern) {
-        void this.sceneManager.setPatternGhost(buildingId, pattern.parts);
+        this.sceneManager
+          .setPatternGhost(buildingId, pattern.parts)
+          .catch((err) =>
+            console.error("[Engine] Pattern ghost failed:", buildingId, err),
+          );
       }
     }
     this.notifyStateChange();
@@ -232,6 +236,10 @@ export class Engine {
 
   getBuilderScale(): number {
     return this.sceneManager.getBuilderScale();
+  }
+
+  setBuilderScale(value: number): number {
+    return this.sceneManager.setBuilderScale(value);
   }
 
   cycleBuilderMode(): 'single' | 'line' {

@@ -34,6 +34,7 @@ function App() {
   const [builderScale, setBuilderScale] = useState(1);
   const [placedCount, setPlacedCount]       = useState(0);
   const mouseDownPos = useRef<{ x: number; y: number } | null>(null);
+  const lastBuilderPartPathRef = useRef<string | null>(null);
 
   // Initialize engine
   useEffect(() => {
@@ -105,6 +106,12 @@ function App() {
   // ---- Admin builder handlers ----
   const handleOpenAdminPanel = useCallback(() => setIsAdminOpen(true), []);
 
+  const handleSelectComposition = useCallback((compositionId: string) => {
+    if (!engineRef.current) return;
+    engineRef.current.selectBuilding(compositionId);
+    setIsAdminOpen(false);
+  }, []);
+
   const handleSelectBuilderPart = useCallback(async (partPath: string) => {
     if (!engineRef.current) return;
     if (engineRef.current.isBuilderDeconstructMode()) {
@@ -113,7 +120,25 @@ function App() {
     }
     setIsBuilderActive(true);
     await engineRef.current.enterBuilderPartMode(partPath);
-    setBuilderScale(engineRef.current.getBuilderScale());
+
+    // Масштаб по умолчанию только при смене детали — иначе не перезаписываем (пользователь мог изменить +/-).
+    const partChanged = lastBuilderPartPathRef.current !== partPath;
+    lastBuilderPartPathRef.current = partPath;
+
+    if (partChanged) {
+      if (
+        partPath.includes('gutter-vertical-bottom') ||
+        partPath.includes('gutter-vertical-top')
+      ) {
+        const scale = engineRef.current.setBuilderScale(20);
+        setBuilderScale(scale);
+      } else {
+        const scale = engineRef.current.setBuilderScale(3);
+        setBuilderScale(scale);
+      }
+    } else {
+      setBuilderScale(engineRef.current.getBuilderScale());
+    }
   }, []);
 
   const handleClearComposition = useCallback(() => {
@@ -122,7 +147,7 @@ function App() {
   }, []);
 
   const handleExportRequest = useCallback((): string => {
-    return engineRef.current?.exportBuilderComposition() ?? '{}';
+    return engineRef.current?.exportBuilderComposition() ?? '{"parts":[]}';
   }, []);
 
   const handleImportRequest = useCallback(async (json: string): Promise<number> => {
@@ -294,9 +319,9 @@ function App() {
     // Pattern ghost mode (building from Build Menu)
     if (engineRef.current.isPatternGhostActive()) {
       if (e.button === 0) {
-        void engineRef.current.placePattern().then(() => {
-          setPlacedCount(engineRef.current!.getBuilderPlacedCount());
-        });
+        engineRef.current.placePattern().then((ok) => {
+          if (ok) setPlacedCount(engineRef.current!.getBuilderPlacedCount());
+        }).catch(err => console.error('[Pattern] place failed:', err));
       } else if (e.button === 2) {
         engineRef.current.clearPatternGhost();
       }
@@ -360,6 +385,7 @@ function App() {
           builderMode={builderMode}
           onClose={() => setIsAdminOpen(false)}
           onSelectPart={handleSelectBuilderPart}
+          onSelectComposition={handleSelectComposition}
           onClearComposition={handleClearComposition}
           onExportRequest={handleExportRequest}
           onImportRequest={handleImportRequest}

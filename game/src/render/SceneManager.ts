@@ -612,9 +612,26 @@ export class SceneManager {
     this.builderCtrlHeld = held;
   }
 
+  private static readonly BUILDER_SCALE_MAX = 25;
+
   adjustBuilderScale(delta: number): number {
-    const next = THREE.MathUtils.clamp(this.builderScale + delta, 0.2, 6);
+    const next = THREE.MathUtils.clamp(
+      this.builderScale + delta,
+      0.2,
+      SceneManager.BUILDER_SCALE_MAX,
+    );
     this.builderScale = Number(next.toFixed(2));
+    this.applyGhostScale();
+    this.persistBuilderState();
+    return this.builderScale;
+  }
+
+  setBuilderScale(value: number): number {
+    this.builderScale = Number(
+      THREE.MathUtils.clamp(value, 0.2, SceneManager.BUILDER_SCALE_MAX).toFixed(
+        2,
+      ),
+    );
     this.applyGhostScale();
     this.persistBuilderState();
     return this.builderScale;
@@ -1028,7 +1045,11 @@ export class SceneManager {
         }>;
       };
       if (typeof parsed.scale === "number") {
-        this.builderScale = THREE.MathUtils.clamp(parsed.scale, 0.2, 6);
+        this.builderScale = THREE.MathUtils.clamp(
+          parsed.scale,
+          0.2,
+          SceneManager.BUILDER_SCALE_MAX,
+        );
       }
       if (parsed.mode === "single" || parsed.mode === "line") {
         this.builderMode = parsed.mode;
@@ -1056,7 +1077,8 @@ export class SceneManager {
   // ================================================================
 
   /** Load a building pattern as a composite ghost.
-   *  All parts are assembled into one group that follows the cursor. */
+   *  All parts are assembled into one group that follows the cursor.
+   *  If a part fails to load, it is skipped and a warning is logged. */
   async setPatternGhost(
     buildingId: string,
     parts: PatternPart[],
@@ -1071,13 +1093,23 @@ export class SceneManager {
     group.name = "pattern-ghost";
 
     const KIT_BASE = "/kits/kenney_building-kit/Models/GLB format";
+    let loaded = 0;
 
     for (const part of parts) {
       const partPath = part.partName.includes("/")
         ? part.partName
         : `${KIT_BASE}/${part.partName}`;
 
-      await this.ensureCached(partPath);
+      try {
+        await this.ensureCached(partPath);
+      } catch (err) {
+        console.warn(
+          `[Pattern] Failed to load part "${part.partName}" for ${buildingId}:`,
+          err,
+        );
+        continue;
+      }
+
       const original = this.glbCache.get(partPath);
       if (!original) continue;
 
@@ -1092,7 +1124,6 @@ export class SceneManager {
         }
       });
 
-      // Normalize like placeSingleAt does
       const origBox = new THREE.Box3().setFromObject(original);
       const origCenter = origBox.getCenter(new THREE.Vector3());
       clone.position.set(
@@ -1106,10 +1137,26 @@ export class SceneManager {
       pivot.position.set(part.position.x, part.position.y, part.position.z);
       pivot.rotation.y = part.rotationY;
       group.add(pivot);
+      loaded++;
+    }
+
+    if (loaded === 0) {
+      console.error(
+        `[Pattern] No parts loaded for ${buildingId}. Check part names and kit path.`,
+      );
+      return;
+    }
+    if (loaded < parts.length) {
+      console.warn(
+        `[Pattern] ${buildingId}: loaded ${loaded}/${parts.length} parts.`,
+      );
     }
 
     this.scene.add(group);
     this.patternGhostGroup = group;
+
+    // Place ghost at screen center so it's visible before the user moves the mouse
+    this.updatePatternGhostPosition(0, 0);
   }
 
   /** Update pattern ghost position to follow cursor */
@@ -1122,12 +1169,24 @@ export class SceneManager {
     this.patternGhostGroup.rotation.y = this.patternRotY;
   }
 
-  /** Place the pattern permanently */
+  /** Place the pattern permanently at the current ghost position and rotation. */
   async placePattern(): Promise<boolean> {
-    if (!this.patternGhostGroup || this.patternParts.length === 0) return false;
+    if (!this.patternGhostGroup || this.patternParts.length === 0) {
+      console.warn("[Pattern] No ghost or parts to place");
+      return false;
+    }
 
     const anchor = this.patternCurrentPos.clone();
+    const rot = this.patternRotY;
+    const cosR = Math.cos(rot);
+    const sinR = Math.sin(rot);
     const KIT_BASE = "/kits/kenney_building-kit/Models/GLB format";
+    const savedPath = this.builderCurrentPartPath;
+    let placed = 0;
+
+    console.log(
+      `[Pattern] Placing at anchor=(${anchor.x.toFixed(1)}, ${anchor.z.toFixed(1)}) rot=${((rot * 180) / Math.PI).toFixed(0)}° cos=${cosR.toFixed(4)} sin=${sinR.toFixed(4)}`,
+    );
 
     for (const part of this.patternParts) {
       const partPath = part.partName.includes("/")
@@ -1135,23 +1194,28 @@ export class SceneManager {
         : `${KIT_BASE}/${part.partName}`;
       await this.ensureCached(partPath);
       this.builderCurrentPartPath = partPath;
-      const cos = Math.cos(this.patternRotY);
-      const sin = Math.sin(this.patternRotY);
-      const rx = part.position.x * cos - part.position.z * sin;
-      const rz = part.position.x * sin + part.position.z * cos;
-      this.placeSingleAt(
+
+      const rx = part.position.x * cosR - part.position.z * sinR;
+      const rz = part.position.x * sinR + part.position.z * cosR;
+
+      const ok = this.placeSingleAt(
         new THREE.Vector3(
           anchor.x + rx,
           anchor.y + part.position.y,
           anchor.z + rz,
         ),
-        part.rotationY + this.patternRotY,
+        part.rotationY + rot,
         part.scale,
       );
+      if (ok) placed++;
     }
-    this.builderCurrentPartPath = "";
-    this.persistBuilderState();
-    return true;
+
+    this.builderCurrentPartPath = savedPath;
+    if (placed > 0) this.persistBuilderState();
+    console.log(
+      `[Pattern] Done: ${placed}/${this.patternParts.length} parts placed`,
+    );
+    return placed > 0;
   }
 
   /** Rotate pattern ghost by 90 degrees */
@@ -1160,6 +1224,9 @@ export class SceneManager {
     if (this.patternGhostGroup) {
       this.patternGhostGroup.rotation.y = this.patternRotY;
     }
+    console.log(
+      `[Pattern] Rotated → patternRotY = ${this.patternRotY.toFixed(4)} (${((this.patternRotY * 180) / Math.PI).toFixed(0)}°)`,
+    );
   }
 
   /** Remove pattern ghost */
