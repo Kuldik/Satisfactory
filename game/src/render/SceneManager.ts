@@ -8,6 +8,7 @@ import { CAMERA, GRID_CELL_SIZE, ORE_COLORS } from "../core/constants.ts";
 import { CameraController } from "./CameraController.ts";
 import { GridRenderer } from "./GridRenderer.ts";
 import { ModelGallery } from "./ModelGallery.ts";
+import type { PatternPart } from "../buildings/BuildingPatterns.ts";
 
 export class SceneManager {
   readonly scene: THREE.Scene;
@@ -34,6 +35,7 @@ export class SceneManager {
   private builderGhostInvalid = false;
   private builderGhostCurrentPos = new THREE.Vector3();
   private builderGhostFootprint = new THREE.Vector3(1, 1, 1);
+  private builderCtrlHeld = false;
   private builderDeconstructMode = false;
   private deconstructHovered: THREE.Object3D | null = null;
   private deconstructHoveredMaterials = new Map<
@@ -76,6 +78,13 @@ export class SceneManager {
     emissiveIntensity: 0.8,
   });
   private readonly builderStateKey = "satisfactory-dev-builder-state-v1";
+
+  // ---- Pattern placement (composite building ghosts) ----
+  private patternGhostGroup: THREE.Group | null = null;
+  private patternParts: PatternPart[] = [];
+  private patternBuildingId = "";
+  private patternRotY = 0;
+  private patternCurrentPos = new THREE.Vector3();
   constructor(canvas: HTMLCanvasElement) {
     // Scene
     this.scene = new THREE.Scene();
@@ -350,6 +359,7 @@ export class SceneManager {
     this.builderGhostPivot = pivot;
     this.builderGhostModelRoot = ghost;
 
+    ghost.scale.setScalar(this.builderScale);
     this.normalizeGhostModel();
     this.updateBuilderGhostPosition(
       this.builderPointerNDC.x,
@@ -374,8 +384,11 @@ export class SceneManager {
     const stackY = this.detectStackLevel(ndcX, ndcY);
     if (stackY > 0.01) pos.y = stackY;
 
+    // Ctrl-held edge alignment: snap to the same line as a nearby building edge
+    this.edgeAlignToPlaced(pos);
+
     // Face-snap to nearby placed parts (overrides grid on both axes when close)
-    this.faceSnapToPlaced(pos);
+    if (!this.builderCtrlHeld) this.faceSnapToPlaced(pos);
 
     this.builderGhostCurrentPos.copy(pos);
     this.builderGhostPivot.position.copy(pos);
@@ -595,6 +608,10 @@ export class SceneManager {
     return this.builderDeconstructMode;
   }
 
+  setBuilderCtrlHeld(held: boolean): void {
+    this.builderCtrlHeld = held;
+  }
+
   adjustBuilderScale(delta: number): number {
     const next = THREE.MathUtils.clamp(this.builderScale + delta, 0.2, 6);
     this.builderScale = Number(next.toFixed(2));
@@ -750,6 +767,87 @@ export class SceneManager {
       invalid = overlapX > eps && overlapY > eps && overlapZ > eps;
     });
     return invalid;
+  }
+
+  /** When Ctrl is held, magnetically snap the ghost to the nearest attachment point
+   *  on any placed building. Generates all 4 face-adjacent positions for every placed
+   *  part, plus 4 inline-continuation positions (extending the wall), and picks the
+   *  closest complete (x, z) candidate to the cursor. */
+  private edgeAlignToPlaced(pos: THREE.Vector3): void {
+    if (!this.builderCtrlHeld) return;
+    if (this.builderPlacedGroup.children.length === 0) return;
+
+    const fp = this.getRotatedFootprint();
+    const ghostHalfX = fp.x / 2;
+    const ghostHalfZ = fp.z / 2;
+    const maxRange = Math.max(fp.x, fp.z) * 6;
+
+    let bestDist = maxRange;
+    let bestX = pos.x;
+    let bestZ = pos.z;
+
+    for (const placed of this.builderPlacedGroup.children) {
+      const box = new THREE.Box3().setFromObject(placed);
+      const pc = box.getCenter(new THREE.Vector3());
+      const pHalfX = (box.max.x - box.min.x) / 2;
+      const pHalfZ = (box.max.z - box.min.z) / 2;
+
+      if (Math.abs(pc.x - pos.x) > maxRange && Math.abs(pc.z - pos.z) > maxRange)
+        continue;
+
+      // 4 face-adjacent positions: ghost touching each face, centered on that face
+      // Plus 4 inline-continuation positions: ghost extending the wall in its direction
+      const candidates: Array<{ x: number; z: number }> = [
+        // Flush against +X face, aligned on Z
+        { x: box.max.x + ghostHalfX, z: pc.z },
+        // Flush against -X face, aligned on Z
+        { x: box.min.x - ghostHalfX, z: pc.z },
+        // Flush against +Z face, aligned on X
+        { x: pc.x, z: box.max.z + ghostHalfZ },
+        // Flush against -Z face, aligned on X
+        { x: pc.x, z: box.min.z - ghostHalfZ },
+
+        // Inline continuation along +X (same Z-line, extending right)
+        { x: pc.x + pHalfX + ghostHalfX + pHalfX, z: pc.z },
+        // Inline continuation along -X (same Z-line, extending left)
+        { x: pc.x - pHalfX - ghostHalfX - pHalfX, z: pc.z },
+        // Inline continuation along +Z
+        { x: pc.x, z: pc.z + pHalfZ + ghostHalfZ + pHalfZ },
+        // Inline continuation along -Z
+        { x: pc.x, z: pc.z - pHalfZ - ghostHalfZ - pHalfZ },
+
+        // Corner attachments: ghost at each corner of the placed part
+        { x: box.max.x + ghostHalfX, z: box.max.z + ghostHalfZ },
+        { x: box.max.x + ghostHalfX, z: box.min.z - ghostHalfZ },
+        { x: box.min.x - ghostHalfX, z: box.max.z + ghostHalfZ },
+        { x: box.min.x - ghostHalfX, z: box.min.z - ghostHalfZ },
+
+        // Edge-aligned: ghost shares the same min/max X or Z edge as the placed part
+        // (for continuing a line of different-sized pieces)
+        { x: box.min.x + ghostHalfX, z: box.max.z + ghostHalfZ },
+        { x: box.min.x + ghostHalfX, z: box.min.z - ghostHalfZ },
+        { x: box.max.x - ghostHalfX, z: box.max.z + ghostHalfZ },
+        { x: box.max.x - ghostHalfX, z: box.min.z - ghostHalfZ },
+        { x: box.max.x + ghostHalfX, z: box.min.z + ghostHalfZ },
+        { x: box.max.x + ghostHalfX, z: box.max.z - ghostHalfZ },
+        { x: box.min.x - ghostHalfX, z: box.min.z + ghostHalfZ },
+        { x: box.min.x - ghostHalfX, z: box.max.z - ghostHalfZ },
+      ];
+
+      for (const c of candidates) {
+        const d = Math.hypot(c.x - pos.x, c.z - pos.z);
+        if (d < bestDist) {
+          bestDist = d;
+          bestX = c.x;
+          bestZ = c.z;
+        }
+      }
+    }
+
+    if (bestDist < maxRange) {
+      pos.x = bestX;
+      pos.z = bestZ;
+    }
   }
 
   /** Snap pos so the ghost's face is flush against the nearest placed part face.
@@ -950,6 +1048,137 @@ export class SceneManager {
     } catch {
       // Ignore corrupted JSON.
     }
+  }
+
+  // ================================================================
+  // Pattern placement — place an entire building (composite JSON)
+  // as a single ghost that follows the cursor.
+  // ================================================================
+
+  /** Load a building pattern as a composite ghost.
+   *  All parts are assembled into one group that follows the cursor. */
+  async setPatternGhost(
+    buildingId: string,
+    parts: PatternPart[],
+  ): Promise<void> {
+    this.clearPatternGhost();
+    this.clearBuilderGhost();
+    this.patternParts = parts;
+    this.patternBuildingId = buildingId;
+    this.patternRotY = 0;
+
+    const group = new THREE.Group();
+    group.name = "pattern-ghost";
+
+    const KIT_BASE = "/kits/kenney_building-kit/Models/GLB format";
+
+    for (const part of parts) {
+      const partPath = part.partName.includes("/")
+        ? part.partName
+        : `${KIT_BASE}/${part.partName}`;
+
+      await this.ensureCached(partPath);
+      const original = this.glbCache.get(partPath);
+      if (!original) continue;
+
+      const clone = original.clone(true);
+      const s = part.scale;
+      clone.scale.setScalar(s);
+      clone.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.material = this.ghostMaterialOk;
+          child.castShadow = false;
+          child.receiveShadow = false;
+        }
+      });
+
+      // Normalize like placeSingleAt does
+      const origBox = new THREE.Box3().setFromObject(original);
+      const origCenter = origBox.getCenter(new THREE.Vector3());
+      clone.position.set(
+        -origCenter.x * s,
+        -origBox.min.y * s,
+        -origCenter.z * s,
+      );
+
+      const pivot = new THREE.Group();
+      pivot.add(clone);
+      pivot.position.set(part.position.x, part.position.y, part.position.z);
+      pivot.rotation.y = part.rotationY;
+      group.add(pivot);
+    }
+
+    this.scene.add(group);
+    this.patternGhostGroup = group;
+  }
+
+  /** Update pattern ghost position to follow cursor */
+  updatePatternGhostPosition(ndcX: number, ndcY: number): void {
+    if (!this.patternGhostGroup) return;
+    const pos = this.getGridPositionUnderMouse(ndcX, ndcY, 0);
+    if (!pos) return;
+    this.patternCurrentPos.copy(pos);
+    this.patternGhostGroup.position.copy(pos);
+    this.patternGhostGroup.rotation.y = this.patternRotY;
+  }
+
+  /** Place the pattern permanently */
+  async placePattern(): Promise<boolean> {
+    if (!this.patternGhostGroup || this.patternParts.length === 0) return false;
+
+    const anchor = this.patternCurrentPos.clone();
+    const KIT_BASE = "/kits/kenney_building-kit/Models/GLB format";
+
+    for (const part of this.patternParts) {
+      const partPath = part.partName.includes("/")
+        ? part.partName
+        : `${KIT_BASE}/${part.partName}`;
+      await this.ensureCached(partPath);
+      this.builderCurrentPartPath = partPath;
+      const cos = Math.cos(this.patternRotY);
+      const sin = Math.sin(this.patternRotY);
+      const rx = part.position.x * cos - part.position.z * sin;
+      const rz = part.position.x * sin + part.position.z * cos;
+      this.placeSingleAt(
+        new THREE.Vector3(
+          anchor.x + rx,
+          anchor.y + part.position.y,
+          anchor.z + rz,
+        ),
+        part.rotationY + this.patternRotY,
+        part.scale,
+      );
+    }
+    this.builderCurrentPartPath = "";
+    this.persistBuilderState();
+    return true;
+  }
+
+  /** Rotate pattern ghost by 90 degrees */
+  rotatePatternGhost(dir: 1 | -1): void {
+    this.patternRotY += dir * (Math.PI / 2);
+    if (this.patternGhostGroup) {
+      this.patternGhostGroup.rotation.y = this.patternRotY;
+    }
+  }
+
+  /** Remove pattern ghost */
+  clearPatternGhost(): void {
+    if (this.patternGhostGroup) {
+      this.scene.remove(this.patternGhostGroup);
+      this.patternGhostGroup = null;
+    }
+    this.patternParts = [];
+    this.patternBuildingId = "";
+    this.patternRotY = 0;
+  }
+
+  isPatternGhostActive(): boolean {
+    return this.patternGhostGroup !== null;
+  }
+
+  getPatternBuildingId(): string {
+    return this.patternBuildingId;
   }
 
   // ================================================================

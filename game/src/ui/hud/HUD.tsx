@@ -66,7 +66,7 @@ export const HUD: FC<HUDProps> = ({ gameState, onOpenBuildMenu, onOpenInventory,
       {gameState.selectedBuilding && (
         <div className="hud-build-info">
           Размещение: <strong>{gameState.selectedBuilding}</strong>
-          <span className="hud-hint">ЛКМ — поставить | T — повернуть | R — режим | F — деконстр. | Esc — отмена</span>
+          <span className="hud-hint">ЛКМ — поставить | T — повернуть | R — режим | F — деконстр. | Ctrl — выравнивание | Esc — отмена</span>
         </div>
       )}
 

@@ -158,6 +158,25 @@ function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!engineRef.current) return;
+
+      // Track Ctrl for edge-alignment snap (always, not just in builder context)
+      if (e.code === 'ControlLeft' || e.code === 'ControlRight') {
+        engineRef.current.setBuilderCtrlHeld(true);
+      }
+
+      // Pattern ghost hotkeys (building placement from Build Menu)
+      if (engineRef.current.isPatternGhostActive()) {
+        if (e.code === 'KeyT') {
+          engineRef.current.rotatePatternGhost(1);
+          e.preventDefault();
+        }
+        if (e.key === 'Escape') {
+          engineRef.current.clearPatternGhost();
+          e.preventDefault();
+        }
+        return;
+      }
+
       const inBuilderContext = isBuilderActive || isDeconstructMode || isAdminOpen;
       if (!inBuilderContext) return;
 
@@ -201,9 +220,37 @@ function App() {
         e.preventDefault();
       }
     };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (!engineRef.current) return;
+      if (e.code === 'ControlLeft' || e.code === 'ControlRight') {
+        engineRef.current.setBuilderCtrlHeld(false);
+      }
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keyup', onKeyUp);
+    };
   }, [isBuilderActive, isDeconstructMode, isAdminOpen]);
+
+  // Prevent accidental browser shortcuts (Ctrl+W, Ctrl+S, Ctrl+Q, etc.) while in game
+  useEffect(() => {
+    const interceptBrowserShortcuts = (e: KeyboardEvent) => {
+      if (e.ctrlKey && (e.code === 'KeyW' || e.code === 'KeyS' || e.code === 'KeyQ')) {
+        e.preventDefault();
+      }
+    };
+    const beforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('keydown', interceptBrowserShortcuts, { capture: true });
+    window.addEventListener('beforeunload', beforeUnload);
+    return () => {
+      window.removeEventListener('keydown', interceptBrowserShortcuts, { capture: true });
+      window.removeEventListener('beforeunload', beforeUnload);
+    };
+  }, []);
 
   // Open admin panel on backtick / tilde (DEV shortcut)
   useEffect(() => {
@@ -220,13 +267,18 @@ function App() {
     console.log('Open inventory (B)');
   }, []);
 
-  // Mouse handlers for builder ghost
+  // Mouse handlers for builder ghost AND pattern ghost
   const handleCanvasMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    if ((!isBuilderActive && !isDeconstructMode) || !engineRef.current) return;
+    if (!engineRef.current) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const ndcX =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
     const ndcY = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
-    engineRef.current.updateBuilderGhost(ndcX, ndcY);
+
+    if (engineRef.current.isPatternGhostActive()) {
+      engineRef.current.updatePatternGhost(ndcX, ndcY);
+    } else if (isBuilderActive || isDeconstructMode) {
+      engineRef.current.updateBuilderGhost(ndcX, ndcY);
+    }
   }, [isBuilderActive, isDeconstructMode]);
 
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -234,28 +286,43 @@ function App() {
   }, []);
 
   const handleCanvasMouseUp = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    if ((!isBuilderActive && !isDeconstructMode) || !engineRef.current || !mouseDownPos.current) return;
+    if (!engineRef.current || !mouseDownPos.current) return;
     const dx = Math.abs(e.clientX - mouseDownPos.current.x);
     const dy = Math.abs(e.clientY - mouseDownPos.current.y);
+    if (dx >= 5 || dy >= 5) return;
 
-    if (dx < 5 && dy < 5) {
-      if (e.button === 0) {                          // left click → place
-        engineRef.current.placeBuilderPart();
-        setPlacedCount(engineRef.current.getBuilderPlacedCount());
-      } else if (e.button === 2) {                   // right click → cancel
-        if (isDeconstructMode) {
-          engineRef.current.setBuilderDeconstructMode(false);
-          setIsDeconstructMode(false);
-        } else {
-          engineRef.current.cancelBuilderGhost();
-          setIsBuilderActive(false);
-        }
+    // Pattern ghost mode (building from Build Menu)
+    if (engineRef.current.isPatternGhostActive()) {
+      if (e.button === 0) {
+        void engineRef.current.placePattern().then(() => {
+          setPlacedCount(engineRef.current!.getBuilderPlacedCount());
+        });
+      } else if (e.button === 2) {
+        engineRef.current.clearPatternGhost();
+      }
+      return;
+    }
+
+    // Admin builder mode
+    if (!isBuilderActive && !isDeconstructMode) return;
+    if (e.button === 0) {
+      engineRef.current.placeBuilderPart();
+      setPlacedCount(engineRef.current.getBuilderPlacedCount());
+    } else if (e.button === 2) {
+      if (isDeconstructMode) {
+        engineRef.current.setBuilderDeconstructMode(false);
+        setIsDeconstructMode(false);
+      } else {
+        engineRef.current.cancelBuilderGhost();
+        setIsBuilderActive(false);
       }
     }
   }, [isBuilderActive, isDeconstructMode]);
 
   const handleCanvasContextMenu = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (isBuilderActive || isDeconstructMode) e.preventDefault();
+    if (isBuilderActive || isDeconstructMode || engineRef.current?.isPatternGhostActive()) {
+      e.preventDefault();
+    }
   }, [isBuilderActive, isDeconstructMode]);
 
   return (

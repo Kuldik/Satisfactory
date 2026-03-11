@@ -9,6 +9,7 @@ import { SceneManager } from '../render/SceneManager.ts';
 import { InputManager } from '../input/InputManager.ts';
 import { GridManager } from './grid/GridManager.ts';
 import { SaveManager } from './save/SaveManager.ts';
+import { getBuildingPattern } from '../buildings/BuildingPatterns.ts';
 
 export class Engine {
   private sceneManager: SceneManager;
@@ -164,6 +165,10 @@ export class Engine {
     this.gameState.selectedBuilding = buildingId;
     if (buildingId) {
       this.gameState.mode = GameMode.BuildMode;
+      const pattern = getBuildingPattern(buildingId);
+      if (pattern) {
+        void this.sceneManager.setPatternGhost(buildingId, pattern.parts);
+      }
     }
     this.notifyStateChange();
   }
@@ -259,6 +264,35 @@ export class Engine {
 
   isBuilderGhostActive(): boolean {
     return this.sceneManager.isBuilderGhostActive();
+  }
+
+  setBuilderCtrlHeld(held: boolean): void {
+    this.sceneManager.setBuilderCtrlHeld(held);
+  }
+
+  // ---- Pattern (composite building) API ----
+
+  updatePatternGhost(ndcX: number, ndcY: number): void {
+    this.sceneManager.updatePatternGhostPosition(ndcX, ndcY);
+  }
+
+  async placePattern(): Promise<boolean> {
+    return this.sceneManager.placePattern();
+  }
+
+  rotatePatternGhost(dir: 1 | -1): void {
+    this.sceneManager.rotatePatternGhost(dir);
+  }
+
+  clearPatternGhost(): void {
+    this.sceneManager.clearPatternGhost();
+    this.gameState.selectedBuilding = null;
+    this.gameState.mode = GameMode.Playing;
+    this.notifyStateChange();
+  }
+
+  isPatternGhostActive(): boolean {
+    return this.sceneManager.isPatternGhostActive();
   }
 
   // ---- Handle window resize ----

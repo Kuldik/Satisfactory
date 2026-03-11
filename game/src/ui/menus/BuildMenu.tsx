@@ -4,6 +4,7 @@
 
 import { useState, type FC } from 'react';
 import { BuildingCategory } from '../../core/types.ts';
+import { hasPattern } from '../../buildings/BuildingPatterns.ts';
 import './BuildMenu.css';
 
 interface BuildMenuItem {
@@ -283,7 +284,7 @@ export const BuildMenu: FC<BuildMenuProps> = ({ isOpen, onClose, onSelectBuildin
                 {buildings.map(building => (
                   <button
                     key={building.id}
-                    className={`build-menu-item ${isSpecial ? 'build-menu-item-special' : ''}`}
+                    className={`build-menu-item ${isSpecial ? 'build-menu-item-special' : ''}${hasPattern(building.id) ? ' has-pattern' : ''}`}
                     onClick={() => {
                       onSelectBuilding(building.id);
                       onClose();
@@ -297,6 +298,7 @@ export const BuildMenu: FC<BuildMenuProps> = ({ isOpen, onClose, onSelectBuildin
                       <div className="item-icon">{isSpecial ? '🏛️' : '🏭'}</div>
                     )}
                     <div className="item-name">{building.nameRu}</div>
+                    {hasPattern(building.id) && <div className="pattern-badge">3D</div>}
                   </button>
                 ))}
               </div>
