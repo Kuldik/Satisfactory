@@ -38,6 +38,7 @@ export class SceneManager {
   private builderCtrlHeld = false;
   private builderDeconstructMode = false;
   private deconstructHovered: THREE.Object3D | null = null;
+  /** Original material(s) per mesh while hover-highlighting for deconstruct */
   private deconstructHoveredMaterials = new Map<
     THREE.Mesh,
     THREE.Material | THREE.Material[]
@@ -57,6 +58,8 @@ export class SceneManager {
     z: number;
     rotY: number;
     scale: number;
+    /** Один id на сборку (паттерн из меню, импорт, экспорт с группой) — снос удержанием ЛКМ целиком */
+    compositeId?: string;
   }> = [];
   private readonly builderPlacedGroup = new THREE.Group();
   private readonly builderLinePreviewGroup = new THREE.Group();
@@ -377,18 +380,21 @@ export class SceneManager {
     }
 
     if (!this.builderGhostPivot) return;
-    const pos = this.getGridPositionUnderMouse(ndcX, ndcY, 0);
+    const pos = this.getGridPositionUnderMouse(
+      ndcX,
+      ndcY,
+      this._visibleFloor,
+    );
     if (!pos) return;
-
-    // Detect stacking: place on top of the part under the cursor
-    const stackY = this.detectStackLevel(ndcX, ndcY);
-    if (stackY > 0.01) pos.y = stackY;
 
     // Ctrl-held edge alignment: snap to the same line as a nearby building edge
     this.edgeAlignToPlaced(pos);
 
     // Face-snap to nearby placed parts (overrides grid on both axes when close)
     if (!this.builderCtrlHeld) this.faceSnapToPlaced(pos);
+
+    // After XZ is final: sit on floor or on top of any placed volume under footprint + vertical probe
+    this.resolveVerticalSupport(pos);
 
     this.builderGhostCurrentPos.copy(pos);
     this.builderGhostPivot.position.copy(pos);
@@ -411,6 +417,9 @@ export class SceneManager {
   placeBuilderPart(): boolean {
     if (this.builderDeconstructMode) {
       if (this.deconstructHovered) {
+        if (this.deconstructHovered.userData.compositeId) {
+          return false;
+        }
         this.builderPlacedGroup.remove(this.deconstructHovered);
         this.builderPlaced = this.builderPlaced.filter(
           (p) => p !== this.deconstructHovered?.userData.builderRecord,
@@ -445,6 +454,7 @@ export class SceneManager {
       const records = this.getLinePlacementPositions(start, end);
       let placedAny = false;
       for (const pos of records) {
+        this.resolveVerticalSupport(pos);
         placedAny = this.placeSingleAt(pos) || placedAny;
       }
       if (placedAny) {
@@ -504,16 +514,20 @@ export class SceneManager {
 
     return JSON.stringify(
       {
-        parts: this.builderPlaced.map((p) => ({
-          partName: p.partPath.split("/").pop() ?? p.partPath,
-          position: {
-            x: +(p.x - cx).toFixed(3),
-            y: +p.y.toFixed(3),
-            z: +(p.z - cz).toFixed(3),
-          },
-          rotationY: +p.rotY.toFixed(4),
-          scale: +p.scale.toFixed(4),
-        })),
+        parts: this.builderPlaced.map((p) => {
+          const row: Record<string, unknown> = {
+            partName: p.partPath.split("/").pop() ?? p.partPath,
+            position: {
+              x: +(p.x - cx).toFixed(3),
+              y: +p.y.toFixed(3),
+              z: +(p.z - cz).toFixed(3),
+            },
+            rotationY: +p.rotY.toFixed(4),
+            scale: +p.scale.toFixed(4),
+          };
+          if (p.compositeId) row.compositeId = p.compositeId;
+          return row;
+        }),
       },
       null,
       2,
@@ -527,6 +541,7 @@ export class SceneManager {
         position?: { x?: number; y?: number; z?: number };
         rotationY?: number;
         scale?: number;
+        compositeId?: string;
       }>;
     };
     try {
@@ -542,9 +557,28 @@ export class SceneManager {
       ? (this.getGridPositionUnderMouse(
           this.builderPointerNDC.x,
           this.builderPointerNDC.y,
-          0,
+          this._visibleFloor,
         ) ?? new THREE.Vector3())
       : new THREE.Vector3();
+
+    const idRemap = new Map<string, string>();
+    const remapCompositeId = (old?: string): string | undefined => {
+      if (!old || typeof old !== "string") return undefined;
+      let next = idRemap.get(old);
+      if (!next) {
+        next = this.newCompositeId();
+        idRemap.set(old, next);
+      }
+      return next;
+    };
+
+    const anyCompositeInFile = parts.some(
+      (p) => typeof p.compositeId === "string" && p.compositeId.length > 0,
+    );
+    /** Старые JSON без compositeId — вся вставка одна сборка (удержание ЛКМ). */
+    const importAsOneBatchId = anyCompositeInFile
+      ? undefined
+      : this.newCompositeId();
 
     let count = 0;
     for (const p of parts) {
@@ -564,7 +598,11 @@ export class SceneManager {
         anchor.z + (p.position?.z ?? 0),
       );
       const rot = typeof p.rotationY === "number" ? p.rotationY : 0;
-      const ok = this.placeSingleAt(pos, rot, this.builderScale);
+      const compositeId =
+        typeof p.compositeId === "string" && p.compositeId.length > 0
+          ? remapCompositeId(p.compositeId)
+          : importAsOneBatchId;
+      const ok = this.placeSingleAt(pos, rot, this.builderScale, compositeId);
       this.builderCurrentPartPath = previousPath;
       this.builderScale = previousScale;
       if (ok) count += 1;
@@ -594,9 +632,19 @@ export class SceneManager {
       this.builderLineStart = null;
       this.builderLinePreviewGroup.clear();
       this.refreshGhostMaterial();
+      this.refreshDeconstructHoverFromPointer();
     } else {
       this.clearDeconstructHover();
     }
+  }
+
+  /** Re-run hover pick after toggling deconstruct (pointer may not have moved). */
+  refreshDeconstructHoverFromPointer(): void {
+    if (!this.builderDeconstructMode || !this.builderHasPointer) return;
+    this.updateDeconstructHover(
+      this.builderPointerNDC.x,
+      this.builderPointerNDC.y,
+    );
   }
 
   toggleBuilderDeconstructMode(): boolean {
@@ -606,6 +654,59 @@ export class SceneManager {
 
   isBuilderDeconstructMode(): boolean {
     return this.builderDeconstructMode;
+  }
+
+  /** Id сборки под курсором в режиме демонтажа (если есть — снос только удержанием ЛКМ из UI). */
+  getDeconstructHoverCompositeId(): string | undefined {
+    const id = this.deconstructHovered?.userData?.compositeId;
+    return typeof id === "string" ? id : undefined;
+  }
+
+  /**
+   * Экранная позиция круга удержания: центр pivot под курсором (дешево, без union bbox по сотням мешей).
+   */
+  getDeconstructCompositeHoldScreenPosition(): {
+    left: number;
+    top: number;
+  } | null {
+    const hovered = this.deconstructHovered;
+    if (!hovered || !this.getDeconstructHoverCompositeId()) return null;
+    const c = new THREE.Vector3();
+    hovered.getWorldPosition(c);
+    c.project(this.camera);
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const left = (c.x * 0.5 + 0.5) * rect.width + rect.left;
+    const top = (-c.y * 0.5 + 0.5) * rect.height + rect.top;
+    return { left, top };
+  }
+
+  /** Удалить все части с данным compositeId. Возвращает число снятых pivot-ов. */
+  removeCompositeBuilding(compositeId: string): number {
+    const toRemove: THREE.Object3D[] = [];
+    for (const child of this.builderPlacedGroup.children) {
+      if (child.userData.compositeId === compositeId) {
+        toRemove.push(child);
+      }
+    }
+    let removed = 0;
+    for (const c of toRemove) {
+      this.builderPlacedGroup.remove(c);
+      const rec = c.userData.builderRecord as
+        | (typeof this.builderPlaced)[number]
+        | undefined;
+      if (rec) {
+        this.builderPlaced = this.builderPlaced.filter((p) => p !== rec);
+      }
+      removed += 1;
+    }
+    if (
+      this.deconstructHovered &&
+      this.deconstructHovered.userData.compositeId === compositeId
+    ) {
+      this.clearDeconstructHover();
+    }
+    if (removed > 0) this.persistBuilderState();
+    return removed;
   }
 
   setBuilderCtrlHeld(held: boolean): void {
@@ -714,10 +815,18 @@ export class SceneManager {
     });
   }
 
+  private newCompositeId(): string {
+    return (
+      globalThis.crypto?.randomUUID?.() ??
+      `cmp-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
+    );
+  }
+
   private placeSingleAt(
     worldPos: THREE.Vector3,
     forcedRotY?: number,
     forcedScale?: number,
+    compositeId?: string,
   ): boolean {
     if (!this.builderCurrentPartPath) return false;
     const original = this.glbCache.get(this.builderCurrentPartPath);
@@ -751,7 +860,7 @@ export class SceneManager {
     pivot.position.copy(worldPos);
     pivot.rotation.y = rotY;
 
-    const record = {
+    const record: (typeof this.builderPlaced)[number] = {
       partPath: this.builderCurrentPartPath,
       x: pivot.position.x,
       y: pivot.position.y,
@@ -759,6 +868,10 @@ export class SceneManager {
       rotY: pivot.rotation.y,
       scale,
     };
+    if (compositeId) {
+      record.compositeId = compositeId;
+      pivot.userData.compositeId = compositeId;
+    }
     pivot.userData.builderRecord = record;
     this.builderPlacedGroup.add(pivot);
     this.builderPlaced.push(record);
@@ -767,7 +880,9 @@ export class SceneManager {
 
   private computeGhostInvalid(candidatePivot: THREE.Group): boolean {
     const candidateBox = new THREE.Box3().setFromObject(candidatePivot);
-    const eps = 0.15;
+    const epsXZ = 0.12;
+    /** Ignore sub-centimeter Y touch so stacks flush on top are not "invalid". */
+    const yPenetrationTol = 0.06;
     let invalid = false;
     this.builderPlacedGroup.children.forEach((placed) => {
       if (invalid) return;
@@ -781,7 +896,10 @@ export class SceneManager {
       const overlapZ =
         Math.min(candidateBox.max.z, placedBox.max.z) -
         Math.max(candidateBox.min.z, placedBox.min.z);
-      invalid = overlapX > eps && overlapY > eps && overlapZ > eps;
+      if (overlapX <= epsXZ || overlapZ <= epsXZ) return;
+      // Stacking: ghost bottom on or above placed top — not an intersection
+      if (candidateBox.min.y >= placedBox.max.y - yPenetrationTol) return;
+      invalid = overlapY > yPenetrationTol;
     });
     return invalid;
   }
@@ -910,19 +1028,61 @@ export class SceneManager {
     }
   }
 
-  /** Raycast against placed parts — return the top Y of the part under cursor, or 0. */
-  private detectStackLevel(ndcX: number, ndcY: number): number {
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera);
+  /**
+   * Set pos.y so the ghost pivot (model bottom) rests on the floor plane or the
+   * highest surface under the ghost's XZ footprint. Runs after face/edge snap so XZ is stable.
+   */
+  private resolveVerticalSupport(pos: THREE.Vector3): void {
+    const floorY = this._visibleFloor * GRID_CELL_SIZE;
+    const fp = this.getRotatedFootprint();
+    const hx = fp.x / 2;
+    const hz = fp.z / 2;
+    const gMinX = pos.x - hx;
+    const gMaxX = pos.x + hx;
+    const gMinZ = pos.z - hz;
+    const gMaxZ = pos.z + hz;
+
+    let supportTop = floorY;
+
+    for (const placed of this.builderPlacedGroup.children) {
+      const box = new THREE.Box3().setFromObject(placed);
+      const ox =
+        Math.min(gMaxX, box.max.x) - Math.max(gMinX, box.min.x);
+      const oz =
+        Math.min(gMaxZ, box.max.z) - Math.max(gMinZ, box.min.z);
+      if (ox > 0.04 && oz > 0.04) {
+        supportTop = Math.max(supportTop, box.max.y);
+      }
+    }
+
+    const rayTop = this.sampleVerticalSupportRay(pos.x, pos.z);
+    if (rayTop !== null) {
+      supportTop = Math.max(supportTop, rayTop);
+    }
+
+    pos.y = supportTop;
+  }
+
+  /** Topmost hit along a downward ray through (x,z); ignores horizontal grazes. */
+  private sampleVerticalSupportRay(x: number, z: number): number | null {
+    if (this.builderPlacedGroup.children.length === 0) return null;
+    const origin = new THREE.Vector3(x, 5000, z);
+    const dir = new THREE.Vector3(0, -1, 0);
+    const raycaster = new THREE.Raycaster(origin, dir);
+    raycaster.far = 10000;
     const hits = raycaster.intersectObjects(
       this.builderPlacedGroup.children,
       true,
     );
-    if (hits.length === 0) return 0;
-    const root = this.findPlacedRoot(hits[0].object);
-    if (!root) return 0;
-    const box = new THREE.Box3().setFromObject(root);
-    return box.max.y;
+    for (const hit of hits) {
+      const n = hit.face?.normal;
+      if (n) {
+        const worldN = n.clone().transformDirection(hit.object.matrixWorld);
+        if (worldN.y < 0.22) continue;
+      }
+      return hit.point.y;
+    }
+    return hits[0]?.point.y ?? null;
   }
 
   private getLinePlacementPositions(
@@ -962,6 +1122,7 @@ export class SceneManager {
     if (!this.builderGhostModelRoot || !this.builderCurrentPartPath) return;
     const positions = this.getLinePlacementPositions(start, end);
     positions.forEach((p) => {
+      this.resolveVerticalSupport(p);
       const clone = this.builderGhostModelRoot!.clone(true);
       const pivot = new THREE.Group();
       pivot.add(clone);
@@ -986,10 +1147,12 @@ export class SceneManager {
     if (!hovered) return;
     this.deconstructHovered = hovered;
     hovered.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        this.deconstructHoveredMaterials.set(child, child.material);
-        child.material = this.deconstructMaterial;
-      }
+      if (!(child instanceof THREE.Mesh)) return;
+      const prev = child.material;
+      this.deconstructHoveredMaterials.set(child, prev);
+      child.material = Array.isArray(prev)
+        ? prev.map(() => this.deconstructMaterial)
+        : this.deconstructMaterial;
     });
   }
 
@@ -1042,6 +1205,7 @@ export class SceneManager {
           z: number;
           rotY: number;
           scale?: number;
+          compositeId?: string;
         }>;
       };
       if (typeof parsed.scale === "number") {
@@ -1063,6 +1227,7 @@ export class SceneManager {
           new THREE.Vector3(part.x, part.y, part.z),
           part.rotY,
           typeof part.scale === "number" ? part.scale : this.builderScale,
+          typeof part.compositeId === "string" ? part.compositeId : undefined,
         );
       }
       this.builderCurrentPartPath = "";
@@ -1182,6 +1347,7 @@ export class SceneManager {
     const sinR = Math.sin(rot);
     const KIT_BASE = "/kits/kenney_building-kit/Models/GLB format";
     const savedPath = this.builderCurrentPartPath;
+    const patternCompositeId = this.newCompositeId();
     let placed = 0;
 
     console.log(
@@ -1206,12 +1372,17 @@ export class SceneManager {
         ),
         part.rotationY + rot,
         part.scale,
+        patternCompositeId,
       );
       if (ok) placed++;
     }
 
     this.builderCurrentPartPath = savedPath;
-    if (placed > 0) this.persistBuilderState();
+    if (placed > 0) {
+      this.persistBuilderState();
+      // Убрать композитный призрак — иначе мышь продолжит двигать паттерн, а не демонтаж/hover по поставленным частям
+      this.clearPatternGhost();
+    }
     console.log(
       `[Pattern] Done: ${placed}/${this.patternParts.length} parts placed`,
     );

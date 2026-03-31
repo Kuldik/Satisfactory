@@ -40,6 +40,8 @@ const ALL_BUILDINGS: BuildMenuItem[] = [
     modelPath: '/kits/City Kit Industrial/Models/GLB format/building-o.glb',
     iconPath: '/kits/City Kit Industrial/Previews/building-o.png',
     description: 'Уничтожает любые предметы (кроме радиоактивных отходов) и начисляет за них купоны AWESOME Shop. Идеален для утилизации излишков производства. Потребляет 30 МВт.' },
+  { id: 'detail_vertical_pipe', name: 'Vertical pipe stack', nameRu: 'Деталь: вертикальная труба', category: BuildingCategory.Special, subcategory: 'Детализация',
+    description: 'Высокая вертикальная оболочка из скруглённых угловых бордюров. Для декора сцены.' },
 
   // ============ PRODUCTION ============
   // — Производство деталей —
@@ -93,8 +95,10 @@ const ALL_BUILDINGS: BuildMenuItem[] = [
     iconPath: '/kits/kenney_building-kit/Previews/gutter-vertical-top.png',
     description: 'Добывает воду из водоёмов и направляет её по трубам. Производит 120 м³/мин. 1 трубный выход. Потребляет 20 МВт.' },
   { id: 'oil_extractor', name: 'Oil Extractor', nameRu: 'Экстрактор нефти', category: BuildingCategory.Production, subcategory: 'Экстракторы',
+    iconPath: '/kits/kenney_building-kit/Previews/gutter-vertical-top.png',
     description: 'Устанавливается на нефтяном узле для добычи сырой нефти. Производительность зависит от чистоты узла. 1 трубный выход. Потребляет 40 МВт.' },
   { id: 'pressure_booster', name: 'Resource Well Pressurizer', nameRu: 'Нагнетатель давления', category: BuildingCategory.Production, subcategory: 'Экстракторы',
+    iconPath: '/kits/kenney_building-kit/Previews/gutter-vertical-top.png',
     description: 'Устанавливается на ресурсной скважине и создаёт давление для извлечения воды или азота. Активирует ближайшие точки добычи для установки экстракторов скважин. Потребляет 150 МВт.' },
   { id: 'well_extractor', name: 'Resource Well Extractor', nameRu: 'Экстрактор скважины', category: BuildingCategory.Production, subcategory: 'Экстракторы',
     description: 'Устанавливается на активированных скважинах вокруг нагнетателя давления. Извлекает воду или азот. 1 трубный выход. Потребляет 0 МВт (питается от нагнетателя).' },

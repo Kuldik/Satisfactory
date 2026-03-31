@@ -1,0 +1,412 @@
+{
+  "parts": [
+    {
+      "partName": "floor.glb",
+      "position": { "x": -11.42, "y": 0, "z": 15.101 },
+      "rotationY": 0,
+      "scale": 2.5
+    },
+    {
+      "partName": "floor.glb",
+      "position": { "x": -11.42, "y": 0, "z": 10.101 },
+      "rotationY": 0,
+      "scale": 2.5
+    },
+    {
+      "partName": "floor.glb",
+      "position": { "x": -11.42, "y": 0, "z": 5.101 },
+      "rotationY": 0,
+      "scale": 2.5
+    },
+    {
+      "partName": "floor.glb",
+      "position": { "x": -6.42, "y": 0, "z": 15.101 },
+      "rotationY": 0,
+      "scale": 2.5
+    },
+    {
+      "partName": "floor.glb",
+      "position": { "x": -6.42, "y": 0, "z": 10.101 },
+      "rotationY": 0,
+      "scale": 2.5
+    },
+    {
+      "partName": "floor.glb",
+      "position": { "x": -6.42, "y": 0, "z": 5.101 },
+      "rotationY": 0,
+      "scale": 2.5
+    },
+    {
+      "partName": "floor.glb",
+      "position": { "x": -1.42, "y": 0, "z": 5.101 },
+      "rotationY": 0,
+      "scale": 2.5
+    },
+    {
+      "partName": "floor.glb",
+      "position": { "x": -1.42, "y": 0, "z": 10.101 },
+      "rotationY": 0,
+      "scale": 2.5
+    },
+    {
+      "partName": "floor.glb",
+      "position": { "x": 3.58, "y": 0, "z": 10.101 },
+      "rotationY": 0,
+      "scale": 2.5
+    },
+    {
+      "partName": "floor.glb",
+      "position": { "x": 3.58, "y": 0, "z": 5.101 },
+      "rotationY": 0,
+      "scale": 2.5
+    },
+    {
+      "partName": "floor.glb",
+      "position": { "x": -1.42, "y": 0, "z": 15.101 },
+      "rotationY": 0,
+      "scale": 2.5
+    },
+    {
+      "partName": "floor.glb",
+      "position": { "x": 3.58, "y": 0, "z": 15.101 },
+      "rotationY": 0,
+      "scale": 2.5
+    },
+    {
+      "partName": "floor.glb",
+      "position": { "x": 8.58, "y": 0, "z": 5.101 },
+      "rotationY": 0,
+      "scale": 2.5
+    },
+    {
+      "partName": "floor.glb",
+      "position": { "x": 8.58, "y": 0, "z": 10.101 },
+      "rotationY": 0,
+      "scale": 2.5
+    },
+    {
+      "partName": "floor.glb",
+      "position": { "x": 8.58, "y": 0, "z": 15.101 },
+      "rotationY": 0,
+      "scale": 2.5
+    },
+    {
+      "partName": "border.glb",
+      "position": { "x": -13.67, "y": 0.25, "z": 5.101 },
+      "rotationY": 0,
+      "scale": 2.5
+    },
+    {
+      "partName": "border.glb",
+      "position": { "x": -13.67, "y": 0.25, "z": 15.101 },
+      "rotationY": 0,
+      "scale": 2.5
+    },
+    {
+      "partName": "border.glb",
+      "position": { "x": -11.02, "y": 0.25, "z": 17.361 },
+      "rotationY": 1.5708,
+      "scale": 2.4
+    },
+    {
+      "partName": "border.glb",
+      "position": { "x": -6.22, "y": 0.25, "z": 17.361 },
+      "rotationY": 1.5708,
+      "scale": 2.4
+    },
+    {
+      "partName": "border.glb",
+      "position": { "x": -1.42, "y": 0.25, "z": 17.361 },
+      "rotationY": 1.5708,
+      "scale": 2.4
+    },
+    {
+      "partName": "border.glb",
+      "position": { "x": 3.38, "y": 0.25, "z": 17.361 },
+      "rotationY": 1.5708,
+      "scale": 2.4
+    },
+    {
+      "partName": "border.glb",
+      "position": { "x": 8.18, "y": 0.25, "z": 17.361 },
+      "rotationY": 1.5708,
+      "scale": 2.4
+    },
+    {
+      "partName": "border.glb",
+      "position": { "x": 10.82, "y": 0.25, "z": 15.201 },
+      "rotationY": 3.1416,
+      "scale": 2.5
+    },
+    {
+      "partName": "border.glb",
+      "position": { "x": 10.82, "y": 0.25, "z": 10.201 },
+      "rotationY": 3.1416,
+      "scale": 2.5
+    },
+    {
+      "partName": "border.glb",
+      "position": { "x": 10.82, "y": 0.25, "z": 5.201 },
+      "rotationY": 3.1416,
+      "scale": 2.5
+    },
+    {
+      "partName": "border.glb",
+      "position": { "x": 8.07, "y": 0.25, "z": 2.951 },
+      "rotationY": 4.7124,
+      "scale": 2.4
+    },
+    {
+      "partName": "border.glb",
+      "position": { "x": 3.27, "y": 0.25, "z": 2.951 },
+      "rotationY": 4.7124,
+      "scale": 2.4
+    },
+    {
+      "partName": "border.glb",
+      "position": { "x": -1.53, "y": 0.25, "z": 2.951 },
+      "rotationY": 4.7124,
+      "scale": 2.4
+    },
+    {
+      "partName": "border.glb",
+      "position": { "x": -6.33, "y": 0.25, "z": 2.951 },
+      "rotationY": 4.7124,
+      "scale": 2.4
+    },
+    {
+      "partName": "border.glb",
+      "position": { "x": -11.13, "y": 0.25, "z": 2.951 },
+      "rotationY": 4.7124,
+      "scale": 2.4
+    },
+    {
+      "partName": "border.glb",
+      "position": { "x": -14.17, "y": 0, "z": 10.101 },
+      "rotationY": 0,
+      "scale": 2.5
+    },
+    {
+      "partName": "gutter-vertical-top.glb",
+      "position": { "x": -10.92, "y": 0.25, "z": 10.101 },
+      "rotationY": 4.7124,
+      "scale": 20
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": { "x": 3.58, "y": 0.25, "z": 6.446 },
+      "rotationY": 0,
+      "scale": 3.3
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": { "x": 5.89, "y": 0.25, "z": 6.446 },
+      "rotationY": 0,
+      "scale": 3.3
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": { "x": 3.58, "y": 0.25, "z": 8.756 },
+      "rotationY": 0,
+      "scale": 3.3
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": { "x": 5.89, "y": 0.25, "z": 8.756 },
+      "rotationY": 0,
+      "scale": 3.3
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": { "x": 3.58, "y": 0.25, "z": 11.066 },
+      "rotationY": 0,
+      "scale": 3.3
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": { "x": 5.89, "y": 0.25, "z": 11.066 },
+      "rotationY": 0,
+      "scale": 3.3
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": { "x": 3.58, "y": 8.17, "z": 6.446 },
+      "rotationY": 0,
+      "scale": 3.3
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": { "x": 5.89, "y": 8.17, "z": 6.446 },
+      "rotationY": 0,
+      "scale": 3.3
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": { "x": 5.89, "y": 8.17, "z": 8.756 },
+      "rotationY": 0,
+      "scale": 3.3
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": { "x": 5.89, "y": 8.17, "z": 11.066 },
+      "rotationY": 0,
+      "scale": 3.3
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": { "x": 3.58, "y": 8.17, "z": 8.756 },
+      "rotationY": 0,
+      "scale": 3.3
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": { "x": 3.58, "y": 8.17, "z": 11.066 },
+      "rotationY": 0,
+      "scale": 3.3
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": { "x": 4.925, "y": 16.09, "z": 6.446 },
+      "rotationY": 0,
+      "scale": 3.3
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": { "x": 4.925, "y": 16.09, "z": 8.756 },
+      "rotationY": 0,
+      "scale": 3.3
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": { "x": 4.925, "y": 16.09, "z": 11.066 },
+      "rotationY": 0,
+      "scale": 3.3
+    },
+    {
+      "partName": "gutter-vertical-short.glb",
+      "position": { "x": -13.42, "y": 1, "z": 13.101 },
+      "rotationY": 0,
+      "scale": 3
+    },
+    {
+      "partName": "gutter-vertical-short.glb",
+      "position": { "x": -13.42, "y": 1, "z": 7.101 },
+      "rotationY": 0,
+      "scale": 3
+    },
+    {
+      "partName": "gutter-vertical-short.glb",
+      "position": { "x": 10.933, "y": 1, "z": 2.951 },
+      "rotationY": 0,
+      "scale": 3
+    },
+    {
+      "partName": "gutter-vertical-short.glb",
+      "position": { "x": 11.043, "y": 1, "z": 17.361 },
+      "rotationY": 0,
+      "scale": 3
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": { "x": 3.58, "y": 0.25, "z": 13.376 },
+      "rotationY": 0,
+      "scale": 3.3
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": { "x": 5.89, "y": 0.25, "z": 13.376 },
+      "rotationY": 0,
+      "scale": 3.3
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": { "x": 3.58, "y": 8.17, "z": 13.376 },
+      "rotationY": 0,
+      "scale": 3.3
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": { "x": 5.89, "y": 8.17, "z": 13.376 },
+      "rotationY": 0,
+      "scale": 3.3
+    },
+    {
+      "partName": "column-wide.glb",
+      "position": { "x": 4.925, "y": 16.09, "z": 13.376 },
+      "rotationY": 0,
+      "scale": 3.3
+    },
+    {
+      "partName": "floor.glb",
+      "position": { "x": 6.77, "y": 24.01, "z": 6.911 },
+      "rotationY": 0,
+      "scale": 3
+    },
+    {
+      "partName": "floor.glb",
+      "position": { "x": 6.77, "y": 24.01, "z": 12.911 },
+      "rotationY": 0,
+      "scale": 3
+    },
+    {
+      "partName": "floor.glb",
+      "position": { "x": 0.77, "y": 24.31, "z": 6.911 },
+      "rotationY": 0,
+      "scale": 3
+    },
+    {
+      "partName": "floor.glb",
+      "position": { "x": 0.77, "y": 24.31, "z": 12.911 },
+      "rotationY": 0,
+      "scale": 3
+    },
+    {
+      "partName": "detail-pipe.glb",
+      "position": { "x": -10.873, "y": 0.25, "z": 5.101 },
+      "rotationY": 0,
+      "scale": 9
+    },
+    {
+      "partName": "detail-pipe.glb",
+      "position": { "x": -10.873, "y": 4.099, "z": 5.101 },
+      "rotationY": 0,
+      "scale": 9
+    },
+    {
+      "partName": "detail-pipe.glb",
+      "position": { "x": -10.873, "y": 7.948, "z": 5.101 },
+      "rotationY": 0,
+      "scale": 9
+    },
+    {
+      "partName": "detail-pipe.glb",
+      "position": { "x": -10.83, "y": 0.25, "z": 15.101 },
+      "rotationY": 0,
+      "scale": 8.8
+    },
+    {
+      "partName": "detail-pipe.glb",
+      "position": { "x": -10.83, "y": 4.014, "z": 15.101 },
+      "rotationY": 0,
+      "scale": 8.8
+    },
+    {
+      "partName": "detail-pipe.glb",
+      "position": { "x": -10.83, "y": 7.777, "z": 15.101 },
+      "rotationY": 0,
+      "scale": 8.8
+    },
+    {
+      "partName": "stairs-sides-short.glb",
+      "position": { "x": -0.575, "y": 0.25, "z": 6.446 },
+      "rotationY": 1.5708,
+      "scale": 3
+    },
+    {
+      "partName": "stairs-sides-short.glb",
+      "position": { "x": -0.575, "y": 0.25, "z": 13.376 },
+      "rotationY": 1.5708,
+      "scale": 3
+    }
+  ]
+}

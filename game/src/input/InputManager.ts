@@ -24,10 +24,34 @@ export class InputManager {
   private bindEvents(): void {
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
+    window.addEventListener('blur', this.onWindowBlur);
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
+    // Capture: opening the browser context menu often swallows keyup — release movement keys.
+    window.addEventListener('contextmenu', this.onContextMenuCapture, true);
     this.canvas.addEventListener('mousemove', this.onMouseMove);
     this.canvas.addEventListener('mousedown', this.onMouseDown);
     this.canvas.addEventListener('mouseup', this.onMouseUp);
   }
+
+  /** Drop held keys — keyup may never fire after context menu / blur. */
+  private clearKeyboardState(): void {
+    this.keysDown.clear();
+    this.keysPressed.clear();
+  }
+
+  private onWindowBlur = (): void => {
+    this.clearKeyboardState();
+  };
+
+  private onVisibilityChange = (): void => {
+    if (document.visibilityState === 'hidden') {
+      this.clearKeyboardState();
+    }
+  };
+
+  private onContextMenuCapture = (): void => {
+    this.clearKeyboardState();
+  };
 
   private onKeyDown = (e: KeyboardEvent): void => {
     if (!this.keysDown.has(e.code)) {
@@ -138,6 +162,9 @@ export class InputManager {
   dispose(): void {
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
+    window.removeEventListener('blur', this.onWindowBlur);
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    window.removeEventListener('contextmenu', this.onContextMenuCapture, true);
     this.canvas.removeEventListener('mousemove', this.onMouseMove);
     this.canvas.removeEventListener('mousedown', this.onMouseDown);
     this.canvas.removeEventListener('mouseup', this.onMouseUp);

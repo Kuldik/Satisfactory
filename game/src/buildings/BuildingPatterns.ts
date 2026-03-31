@@ -9,7 +9,10 @@ import diggerlvl1 from "./miners/diggerlvl1.json";
 import diggerlvl2 from "./miners/diggerlvl2.json";
 import diggerlvl3 from "./miners/diggerlvl3.json";
 import circleDetail from "../scenes/Detailing/circle.json";
+import verticalPipeDetail from "../scenes/Detailing/vertical_pipe.json";
 import extractor from "./waterSupply/extractor.json";
+import oilExtractor from "./waterSupply/oil_extractor.json";
+import pressureBooster from "./waterSupply/pressure_booster.json";
 
 export interface PatternPart {
   partName: string;
@@ -29,7 +32,10 @@ const raw: Record<string, { parts: PatternPart[] }> = {
   miner_mk2: diggerlvl2 as { parts: PatternPart[] },
   miner_mk3: diggerlvl3 as { parts: PatternPart[] },
   detail_circle: circleDetail as { parts: PatternPart[] },
+  detail_vertical_pipe: verticalPipeDetail as { parts: PatternPart[] },
   water_extractor: extractor as { parts: PatternPart[] },
+  oil_extractor: oilExtractor as { parts: PatternPart[] },
+  pressure_booster: pressureBooster as { parts: PatternPart[] },
 };
 
 const registry = new Map<string, BuildingPattern>();

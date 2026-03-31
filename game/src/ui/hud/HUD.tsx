@@ -14,9 +14,20 @@ interface HUDProps {
   /** DEV only — shows admin builder button when provided */
   onOpenAdminPanel?: () => void;
   isBuilderActive?: boolean;
+  /** DEV — режим снятия деталей конструктора */
+  isDeconstructMode?: boolean;
+  onToggleDeconstruct?: () => void;
 }
 
-export const HUD: FC<HUDProps> = ({ gameState, onOpenBuildMenu, onOpenInventory, onOpenAdminPanel, isBuilderActive }) => {
+export const HUD: FC<HUDProps> = ({
+  gameState,
+  onOpenBuildMenu,
+  onOpenInventory,
+  onOpenAdminPanel,
+  isBuilderActive,
+  isDeconstructMode = false,
+  onToggleDeconstruct,
+}) => {
   const formatTime = (seconds: number): string => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -43,6 +54,25 @@ export const HUD: FC<HUDProps> = ({ gameState, onOpenBuildMenu, onOpenInventory,
         </div>
       </div>
 
+      {isDeconstructMode && (
+        <div className="hud-deconstruct-banner" role="status">
+          <span className="hud-deconstruct-banner__icon" aria-hidden />
+          <div className="hud-deconstruct-banner__text">
+            <strong>Демонтаж</strong>
+            <span>Сборка из меню / импорта: удерживай <strong>ЛКМ</strong> ~2 с (круг) — снос целиком. Одиночная деталь конструктора: <strong>ЛКМ</strong> сразу. Выкл: <strong>F</strong>, <strong>Esc</strong> или кнопка. ПКМ — камера.</span>
+          </div>
+          {onToggleDeconstruct && (
+            <button
+              type="button"
+              className="hud-deconstruct-banner__btn"
+              onClick={onToggleDeconstruct}
+            >
+              Выкл
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Bottom bar */}
       <div className="hud-bottom">
         <button className="hud-action-btn" onClick={onOpenBuildMenu} title="Q">
@@ -58,6 +88,16 @@ export const HUD: FC<HUDProps> = ({ gameState, onOpenBuildMenu, onOpenInventory,
             title="~ — Конструктор (DEV)"
           >
             👑 Конструктор
+          </button>
+        )}
+        {onToggleDeconstruct && (
+          <button
+            type="button"
+            className={`hud-action-btn hud-action-btn-deconstruct${isDeconstructMode ? ' active' : ''}`}
+            onClick={onToggleDeconstruct}
+            title="Снять детали конструктора (F)"
+          >
+            🧹 Демонтаж (F)
           </button>
         )}
       </div>

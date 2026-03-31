@@ -266,6 +266,26 @@ export class Engine {
     return this.sceneManager.isBuilderDeconstructMode();
   }
 
+  getDeconstructHoverCompositeId(): string | undefined {
+    return this.sceneManager.getDeconstructHoverCompositeId();
+  }
+
+  getDeconstructCompositeHoldScreenPosition(): {
+    left: number;
+    top: number;
+  } | null {
+    return this.sceneManager.getDeconstructCompositeHoldScreenPosition();
+  }
+
+  removeCompositeBuilding(compositeId: string): number {
+    return this.sceneManager.removeCompositeBuilding(compositeId);
+  }
+
+  /** After toggling deconstruct without moving the mouse, refresh hover highlight. */
+  refreshDeconstructHoverFromPointer(): void {
+    this.sceneManager.refreshDeconstructHoverFromPointer();
+  }
+
   getBuilderPlacedCount(): number {
     return this.sceneManager.getBuilderPlacedCount();
   }
@@ -285,7 +305,13 @@ export class Engine {
   }
 
   async placePattern(): Promise<boolean> {
-    return this.sceneManager.placePattern();
+    const ok = await this.sceneManager.placePattern();
+    if (ok) {
+      this.gameState.selectedBuilding = null;
+      this.gameState.mode = GameMode.Playing;
+      this.notifyStateChange();
+    }
+    return ok;
   }
 
   rotatePatternGhost(dir: 1 | -1): void {

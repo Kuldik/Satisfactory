@@ -56,7 +56,28 @@ export class CameraController {
     // Keyboard for WASD movement
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
+    window.addEventListener('blur', this.onWindowBlur);
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
+    window.addEventListener('contextmenu', this.onContextMenuCapture, true);
   }
+
+  private clearMovementKeys(): void {
+    this.keysDown.clear();
+  }
+
+  private onWindowBlur = (): void => {
+    this.clearMovementKeys();
+  };
+
+  private onVisibilityChange = (): void => {
+    if (document.visibilityState === 'hidden') {
+      this.clearMovementKeys();
+    }
+  };
+
+  private onContextMenuCapture = (): void => {
+    this.clearMovementKeys();
+  };
 
   // ---- Mouse events ----
 
@@ -221,5 +242,8 @@ export class CameraController {
     this.domElement.removeEventListener('contextmenu', this.onContextMenu);
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
+    window.removeEventListener('blur', this.onWindowBlur);
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    window.removeEventListener('contextmenu', this.onContextMenuCapture, true);
   }
 }

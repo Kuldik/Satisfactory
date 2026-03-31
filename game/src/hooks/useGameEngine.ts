@@ -1,0 +1,81 @@
+// ============================================================
+// Инициализация Engine, resize, dispose, синхронизация builder state
+// ============================================================
+
+import {
+  useEffect,
+  useRef,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+} from "react";
+import { Engine } from "../core/Engine.ts";
+import { GameMode } from "../core/types.ts";
+import type { GameState } from "../core/types.ts";
+
+export function useGameEngine(
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  setIsBuildMenuOpen: Dispatch<SetStateAction<boolean>>,
+  setPlacedCount: Dispatch<SetStateAction<number>>,
+  setBuilderScale: Dispatch<SetStateAction<number>>,
+  setBuilderMode: Dispatch<SetStateAction<"single" | "line">>,
+  setIsDeconstructMode: Dispatch<SetStateAction<boolean>>,
+): {
+  canvasRef: RefObject<HTMLCanvasElement | null>;
+  engineRef: RefObject<Engine | null>;
+} {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const engineRef = useRef<Engine | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const engine = new Engine(canvas);
+    engineRef.current = engine;
+    setPlacedCount(engine.getBuilderPlacedCount());
+    setBuilderScale(engine.getBuilderScale());
+    setBuilderMode(engine.getBuilderMode());
+    setIsDeconstructMode(engine.isBuilderDeconstructMode());
+
+    engine.setOnStateChange((state) => {
+      setGameState(state);
+      if (state.mode === GameMode.BuildMode && !state.selectedBuilding) {
+        setIsBuildMenuOpen(true);
+      }
+    });
+
+    engine.start();
+    const syncBuilderStateTimer = window.setTimeout(() => {
+      setPlacedCount(engine.getBuilderPlacedCount());
+      setBuilderScale(engine.getBuilderScale());
+      setBuilderMode(engine.getBuilderMode());
+      setIsDeconstructMode(engine.isBuilderDeconstructMode());
+    }, 400);
+
+    const handleResize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      engine.resize(window.innerWidth, window.innerHeight);
+    };
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.clearTimeout(syncBuilderStateTimer);
+      engine.dispose();
+    };
+  }, [
+    setGameState,
+    setIsBuildMenuOpen,
+    setPlacedCount,
+    setBuilderScale,
+    setBuilderMode,
+    setIsDeconstructMode,
+  ]);
+
+  return { canvasRef, engineRef };
+}

@@ -120,6 +120,93 @@
   50%       { box-shadow: 0 0 18px rgba(255, 180, 0, 0.7); }
 }
 
+.hud-action-btn-deconstruct {
+  border-color: rgba(255, 100, 100, 0.45);
+  color: #ffaaaa;
+}
+.hud-action-btn-deconstruct:hover {
+  border-color: rgba(255, 140, 120, 0.75);
+  box-shadow: 0 4px 20px rgba(255, 80, 80, 0.25);
+}
+.hud-action-btn-deconstruct.active {
+  background: rgba(90, 20, 25, 0.92);
+  border-color: rgba(255, 100, 100, 0.95);
+  color: #ffcccc;
+  animation: deconstruct-btn-pulse 1s ease-in-out infinite;
+}
+@keyframes deconstruct-btn-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(255, 80, 80, 0.4); }
+  50%       { box-shadow: 0 0 16px rgba(255, 120, 100, 0.75); }
+}
+
+/* Демонтаж — заметная полоса под верхней панелью */
+.hud-deconstruct-banner {
+  position: absolute;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(80, 20, 25, 0.92), rgba(50, 15, 20, 0.92));
+  border: 1px solid rgba(255, 100, 100, 0.55);
+  box-shadow: 0 4px 24px rgba(255, 60, 60, 0.25);
+  max-width: min(640px, 92vw);
+  z-index: 11;
+  animation: deconstruct-banner-glow 1.4s ease-in-out infinite;
+}
+@keyframes deconstruct-banner-glow {
+  0%, 100% { border-color: rgba(255, 100, 100, 0.45); }
+  50%       { border-color: rgba(255, 160, 140, 0.85); }
+}
+.hud-deconstruct-banner__icon {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ff4444;
+  box-shadow: 0 0 10px #ff2222;
+  flex-shrink: 0;
+  animation: deconstruct-dot 0.9s ease-in-out infinite;
+}
+@keyframes deconstruct-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.65; transform: scale(0.85); }
+}
+.hud-deconstruct-banner__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: #ffcccc;
+  text-align: left;
+}
+.hud-deconstruct-banner__text strong {
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  color: #fff;
+}
+.hud-deconstruct-banner__text span {
+  font-size: 12px;
+  color: rgba(255, 200, 200, 0.85);
+}
+.hud-deconstruct-banner__btn {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 150, 150, 0.6);
+  background: rgba(40, 10, 12, 0.9);
+  color: #ffdddd;
+  font-size: 13px;
+  cursor: pointer;
+}
+.hud-deconstruct-banner__btn:hover {
+  background: rgba(70, 25, 30, 0.95);
+  border-color: rgba(255, 200, 200, 0.8);
+}
+
 /* Build preview info */
 .hud-build-info {
   position: absolute;

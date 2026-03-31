@@ -98,6 +98,8 @@ const BUILDER_PARTS: Record<string, PartDef[]> = {
   ],
   'Детали': [
     { name: 'composition-detail_circle', label: 'Круг (детализация)' },
+    { name: 'composition-detail_vertical_pipe', label: 'Вертикальная труба' },
+    { name: 'composition-pressure_booster', label: 'Нагнетатель давления' },
     { name: 'plating',                label: 'Обшивка' },
     { name: 'plating-wide',           label: 'Обш. шир.' },
     { name: 'plating-detailed',       label: 'Обш. дет.' },
