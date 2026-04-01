@@ -380,11 +380,7 @@ export class SceneManager {
     }
 
     if (!this.builderGhostPivot) return;
-    const pos = this.getGridPositionUnderMouse(
-      ndcX,
-      ndcY,
-      this._visibleFloor,
-    );
+    const pos = this.getGridPositionUnderMouse(ndcX, ndcY, this._visibleFloor);
     if (!pos) return;
 
     // Ctrl-held edge alignment: snap to the same line as a nearby building edge
@@ -927,7 +923,10 @@ export class SceneManager {
       const pHalfX = (box.max.x - box.min.x) / 2;
       const pHalfZ = (box.max.z - box.min.z) / 2;
 
-      if (Math.abs(pc.x - pos.x) > maxRange && Math.abs(pc.z - pos.z) > maxRange)
+      if (
+        Math.abs(pc.x - pos.x) > maxRange &&
+        Math.abs(pc.z - pos.z) > maxRange
+      )
         continue;
 
       // 4 face-adjacent positions: ghost touching each face, centered on that face
@@ -1029,8 +1028,41 @@ export class SceneManager {
   }
 
   /**
-   * Set pos.y so the ghost pivot (model bottom) rests on the floor plane or the
-   * highest surface under the ghost's XZ footprint. Runs after face/edge snap so XZ is stable.
+   * Углы и середины рёбер отпечатка (с учётом поворота призрака) — для лучей вниз.
+   */
+  private getFootprintSamplePointsXZ(
+    pos: THREE.Vector3,
+    hx: number,
+    hz: number,
+    rotY: number,
+    includeEdgeMids: boolean,
+  ): Array<{ x: number; z: number }> {
+    const c = Math.cos(rotY);
+    const s = Math.sin(rotY);
+    const toWorld = (lx: number, lz: number) => ({
+      x: pos.x + lx * c - lz * s,
+      z: pos.z + lx * s + lz * c,
+    });
+    const corners = [
+      toWorld(-hx, -hz),
+      toWorld(hx, -hz),
+      toWorld(hx, hz),
+      toWorld(-hx, hz),
+    ];
+    if (!includeEdgeMids) return corners;
+    return [
+      ...corners,
+      toWorld(0, -hz),
+      toWorld(hx, 0),
+      toWorld(0, hz),
+      toWorld(-hx, 0),
+    ];
+  }
+
+  /**
+   * Вертикальная опора: сохраняем стек (AABB + луч из центра), но если под периметром
+   * лучи находят заметно **ниже** опору, чем «стек» по всему прямоугольнику (типично
+   * высокий объект в центре при опоре по углам на колоннах), берём высоту по периметру.
    */
   private resolveVerticalSupport(pos: THREE.Vector3): void {
     const floorY = this._visibleFloor * GRID_CELL_SIZE;
@@ -1042,25 +1074,46 @@ export class SceneManager {
     const gMinZ = pos.z - hz;
     const gMaxZ = pos.z + hz;
 
-    let supportTop = floorY;
-
+    let yAabb = floorY;
     for (const placed of this.builderPlacedGroup.children) {
       const box = new THREE.Box3().setFromObject(placed);
-      const ox =
-        Math.min(gMaxX, box.max.x) - Math.max(gMinX, box.min.x);
-      const oz =
-        Math.min(gMaxZ, box.max.z) - Math.max(gMinZ, box.min.z);
+      const ox = Math.min(gMaxX, box.max.x) - Math.max(gMinX, box.min.x);
+      const oz = Math.min(gMaxZ, box.max.z) - Math.max(gMinZ, box.min.z);
       if (ox > 0.04 && oz > 0.04) {
-        supportTop = Math.max(supportTop, box.max.y);
+        yAabb = Math.max(yAabb, box.max.y);
       }
     }
 
-    const rayTop = this.sampleVerticalSupportRay(pos.x, pos.z);
-    if (rayTop !== null) {
-      supportTop = Math.max(supportTop, rayTop);
+    const centerRay = this.sampleVerticalSupportRay(pos.x, pos.z);
+    const yStack = Math.max(yAabb, centerRay ?? floorY);
+
+    const span = Math.max(fp.x, fp.z);
+    const includeMids = span > 1.15;
+    const samples = this.getFootprintSamplePointsXZ(
+      pos,
+      hx,
+      hz,
+      this.builderGhostRotY,
+      includeMids,
+    );
+    let yPerimeter = floorY;
+    for (const p of samples) {
+      const t = this.sampleVerticalSupportRay(p.x, p.z);
+      if (t !== null) yPerimeter = Math.max(yPerimeter, t);
     }
 
-    pos.y = supportTop;
+    /** Насколько выше «периметр» должен быть ниже стека, чтобы считать центр артефактом */
+    const perimeterVsStackClearance = 0.12;
+    const perimeterMustExceedFloor = 0.02;
+
+    if (
+      yPerimeter > floorY + perimeterMustExceedFloor &&
+      yStack > yPerimeter + perimeterVsStackClearance
+    ) {
+      pos.y = yPerimeter;
+    } else {
+      pos.y = yStack;
+    }
   }
 
   /** Topmost hit along a downward ray through (x,z); ignores horizontal grazes. */

@@ -101,10 +101,12 @@ const ALL_BUILDINGS: BuildMenuItem[] = [
     iconPath: '/kits/kenney_building-kit/Previews/gutter-vertical-top.png',
     description: 'Устанавливается на ресурсной скважине и создаёт давление для извлечения воды или азота. Активирует ближайшие точки добычи для установки экстракторов скважин. Потребляет 150 МВт.' },
   { id: 'well_extractor', name: 'Resource Well Extractor', nameRu: 'Экстрактор скважины', category: BuildingCategory.Production, subcategory: 'Экстракторы',
+    iconPath: '/kits/kenney_space-station-kit/Previews/pipe-bend.png',
     description: 'Устанавливается на активированных скважинах вокруг нагнетателя давления. Извлекает воду или азот. 1 трубный выход. Потребляет 0 МВт (питается от нагнетателя).' },
 
   // — Переплавка —
   { id: 'smelter', name: 'Smelter', nameRu: 'Плавильня', category: BuildingCategory.Production, subcategory: 'Переплавка',
+    iconPath: '/kits/kenney_space-station-kit/Previews/structure.png',
     description: 'Базовая плавильня для переплавки одного типа руды в слитки. Железная руда → железные слитки, медная руда → медные слитки и т.д. 1 вход, 1 выход. Потребляет 4 МВт.' },
   { id: 'foundry', name: 'Foundry', nameRu: 'Литейная', category: BuildingCategory.Production, subcategory: 'Переплавка',
     description: 'Комбинирует 2 типа руды/слитков в сплав. Производит сталь (железо + уголь), алюминиевые слитки и др. 2 входа, 1 выход. Потребляет 16 МВт.' },

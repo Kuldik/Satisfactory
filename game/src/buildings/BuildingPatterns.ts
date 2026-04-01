@@ -13,6 +13,8 @@ import verticalPipeDetail from "../scenes/Detailing/vertical_pipe.json";
 import extractor from "./waterSupply/extractor.json";
 import oilExtractor from "./waterSupply/oil_extractor.json";
 import pressureBooster from "./waterSupply/pressure_booster.json";
+import wellExtractor from "./waterSupply/well_extractor.json";
+import smelter from "./production/smelter.json";
 
 export interface PatternPart {
   partName: string;
@@ -36,6 +38,8 @@ const raw: Record<string, { parts: PatternPart[] }> = {
   water_extractor: extractor as { parts: PatternPart[] },
   oil_extractor: oilExtractor as { parts: PatternPart[] },
   pressure_booster: pressureBooster as { parts: PatternPart[] },
+  well_extractor: wellExtractor as { parts: PatternPart[] },
+  smelter: smelter as { parts: PatternPart[] },
 };
 
 const registry = new Map<string, BuildingPattern>();

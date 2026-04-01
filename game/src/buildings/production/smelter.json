@@ -1,0 +1,844 @@
+{
+  "parts": [
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/floor.glb",
+      "position": {
+        "x": -10.016,
+        "y": 0,
+        "z": 4.543
+      },
+      "rotationY": 0,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/floor.glb",
+      "position": {
+        "x": -2.216,
+        "y": 0,
+        "z": 4.543
+      },
+      "rotationY": 0,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/floor.glb",
+      "position": {
+        "x": 5.584,
+        "y": 0,
+        "z": 4.543
+      },
+      "rotationY": 0,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/floor.glb",
+      "position": {
+        "x": 5.584,
+        "y": 0,
+        "z": -3.257
+      },
+      "rotationY": 0,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/floor.glb",
+      "position": {
+        "x": -2.216,
+        "y": 0,
+        "z": -3.257
+      },
+      "rotationY": 0,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/floor.glb",
+      "position": {
+        "x": -10.016,
+        "y": 0,
+        "z": -3.257
+      },
+      "rotationY": 0,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/wall-doorway-wide-round.glb",
+      "position": {
+        "x": -14.306,
+        "y": 0,
+        "z": 0.643
+      },
+      "rotationY": 0,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/wall-doorway-wide-round.glb",
+      "position": {
+        "x": 9.874,
+        "y": 0,
+        "z": 0.643
+      },
+      "rotationY": 0,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/wall-half.glb",
+      "position": {
+        "x": -11.966,
+        "y": 0,
+        "z": 8.638
+      },
+      "rotationY": 1.5708,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/wall-half.glb",
+      "position": {
+        "x": -8.066,
+        "y": 0,
+        "z": 8.638
+      },
+      "rotationY": 1.5708,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/wall-half.glb",
+      "position": {
+        "x": -4.166,
+        "y": 0,
+        "z": 8.638
+      },
+      "rotationY": 1.5708,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/wall-half.glb",
+      "position": {
+        "x": -0.266,
+        "y": 0,
+        "z": 8.638
+      },
+      "rotationY": 1.5708,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/wall-half.glb",
+      "position": {
+        "x": 3.634,
+        "y": 0,
+        "z": 8.638
+      },
+      "rotationY": 1.5708,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/wall-half.glb",
+      "position": {
+        "x": 7.534,
+        "y": 0,
+        "z": 8.638
+      },
+      "rotationY": 1.5708,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/wall-half.glb",
+      "position": {
+        "x": -11.966,
+        "y": 0,
+        "z": -7.352
+      },
+      "rotationY": 1.5708,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/wall-half.glb",
+      "position": {
+        "x": -8.066,
+        "y": 0,
+        "z": -7.352
+      },
+      "rotationY": 1.5708,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/wall-half.glb",
+      "position": {
+        "x": -4.166,
+        "y": 0,
+        "z": -7.352
+      },
+      "rotationY": 1.5708,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/wall-half.glb",
+      "position": {
+        "x": -0.266,
+        "y": 0,
+        "z": -7.352
+      },
+      "rotationY": 1.5708,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/wall-half.glb",
+      "position": {
+        "x": 3.634,
+        "y": 0,
+        "z": -7.352
+      },
+      "rotationY": 1.5708,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/wall-half.glb",
+      "position": {
+        "x": 7.534,
+        "y": 0,
+        "z": -7.352
+      },
+      "rotationY": 1.5708,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/column-thin.glb",
+      "position": {
+        "x": 10.264,
+        "y": 0,
+        "z": 9.613
+      },
+      "rotationY": 0,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/column-thin.glb",
+      "position": {
+        "x": 10.264,
+        "y": 0,
+        "z": -8.327
+      },
+      "rotationY": 0,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/column-thin.glb",
+      "position": {
+        "x": -15.476,
+        "y": 0,
+        "z": -7.937
+      },
+      "rotationY": 0,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/column-thin.glb",
+      "position": {
+        "x": -14.696,
+        "y": 0,
+        "z": 9.613
+      },
+      "rotationY": 0,
+      "scale": 3.9
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/structure.glb",
+      "position": {
+        "x": -10.016,
+        "y": 0.39,
+        "z": 4.543
+      },
+      "rotationY": 0,
+      "scale": 7.8
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/structure.glb",
+      "position": {
+        "x": -2.216,
+        "y": 0.39,
+        "z": 4.543
+      },
+      "rotationY": 0,
+      "scale": 7.8
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/structure.glb",
+      "position": {
+        "x": 5.584,
+        "y": 0.39,
+        "z": 4.543
+      },
+      "rotationY": 0,
+      "scale": 7.8
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/structure.glb",
+      "position": {
+        "x": -10.016,
+        "y": 0.39,
+        "z": -3.257
+      },
+      "rotationY": 0,
+      "scale": 7.8
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/structure.glb",
+      "position": {
+        "x": -2.216,
+        "y": 0.39,
+        "z": -3.257
+      },
+      "rotationY": 0,
+      "scale": 7.8
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/structure.glb",
+      "position": {
+        "x": 5.584,
+        "y": 0.39,
+        "z": -3.257
+      },
+      "rotationY": 0,
+      "scale": 7.8
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/floor.glb",
+      "position": {
+        "x": -10.016,
+        "y": 8.19,
+        "z": -3.257
+      },
+      "rotationY": 0,
+      "scale": 7.8
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/floor.glb",
+      "position": {
+        "x": -2.216,
+        "y": 8.19,
+        "z": -3.257
+      },
+      "rotationY": 0,
+      "scale": 7.8
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/floor.glb",
+      "position": {
+        "x": 5.584,
+        "y": 8.19,
+        "z": -3.257
+      },
+      "rotationY": 0,
+      "scale": 7.8
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/floor.glb",
+      "position": {
+        "x": -10.016,
+        "y": 8.19,
+        "z": 4.543
+      },
+      "rotationY": 0,
+      "scale": 7.8
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/floor.glb",
+      "position": {
+        "x": -2.216,
+        "y": 8.19,
+        "z": 4.543
+      },
+      "rotationY": 0,
+      "scale": 7.8
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/floor.glb",
+      "position": {
+        "x": 5.584,
+        "y": 8.19,
+        "z": 4.543
+      },
+      "rotationY": 0,
+      "scale": 7.8
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": 8.159,
+        "y": 10.53,
+        "z": -4.897
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": 8.159,
+        "y": 10.53,
+        "z": 0.403
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": 8.159,
+        "y": 10.53,
+        "z": 5.703
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": 8.159,
+        "y": 15.83,
+        "z": -4.897
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": 8.159,
+        "y": 15.83,
+        "z": 0.403
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": 8.159,
+        "y": 15.83,
+        "z": 5.703
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": 8.159,
+        "y": 21.13,
+        "z": -4.897
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": 8.159,
+        "y": 21.13,
+        "z": 0.403
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": 8.159,
+        "y": 21.13,
+        "z": 5.703
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": 5.509,
+        "y": 10.53,
+        "z": 0.403
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": 5.509,
+        "y": 10.53,
+        "z": 5.703
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": 5.509,
+        "y": 10.53,
+        "z": -4.897
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": 5.509,
+        "y": 15.83,
+        "z": -4.897
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": 5.509,
+        "y": 15.83,
+        "z": 0.403
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": 5.509,
+        "y": 15.83,
+        "z": 5.703
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": 1.534,
+        "y": 10.53,
+        "z": -4.897
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": -1.116,
+        "y": 10.53,
+        "z": -4.897
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": -3.766,
+        "y": 10.53,
+        "z": -4.897
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": 1.534,
+        "y": 10.53,
+        "z": 0.403
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": -1.116,
+        "y": 10.53,
+        "z": 0.403
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": -3.766,
+        "y": 10.53,
+        "z": 0.403
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": 1.534,
+        "y": 10.53,
+        "z": 5.703
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": -1.116,
+        "y": 10.53,
+        "z": 5.703
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-pillar-banner.glb",
+      "position": {
+        "x": -3.766,
+        "y": 10.53,
+        "z": 5.703
+      },
+      "rotationY": 1.5708,
+      "scale": 5.3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/pipe-bend.glb",
+      "position": {
+        "x": 2.084,
+        "y": 15.83,
+        "z": -4.897
+      },
+      "rotationY": 0,
+      "scale": 7.5
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/pipe-bend.glb",
+      "position": {
+        "x": 2.084,
+        "y": 15.83,
+        "z": -2.763
+      },
+      "rotationY": 0,
+      "scale": 7.5
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/pipe-bend.glb",
+      "position": {
+        "x": 2.084,
+        "y": 15.83,
+        "z": -0.629
+      },
+      "rotationY": 0,
+      "scale": 7.5
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/pipe-bend.glb",
+      "position": {
+        "x": 2.084,
+        "y": 15.83,
+        "z": 1.505
+      },
+      "rotationY": 0,
+      "scale": 7.5
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/pipe-bend.glb",
+      "position": {
+        "x": 2.084,
+        "y": 15.83,
+        "z": 3.639
+      },
+      "rotationY": 0,
+      "scale": 7.5
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/pipe-bend.glb",
+      "position": {
+        "x": 2.084,
+        "y": 15.83,
+        "z": 5.773
+      },
+      "rotationY": 0,
+      "scale": 7.5
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/pipe-end-colored.glb",
+      "position": {
+        "x": 6.314,
+        "y": 21.13,
+        "z": 0.403
+      },
+      "rotationY": 0,
+      "scale": 3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/rail.glb",
+      "position": {
+        "x": -11.966,
+        "y": 10.53,
+        "z": 8.293
+      },
+      "rotationY": 0,
+      "scale": 3.6
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/rail.glb",
+      "position": {
+        "x": -11.966,
+        "y": 10.53,
+        "z": -6.782
+      },
+      "rotationY": 0,
+      "scale": 3.6
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/rail.glb",
+      "position": {
+        "x": -14.096,
+        "y": 9.36,
+        "z": -1.157
+      },
+      "rotationY": 1.5708,
+      "scale": 3.6
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/rail.glb",
+      "position": {
+        "x": -14.096,
+        "y": 9.36,
+        "z": 2.443
+      },
+      "rotationY": 1.5708,
+      "scale": 3.6
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs-small-edges.glb",
+      "position": {
+        "x": -7.116,
+        "y": 10.53,
+        "z": -3.257
+      },
+      "rotationY": 4.7124,
+      "scale": 5
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs-small-edges.glb",
+      "position": {
+        "x": -7.116,
+        "y": 10.53,
+        "z": 4.543
+      },
+      "rotationY": 4.7124,
+      "scale": 5
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/gutter-vertical.glb",
+      "position": {
+        "x": -11.966,
+        "y": 10.53,
+        "z": 7.471
+      },
+      "rotationY": 0,
+      "scale": 3
+    },
+    {
+      "partName": "/kits/kenney_building-kit/Models/GLB format/detail-pipe.glb",
+      "position": {
+        "x": -11.966,
+        "y": 10.53,
+        "z": -5.951
+      },
+      "rotationY": 0,
+      "scale": 4.6
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-detail.glb",
+      "position": {
+        "x": 9.744,
+        "y": 9.36,
+        "z": 0.403
+      },
+      "rotationY": 1.5708,
+      "scale": 5.8
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-detail.glb",
+      "position": {
+        "x": 9.986,
+        "y": 13.42,
+        "z": 0.403
+      },
+      "rotationY": 1.5708,
+      "scale": 5.8
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-detail.glb",
+      "position": {
+        "x": 9.986,
+        "y": 17.48,
+        "z": 0.403
+      },
+      "rotationY": 1.5708,
+      "scale": 5.8
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/wall-detail.glb",
+      "position": {
+        "x": 9.986,
+        "y": 21.54,
+        "z": 0.403
+      },
+      "rotationY": 1.5708,
+      "scale": 5.8
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/computer-system.glb",
+      "position": {
+        "x": 5.509,
+        "y": 0,
+        "z": -9.597
+      },
+      "rotationY": 3.1416,
+      "scale": 5.9
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/computer.glb",
+      "position": {
+        "x": -0.266,
+        "y": 0,
+        "z": -8.577
+      },
+      "rotationY": 3.1416,
+      "scale": 9.8
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/display-wall-wide.glb",
+      "position": {
+        "x": 4.554,
+        "y": 3.54,
+        "z": -8.577
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/display-wall-wide.glb",
+      "position": {
+        "x": 6.354,
+        "y": 3.54,
+        "z": -8.577
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    },
+    {
+      "partName": "/kits/kenney_space-station-kit/Models/GLB format/display-wall-wide.glb",
+      "position": {
+        "x": -0.266,
+        "y": 6.477,
+        "z": -8.124
+      },
+      "rotationY": 3.1416,
+      "scale": 3
+    }
+  ]
+}

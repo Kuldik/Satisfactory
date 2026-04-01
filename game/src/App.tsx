@@ -230,7 +230,8 @@ function App() {
           engineRef.current
             .placePattern()
             .then((ok) => {
-              if (ok) setPlacedCount(engineRef.current!.getBuilderPlacedCount());
+              if (ok)
+                setPlacedCount(engineRef.current!.getBuilderPlacedCount());
             })
             .catch((err) => console.error("[Pattern] place failed:", err));
         } else if (e.button === 2) {
