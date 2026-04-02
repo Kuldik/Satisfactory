@@ -1,0 +1,43 @@
+/* Центральный индикатор: загрузка композитной голограммы (как круг при сносе, но индетерминатный) */
+
+.pattern-ghost-load-overlay {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 150;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.pattern-ghost-load-overlay__svg {
+  filter: drop-shadow(0 0 10px rgba(80, 200, 255, 0.55));
+  animation: pattern-ghost-load-spin 1.1s linear infinite;
+}
+
+.pattern-ghost-load-overlay__track {
+  stroke: rgba(20, 35, 45, 0.9);
+}
+
+.pattern-ghost-load-overlay__arc {
+  stroke: #6ec8ff;
+  stroke-linecap: round;
+}
+
+@keyframes pattern-ghost-load-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.pattern-ghost-load-overlay__hint {
+  font-size: 12px;
+  font-weight: 600;
+  color: #b8e8ff;
+  text-shadow: 0 0 8px #000, 0 1px 2px #000;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}

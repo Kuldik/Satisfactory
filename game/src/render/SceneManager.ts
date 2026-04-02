@@ -9,6 +9,8 @@ import { CameraController } from "./CameraController.ts";
 import { GridRenderer } from "./GridRenderer.ts";
 import { ModelGallery } from "./ModelGallery.ts";
 import type { PatternPart } from "../buildings/BuildingPatterns.ts";
+import { getBuildingPrefab } from "../buildings/BuildingPrefabs.ts";
+import { resolveBuilderModelPath } from "./builderModelPath.ts";
 
 export class SceneManager {
   readonly scene: THREE.Scene;
@@ -35,6 +37,10 @@ export class SceneManager {
   private builderGhostInvalid = false;
   private builderGhostCurrentPos = new THREE.Vector3();
   private builderGhostFootprint = new THREE.Vector3(1, 1, 1);
+  /** Не null — режим «префаб из меню»: фиксированный scale и одна сборка compositeId при установке */
+  private prefabPlacementScale: number | null = null;
+  /** Id пункта меню (например space_elevator) — в сейв подставляется актуальный scale из BuildingPrefabs */
+  private prefabMenuBuildingId: string | null = null;
   private builderCtrlHeld = false;
   private builderDeconstructMode = false;
   private deconstructHovered: THREE.Object3D | null = null;
@@ -60,17 +66,19 @@ export class SceneManager {
     scale: number;
     /** Один id на сборку (паттерн из меню, импорт, экспорт с группой) — снос удержанием ЛКМ целиком */
     compositeId?: string;
+    /** Постановка из меню строительства — при загрузке сейва scale берётся из реестра префабов */
+    menuBuildingId?: string;
   }> = [];
   private readonly builderPlacedGroup = new THREE.Group();
   private readonly builderLinePreviewGroup = new THREE.Group();
   private readonly glbCache = new Map<string, THREE.Group>();
   private readonly ghostMaterialOk = new THREE.MeshStandardMaterial({
-    color: 0x44aaff,
+    color: 0x38bdf8,
     transparent: true,
-    opacity: 0.4,
+    opacity: 0.42,
     depthWrite: false,
-    emissive: new THREE.Color(0x112244),
-    emissiveIntensity: 0.6,
+    emissive: new THREE.Color(0x0c4a6e),
+    emissiveIntensity: 0.55,
   });
   private readonly ghostMaterialInvalid = new THREE.MeshStandardMaterial({
     color: 0xff4455,
@@ -88,11 +96,13 @@ export class SceneManager {
   private patternBuildingId = "";
   private patternRotY = 0;
   private patternCurrentPos = new THREE.Vector3();
+  /** Инкремент при отмене / новом выборе: устаревший setPatternGhost не вешает группу на сцену. */
+  private patternGhostLoadGeneration = 0;
   constructor(canvas: HTMLCanvasElement) {
     // Scene
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x1a1a2e);
-    this.scene.fog = new THREE.Fog(0x1a1a2e, 300, 1200);
+    this.scene.background = new THREE.Color(0x141018);
+    this.scene.fog = new THREE.Fog(0x141018, 300, 1200);
 
     // Camera
     this.camera = new THREE.PerspectiveCamera(
@@ -172,9 +182,9 @@ export class SceneManager {
   private setupGround(): void {
     const groundGeo = new THREE.PlaneGeometry(4000, 4000);
     const groundMat = new THREE.MeshStandardMaterial({
-      color: 0x2d5a27,
-      roughness: 0.9,
-      metalness: 0.0,
+      color: 0x2c2620,
+      roughness: 0.92,
+      metalness: 0.02,
     });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
@@ -333,6 +343,58 @@ export class SceneManager {
   // Admin Builder — ghost placement system
   // ================================================================
 
+  private effectiveGhostScale(): number {
+    return this.prefabPlacementScale ?? this.builderScale;
+  }
+
+  isPrefabPlacementActive(): boolean {
+    return this.prefabPlacementScale !== null && this.builderGhostPivot !== null;
+  }
+
+  /** Префаб из меню (один GLB, голограмма как у конструктора) */
+  async setPrefabBuildingGhost(
+    partPath: string,
+    scale: number,
+    menuBuildingId: string,
+  ): Promise<void> {
+    this.clearBuilderGhost();
+    this.setBuilderDeconstructMode(false);
+    this.prefabPlacementScale = scale;
+    this.prefabMenuBuildingId = menuBuildingId;
+    this.builderGhostRotY = 0;
+    this.builderCurrentPartPath = partPath;
+
+    let original = this.glbCache.get(partPath);
+    if (!original) {
+      const gltf = await this.loadGLB(this.buildingKitLoader, partPath);
+      original = gltf.scene;
+      this.glbCache.set(partPath, original);
+    }
+
+    const ghost = original.clone(true);
+    ghost.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.material = this.ghostMaterialOk;
+        child.castShadow = false;
+        child.receiveShadow = false;
+      }
+    });
+
+    const pivot = new THREE.Group();
+    pivot.name = "prefab-menu-ghost";
+    pivot.add(ghost);
+    this.scene.add(pivot);
+    this.builderGhostPivot = pivot;
+    this.builderGhostModelRoot = ghost;
+
+    this.builderGhostModelRoot.scale.setScalar(this.effectiveGhostScale());
+    this.normalizeGhostModel();
+    this.updateBuilderGhostPosition(
+      this.builderPointerNDC.x,
+      this.builderPointerNDC.y,
+    );
+  }
+
   /** Load a part as ghost (translucent blue hologram) and track it */
   async setBuilderGhost(partPath: string): Promise<void> {
     this.clearBuilderGhost();
@@ -362,7 +424,7 @@ export class SceneManager {
     this.builderGhostPivot = pivot;
     this.builderGhostModelRoot = ghost;
 
-    ghost.scale.setScalar(this.builderScale);
+    ghost.scale.setScalar(this.effectiveGhostScale());
     this.normalizeGhostModel();
     this.updateBuilderGhostPosition(
       this.builderPointerNDC.x,
@@ -374,13 +436,17 @@ export class SceneManager {
   updateBuilderGhostPosition(ndcX: number, ndcY: number): void {
     this.builderPointerNDC.set(ndcX, ndcY);
     this.builderHasPointer = true;
-    if (this.builderDeconstructMode) {
+    if (this.builderDeconstructMode && this.prefabPlacementScale === null) {
       this.updateDeconstructHover(ndcX, ndcY);
       return;
     }
 
     if (!this.builderGhostPivot) return;
-    const pos = this.getGridPositionUnderMouse(ndcX, ndcY, this._visibleFloor);
+    let pos = this.getGridPositionUnderMouse(ndcX, ndcY, this._visibleFloor);
+    if (!pos && this.prefabPlacementScale !== null) {
+      const floorY = this._visibleFloor * GRID_CELL_SIZE;
+      pos = new THREE.Vector3(0, floorY, 0);
+    }
     if (!pos) return;
 
     // Ctrl-held edge alignment: snap to the same line as a nearby building edge
@@ -411,7 +477,7 @@ export class SceneManager {
 
   /** Place the ghost part permanently and record it */
   placeBuilderPart(): boolean {
-    if (this.builderDeconstructMode) {
+    if (this.builderDeconstructMode && this.prefabPlacementScale === null) {
       if (this.deconstructHovered) {
         if (this.deconstructHovered.userData.compositeId) {
           return false;
@@ -434,7 +500,7 @@ export class SceneManager {
     )
       return false;
 
-    if (this.builderMode === "line") {
+    if (this.builderMode === "line" && this.prefabPlacementScale === null) {
       if (!this.builderLineStart) {
         this.builderLineStart = this.builderGhostCurrentPos.clone();
         this.rebuildLinePreview(
@@ -459,9 +525,21 @@ export class SceneManager {
       return placedAny;
     }
 
-    const placed = this.placeSingleAt(this.builderGhostCurrentPos);
+    const scale = this.prefabPlacementScale ?? this.builderScale;
+    const compositeId =
+      this.prefabPlacementScale !== null ? this.newCompositeId() : undefined;
+    const placed = this.placeSingleAt(
+      this.builderGhostCurrentPos,
+      undefined,
+      scale,
+      compositeId,
+      this.prefabMenuBuildingId ?? undefined,
+    );
     if (placed) {
       this.persistBuilderState();
+      if (this.prefabPlacementScale !== null) {
+        this.clearBuilderGhost();
+      }
     }
     return placed;
   }
@@ -483,6 +561,8 @@ export class SceneManager {
     }
     this.builderGhostModelRoot = null;
     this.builderCurrentPartPath = "";
+    this.prefabPlacementScale = null;
+    this.prefabMenuBuildingId = null;
     this.builderLineStart = null;
     this.builderLinePreviewGroup.clear();
     this.builderGhostInvalid = false;
@@ -522,6 +602,7 @@ export class SceneManager {
             scale: +p.scale.toFixed(4),
           };
           if (p.compositeId) row.compositeId = p.compositeId;
+          if (p.menuBuildingId) row.menuBuildingId = p.menuBuildingId;
           return row;
         }),
       },
@@ -580,10 +661,16 @@ export class SceneManager {
     for (const p of parts) {
       const partName = p.partName ?? "";
       if (!partName) continue;
-      const partPath = partName.includes("/")
-        ? partName
-        : `/kits/kenney_building-kit/Models/GLB format/${partName}`;
-      await this.ensureCached(partPath);
+      const partPath = resolveBuilderModelPath(partName);
+      try {
+        await this.ensureCached(partPath);
+      } catch (err) {
+        console.warn(
+          `[Import] Skip part (load failed) "${partName}" -> ${partPath}:`,
+          err,
+        );
+        continue;
+      }
       const previousPath = this.builderCurrentPartPath;
       const previousScale = this.builderScale;
       this.builderCurrentPartPath = partPath;
@@ -753,7 +840,7 @@ export class SceneManager {
 
   private applyGhostScale(): void {
     if (!this.builderGhostModelRoot) return;
-    this.builderGhostModelRoot.scale.setScalar(this.builderScale);
+    this.builderGhostModelRoot.scale.setScalar(this.effectiveGhostScale());
     this.normalizeGhostModel();
   }
 
@@ -773,7 +860,7 @@ export class SceneManager {
     const origBox = new THREE.Box3().setFromObject(original);
     const origCenter = origBox.getCenter(new THREE.Vector3());
     const origSize = origBox.getSize(new THREE.Vector3());
-    const s = this.builderScale;
+    const s = this.effectiveGhostScale();
 
     this.builderGhostModelRoot.position.set(
       -origCenter.x * s,
@@ -823,6 +910,7 @@ export class SceneManager {
     forcedRotY?: number,
     forcedScale?: number,
     compositeId?: string,
+    menuBuildingId?: string,
   ): boolean {
     if (!this.builderCurrentPartPath) return false;
     const original = this.glbCache.get(this.builderCurrentPartPath);
@@ -867,6 +955,10 @@ export class SceneManager {
     if (compositeId) {
       record.compositeId = compositeId;
       pivot.userData.compositeId = compositeId;
+    }
+    if (menuBuildingId) {
+      record.menuBuildingId = menuBuildingId;
+      pivot.userData.menuBuildingId = menuBuildingId;
     }
     pivot.userData.builderRecord = record;
     this.builderPlacedGroup.add(pivot);
@@ -1259,6 +1351,7 @@ export class SceneManager {
           rotY: number;
           scale?: number;
           compositeId?: string;
+          menuBuildingId?: string;
         }>;
       };
       if (typeof parsed.scale === "number") {
@@ -1272,15 +1365,28 @@ export class SceneManager {
         this.builderMode = parsed.mode;
       }
       const parts = parsed.parts ?? [];
+      const elevatorPath = getBuildingPrefab("space_elevator")?.modelPath;
       for (const part of parts) {
         if (!part.partPath) continue;
         await this.ensureCached(part.partPath);
         this.builderCurrentPartPath = part.partPath;
+        let menuId =
+          typeof part.menuBuildingId === "string" ? part.menuBuildingId : undefined;
+        if (!menuId && elevatorPath && part.partPath === elevatorPath) {
+          menuId = "space_elevator";
+        }
+        let scaleForPart =
+          typeof part.scale === "number" ? part.scale : this.builderScale;
+        if (menuId) {
+          const def = getBuildingPrefab(menuId);
+          if (def) scaleForPart = def.scale;
+        }
         this.placeSingleAt(
           new THREE.Vector3(part.x, part.y, part.z),
           part.rotY,
-          typeof part.scale === "number" ? part.scale : this.builderScale,
+          scaleForPart,
           typeof part.compositeId === "string" ? part.compositeId : undefined,
+          menuId,
         );
       }
       this.builderCurrentPartPath = "";
@@ -1301,6 +1407,7 @@ export class SceneManager {
     buildingId: string,
     parts: PatternPart[],
   ): Promise<void> {
+    const gen = ++this.patternGhostLoadGeneration;
     this.clearPatternGhost();
     this.clearBuilderGhost();
     this.patternParts = parts;
@@ -1310,13 +1417,11 @@ export class SceneManager {
     const group = new THREE.Group();
     group.name = "pattern-ghost";
 
-    const KIT_BASE = "/kits/kenney_building-kit/Models/GLB format";
     let loaded = 0;
 
     for (const part of parts) {
-      const partPath = part.partName.includes("/")
-        ? part.partName
-        : `${KIT_BASE}/${part.partName}`;
+      if (gen !== this.patternGhostLoadGeneration) return;
+      const partPath = resolveBuilderModelPath(part.partName);
 
       try {
         await this.ensureCached(partPath);
@@ -1358,6 +1463,8 @@ export class SceneManager {
       loaded++;
     }
 
+    if (gen !== this.patternGhostLoadGeneration) return;
+
     if (loaded === 0) {
       console.error(
         `[Pattern] No parts loaded for ${buildingId}. Check part names and kit path.`,
@@ -1370,6 +1477,8 @@ export class SceneManager {
       );
     }
 
+    if (gen !== this.patternGhostLoadGeneration) return;
+
     this.scene.add(group);
     this.patternGhostGroup = group;
 
@@ -1377,10 +1486,20 @@ export class SceneManager {
     this.updatePatternGhostPosition(0, 0);
   }
 
+  /** Отменить фоновую загрузку паттерна и убрать призрак (Escape, смена постройки). */
+  abortPatternGhostLoad(): void {
+    this.patternGhostLoadGeneration++;
+    this.clearPatternGhost();
+  }
+
   /** Update pattern ghost position to follow cursor */
   updatePatternGhostPosition(ndcX: number, ndcY: number): void {
     if (!this.patternGhostGroup) return;
-    const pos = this.getGridPositionUnderMouse(ndcX, ndcY, 0);
+    const pos = this.getGridPositionUnderMouse(
+      ndcX,
+      ndcY,
+      this._visibleFloor,
+    );
     if (!pos) return;
     this.patternCurrentPos.copy(pos);
     this.patternGhostGroup.position.copy(pos);
@@ -1398,7 +1517,6 @@ export class SceneManager {
     const rot = this.patternRotY;
     const cosR = Math.cos(rot);
     const sinR = Math.sin(rot);
-    const KIT_BASE = "/kits/kenney_building-kit/Models/GLB format";
     const savedPath = this.builderCurrentPartPath;
     const patternCompositeId = this.newCompositeId();
     let placed = 0;
@@ -1408,10 +1526,16 @@ export class SceneManager {
     );
 
     for (const part of this.patternParts) {
-      const partPath = part.partName.includes("/")
-        ? part.partName
-        : `${KIT_BASE}/${part.partName}`;
-      await this.ensureCached(partPath);
+      const partPath = resolveBuilderModelPath(part.partName);
+      try {
+        await this.ensureCached(partPath);
+      } catch (err) {
+        console.warn(
+          `[Pattern] Skip part (load failed) "${part.partName}" -> ${partPath}:`,
+          err,
+        );
+        continue;
+      }
       this.builderCurrentPartPath = partPath;
 
       const rx = part.position.x * cosR - part.position.z * sinR;

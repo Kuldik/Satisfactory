@@ -7,6 +7,9 @@ import { GameMode } from "./core/types.ts";
 import type { GameState } from "./core/types.ts";
 import { HUD } from "./ui/hud/HUD.tsx";
 import { DeconstructHoldOverlay } from "./ui/hud/DeconstructHoldOverlay.tsx";
+import { PatternGhostLoadOverlay } from "./ui/hud/PatternGhostLoadOverlay.tsx";
+import { hasPattern } from "./buildings/BuildingPatterns.ts";
+import { hasPrefabBuilding } from "./buildings/BuildingPrefabs.ts";
 import { BuildMenu } from "./ui/menus/BuildMenu.tsx";
 import { AdminPanel } from "./ui/admin/AdminPanel.tsx";
 import { useGameEngine } from "./hooks/useGameEngine.ts";
@@ -36,6 +39,7 @@ function App() {
   const [builderMode, setBuilderMode] = useState<"single" | "line">("single");
   const [builderScale, setBuilderScale] = useState(1);
   const [placedCount, setPlacedCount] = useState(0);
+  const [patternGhostLoading, setPatternGhostLoading] = useState(false);
 
   const mouseDownPos = useRef<{ x: number; y: number } | null>(null);
   const lastBuilderPartPathRef = useRef<string | null>(null);
@@ -88,9 +92,18 @@ function App() {
   }, [engineRef, gameState.selectedBuilding]);
 
   const handleSelectBuilding = useCallback(
-    (buildingId: string) => {
-      engineRef.current?.selectBuilding(buildingId);
+    async (buildingId: string) => {
       setIsBuildMenuOpen(false);
+      if (!engineRef.current) return;
+      engineRef.current.setBuilderDeconstructMode(false);
+      setIsDeconstructMode(false);
+      const showLoad = hasPattern(buildingId) || hasPrefabBuilding(buildingId);
+      if (showLoad) setPatternGhostLoading(true);
+      try {
+        await engineRef.current.selectBuilding(buildingId);
+      } finally {
+        if (showLoad) setPatternGhostLoading(false);
+      }
     },
     [engineRef],
   );
@@ -98,10 +111,18 @@ function App() {
   const handleOpenAdminPanel = useCallback(() => setIsAdminOpen(true), []);
 
   const handleSelectComposition = useCallback(
-    (compositionId: string) => {
+    async (compositionId: string) => {
       if (!engineRef.current) return;
-      engineRef.current.selectBuilding(compositionId);
       setIsAdminOpen(false);
+      engineRef.current.setBuilderDeconstructMode(false);
+      setIsDeconstructMode(false);
+      const showLoad = hasPattern(compositionId);
+      if (showLoad) setPatternGhostLoading(true);
+      try {
+        await engineRef.current.selectBuilding(compositionId);
+      } finally {
+        if (showLoad) setPatternGhostLoading(false);
+      }
     },
     [engineRef],
   );
@@ -195,10 +216,11 @@ function App() {
 
       if (engineRef.current.isPatternGhostActive()) {
         engineRef.current.updatePatternGhost(ndcX, ndcY);
-      }
-      if (isDeconstructMode) {
-        engineRef.current.updateBuilderGhost(ndcX, ndcY);
-      } else if (isBuilderActive) {
+      } else if (
+        isDeconstructMode ||
+        isBuilderActive ||
+        engineRef.current.isPrefabPlacementActive()
+      ) {
         engineRef.current.updateBuilderGhost(ndcX, ndcY);
       }
     },
@@ -240,6 +262,17 @@ function App() {
         return;
       }
 
+      if (engineRef.current.isPrefabPlacementActive()) {
+        if (e.button === 0) {
+          if (engineRef.current.placePrefabFromMenu()) {
+            setPlacedCount(engineRef.current.getBuilderPlacedCount());
+          }
+        } else if (e.button === 2) {
+          engineRef.current.cancelPrefabPlacement();
+        }
+        return;
+      }
+
       if (!isBuilderActive && !isDeconstructMode) return;
       if (e.button === 0) {
         engineRef.current.placeBuilderPart();
@@ -264,7 +297,8 @@ function App() {
       if (
         isBuilderActive ||
         isDeconstructMode ||
-        engineRef.current?.isPatternGhostActive()
+        engineRef.current?.isPatternGhostActive() ||
+        engineRef.current?.isPrefabPlacementActive()
       ) {
         e.preventDefault();
       }
@@ -300,6 +334,8 @@ function App() {
         onClose={handleCloseBuildMenu}
         onSelectBuilding={handleSelectBuilding}
       />
+
+      <PatternGhostLoadOverlay visible={patternGhostLoading} />
 
       {IS_DEV && isDeconstructMode && (
         <DeconstructHoldOverlay ref={deconstructHoldOverlayRef} />

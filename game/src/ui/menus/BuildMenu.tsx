@@ -5,6 +5,7 @@
 import { useState, type FC } from 'react';
 import { BuildingCategory } from '../../core/types.ts';
 import { hasPattern } from '../../buildings/BuildingPatterns.ts';
+import { hasPrefabBuilding } from '../../buildings/BuildingPrefabs.ts';
 import './BuildMenu.css';
 
 interface BuildMenuItem {
@@ -21,7 +22,7 @@ interface BuildMenuItem {
 interface BuildMenuProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectBuilding: (buildingId: string) => void;
+  onSelectBuilding: (buildingId: string) => void | Promise<void>;
 }
 
 // ---- ALL BUILDINGS organized by category + subcategory ----
@@ -109,21 +110,30 @@ const ALL_BUILDINGS: BuildMenuItem[] = [
     iconPath: '/kits/kenney_space-station-kit/Previews/structure.png',
     description: 'Базовая плавильня для переплавки одного типа руды в слитки. Железная руда → железные слитки, медная руда → медные слитки и т.д. 1 вход, 1 выход. Потребляет 4 МВт.' },
   { id: 'foundry', name: 'Foundry', nameRu: 'Литейная', category: BuildingCategory.Production, subcategory: 'Переплавка',
+    iconPath: '/kits/kenney_building-kit/Previews/plating-detailed-wide.png',
     description: 'Комбинирует 2 типа руды/слитков в сплав. Производит сталь (железо + уголь), алюминиевые слитки и др. 2 входа, 1 выход. Потребляет 16 МВт.' },
 
   // — Лесопилка —
   { id: 'sawmill', name: 'Sawmill', nameRu: 'Лесопилка', category: BuildingCategory.Production, subcategory: 'Автоматическая добыча',
+    iconPath: '/kits/kenney_space-station-kit/Previews/structure.png',
     description: 'Уникальное строение, автоматически производящее древесину и траву — бесконечные ресурсы для биомассы. 2 конвейерных выхода: один для древесины, другой для травы. Потребляет 10 МВт.' },
 
   // ============ POWER ============
   // — Генераторы —
   { id: 'biomass_burner', name: 'Biomass Burner', nameRu: 'Сжигатель биомассы', category: BuildingCategory.Power, subcategory: 'Генераторы',
+    iconPath: '/kits/kenney_space-station-kit/Previews/wall-door-wide-banner.png',
     description: 'Самый первый генератор. Сжигает древесину, листву, биомассу или твёрдое биотопливо для выработки энергии. 1 конвейерный вход. Вырабатывает 30 МВт.' },
   { id: 'coal_generator', name: 'Coal Generator', nameRu: 'Угольный генератор', category: BuildingCategory.Power, subcategory: 'Генераторы',
+    modelPath: '/kits/City Kit Industrial/Models/GLB format/building-n.glb',
+    iconPath: '/kits/City Kit Industrial/Previews/building-n.png',
     description: 'Генератор на угле. Нагревает воду до пара для производства электричества. 1 конвейерный вход (уголь) + 1 трубный вход (вода). Вырабатывает 75 МВт.' },
   { id: 'fuel_generator', name: 'Fuel Generator', nameRu: 'Топливный генератор', category: BuildingCategory.Power, subcategory: 'Генераторы',
+    modelPath: '/kits/City Kit Industrial/Models/GLB format/building-m.glb',
+    iconPath: '/kits/City Kit Industrial/Previews/building-m.png',
     description: 'Работает на жидком топливе (fuel), турботопливе или ракетном топливе, получаемом переработкой нефти. 1 трубный вход. Вырабатывает 250 МВт.' },
   { id: 'nuclear_power', name: 'Nuclear Power Plant', nameRu: 'Атомная электростанция', category: BuildingCategory.Power, subcategory: 'Генераторы',
+    modelPath: '/kits/City Kit Industrial/Models/GLB format/chimney-large.glb',
+    iconPath: '/kits/City Kit Industrial/Previews/chimney-large.png',
     description: 'Колоссальная электростанция. Работает на урановых/плутониевых/фиксониевых стержнях + вода. Производит ядерные отходы (кроме фиксония). 1 вход ленты + 1 трубный + 1 выход отходов. Вырабатывает 2500 МВт.' },
   { id: 'alien_extractor', name: 'Alien Power Augmenter', nameRu: 'Экстрактор инопланетной энергии', category: BuildingCategory.Power, subcategory: 'Генераторы',
     description: 'Самый продвинутый источник энергии. Статически вырабатывает 500 МВт. Главный бонус: +30% ко всей мощности электросети, к которой подключён. Несколько экстракторов — каждый +30% от базовой мощности (без учёта других бонусов).' },
@@ -291,7 +301,7 @@ export const BuildMenu: FC<BuildMenuProps> = ({ isOpen, onClose, onSelectBuildin
                 {buildings.map(building => (
                   <button
                     key={building.id}
-                    className={`build-menu-item ${isSpecial ? 'build-menu-item-special' : ''}${hasPattern(building.id) ? ' has-pattern' : ''}`}
+                    className={`build-menu-item ${isSpecial ? 'build-menu-item-special' : ''}${hasPattern(building.id) || hasPrefabBuilding(building.id) ? ' has-pattern' : ''}`}
                     onClick={() => {
                       onSelectBuilding(building.id);
                       onClose();
@@ -305,7 +315,9 @@ export const BuildMenu: FC<BuildMenuProps> = ({ isOpen, onClose, onSelectBuildin
                       <div className="item-icon">{isSpecial ? '🏛️' : '🏭'}</div>
                     )}
                     <div className="item-name">{building.nameRu}</div>
-                    {hasPattern(building.id) && <div className="pattern-badge">3D</div>}
+                    {(hasPattern(building.id) || hasPrefabBuilding(building.id)) && (
+                      <div className="pattern-badge">3D</div>
+                    )}
                   </button>
                 ))}
               </div>

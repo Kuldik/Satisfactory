@@ -1,6 +1,20 @@
 /* ============================================================
-   Global styles
+   Global styles — warm industrial UI (amber + slate + cyan)
    ============================================================ */
+
+:root {
+  --ui-bg-void: #060508;
+  --ui-surface: rgba(20, 16, 30, 0.96);
+  --ui-surface-deep: rgba(12, 10, 22, 0.98);
+  --ui-accent: #f59e0b;
+  --ui-accent-bright: #fbbf24;
+  --ui-glow: #22d3ee;
+  --ui-glow-soft: rgba(34, 211, 238, 0.35);
+  --ui-border: rgba(245, 158, 11, 0.4);
+  --ui-border-cool: rgba(56, 189, 248, 0.28);
+  --ui-text: #ece8e3;
+  --ui-text-muted: #9b92a8;
+}
 
 * {
   margin: 0;
@@ -12,7 +26,7 @@ html, body, #root {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #000;
+  background: var(--ui-bg-void);
   font-family: 'Segoe UI', 'Roboto', 'Oxygen', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -36,6 +50,6 @@ html, body, #root {
   }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(100, 120, 200, 0.3);
+  background: rgba(245, 158, 11, 0.35);
   border-radius: 3px;
 }

@@ -37,7 +37,9 @@ const MODEL_REGISTRY: Record<string, string> = {
   // Other placeholders / temporary mappings
   'smelter':        '/assets/models/space/corridorStraight.glb',
 
-  'coal_generator': '/assets/models/industrial/chimney.glb',
+  'coal_generator': '/kits/City Kit Industrial/Models/GLB format/building-n.glb',
+  'fuel_generator': '/kits/City Kit Industrial/Models/GLB format/building-m.glb',
+  'nuclear_power': '/kits/City Kit Industrial/Models/GLB format/chimney-large.glb',
 
   // Train Kit
   'locomotive':     '/assets/models/train/locomotive.glb',
@@ -55,7 +57,21 @@ const MODEL_REGISTRY: Record<string, string> = {
 
 /** Optional per-building model scale multiplier */
 const MODEL_SCALE_OVERRIDES: Record<string, number> = {
-  space_elevator: 20,
+  hub: 20,
+  space_elevator: 400,
+  resource_sink: 20,
+  constructor: 20,
+  assembler: 20,
+  manufacturer: 20,
+  packager: 20,
+  refinery: 20,
+  blender: 20,
+  particle_accelerator: 20,
+  converter: 20,
+  quantum_encoder: 20,
+  coal_generator: 20,
+  fuel_generator: 20,
+  nuclear_power: 20,
 };
 
 export class AssetLoader {
@@ -175,7 +191,7 @@ export class AssetLoader {
       sizeZ * CELL - 0.05,
     );
     const mat = new THREE.MeshStandardMaterial({
-      color: canPlace ? 0x44ff44 : 0xff4444,
+      color: canPlace ? 0x22d3ee : 0xff4444,
       transparent: true,
       opacity: 0.35,
       depthWrite: false,

@@ -57,7 +57,7 @@ export const ORE_COLORS: Record<string, number> = {
   sam:           0x9933FF, // Purple (same as caterium)
   raw_quartz:    0xFF69B4, // Pink
   bauxite:       0x8B4513, // Red-brown
-  uranium:       0x39FF14, // Toxic green
+  uranium:       0x39FF14, // Toxic green (ore identity)
   water:         0x3399FF, // Blue
   crude_oil:     0x111111, // Dark black
   nitrogen_gas:  0xE0E0E0, // White

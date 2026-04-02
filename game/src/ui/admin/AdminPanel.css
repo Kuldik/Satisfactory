@@ -23,7 +23,9 @@
   border: 1px solid rgba(255, 200, 50, 0.35);
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 0 60px rgba(255, 180, 0, 0.12), 0 8px 60px rgba(0, 0, 0, 0.85);
+  box-shadow:
+    0 0 60px rgba(255, 180, 0, 0.12),
+    0 8px 60px rgba(0, 0, 0, 0.85);
 }
 
 /* Header */
@@ -58,8 +60,13 @@
 }
 
 @keyframes pulse-hint {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.65; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.65;
+  }
 }
 
 .admin-close-btn {
@@ -89,8 +96,8 @@
 
 /* Left: categories */
 .admin-categories {
-  width: 130px;
-  min-width: 130px;
+  width: 190px;
+  min-width: 190px;
   background: rgba(8, 10, 22, 0.95);
   border-right: 1px solid rgba(255, 180, 0, 0.12);
   display: flex;
@@ -139,7 +146,7 @@
   gap: 6px;
   padding: 10px 6px;
   background: rgba(20, 24, 50, 0.8);
-  border: 1px solid rgba(80, 100, 180, 0.25);
+  border: 1px solid rgba(56, 189, 248, 0.18);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.13s;
@@ -168,7 +175,7 @@
   justify-content: center;
   width: 56px;
   height: 56px;
-  background: rgba(80, 120, 200, 0.25);
+  background: rgba(34, 211, 238, 0.12);
   border-radius: 6px;
   font-size: 28px;
   padding: 4px;
@@ -219,10 +226,10 @@
 
 .admin-btn {
   padding: 8px 12px;
-  background: rgba(40, 50, 100, 0.7);
-  border: 1px solid rgba(80, 100, 200, 0.4);
+  background: rgba(36, 30, 58, 0.75);
+  border: 1px solid rgba(56, 189, 248, 0.22);
   border-radius: 7px;
-  color: #aabbff;
+  color: #c8e8f8;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -230,8 +237,8 @@
   text-align: center;
 }
 .admin-btn:hover:not(:disabled) {
-  background: rgba(60, 80, 160, 0.8);
-  border-color: rgba(100, 140, 255, 0.6);
+  background: rgba(48, 40, 72, 0.9);
+  border-color: rgba(245, 158, 11, 0.45);
   color: #ffffff;
 }
 .admin-btn:disabled {
@@ -240,14 +247,23 @@
 }
 
 .admin-btn-export {
-  background: rgba(30, 60, 20, 0.7);
-  border-color: rgba(60, 160, 60, 0.4);
-  color: #88dd88;
+  background: linear-gradient(
+    180deg,
+    rgba(180, 95, 20, 0.55),
+    rgba(120, 55, 12, 0.65)
+  );
+  border-color: rgba(251, 191, 36, 0.55);
+  color: #fff4e0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 .admin-btn-export:hover:not(:disabled) {
-  background: rgba(40, 90, 30, 0.8);
-  border-color: rgba(80, 200, 80, 0.6);
-  color: #aaffaa;
+  background: linear-gradient(
+    180deg,
+    rgba(217, 119, 6, 0.75),
+    rgba(180, 83, 9, 0.85)
+  );
+  border-color: rgba(253, 224, 71, 0.75);
+  color: #ffffff;
 }
 
 .admin-btn-danger {
@@ -273,12 +289,12 @@
 }
 
 .admin-json-area {
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   font-size: 11px;
   background: rgba(5, 7, 15, 0.9);
-  border: 1px solid rgba(60, 80, 160, 0.3);
+  border: 1px solid rgba(34, 211, 238, 0.2);
   border-radius: 6px;
-  color: #88bbff;
+  color: #a5e9f5;
   padding: 8px;
   resize: vertical;
   min-height: 80px;

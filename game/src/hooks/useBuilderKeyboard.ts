@@ -43,6 +43,18 @@ export function useBuilderKeyboard(
         return;
       }
 
+      if (engineRef.current.isPrefabPlacementActive()) {
+        if (e.code === "KeyT") {
+          engineRef.current.rotateBuilderGhost(1);
+          e.preventDefault();
+        }
+        if (e.key === "Escape") {
+          engineRef.current.cancelPrefabPlacement();
+          e.preventDefault();
+        }
+        return;
+      }
+
       if (
         isDev &&
         e.code === "KeyF" &&

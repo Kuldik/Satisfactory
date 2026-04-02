@@ -132,7 +132,7 @@ interface AdminPanelProps {
   builderMode: "single" | "line";
   onClose: () => void;
   onSelectPart: (partPath: string) => void;
-  onSelectComposition?: (compositionId: string) => void;
+  onSelectComposition?: (compositionId: string) => void | Promise<void>;
   onClearComposition: () => void;
   onExportRequest: () => string;
   onImportRequest: (json: string) => Promise<number>;

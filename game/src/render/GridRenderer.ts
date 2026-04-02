@@ -38,9 +38,9 @@ export class GridRenderer {
     const vertices: number[] = [];
     const colors: number[] = [];
 
-    const mainColor = new THREE.Color(0x444466);
-    const subColor = new THREE.Color(0x333344);
-    const chunkColor = new THREE.Color(0x6666AA);
+    const mainColor = new THREE.Color(0x4a4558);
+    const subColor = new THREE.Color(0x353040);
+    const chunkColor = new THREE.Color(0x7c6b4a);
 
     for (let i = -halfExtent; i <= halfExtent; i += step) {
       // Determine line color

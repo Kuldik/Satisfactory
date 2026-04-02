@@ -10,6 +10,7 @@ import { InputManager } from '../input/InputManager.ts';
 import { GridManager } from './grid/GridManager.ts';
 import { SaveManager } from './save/SaveManager.ts';
 import { getBuildingPattern } from '../buildings/BuildingPatterns.ts';
+import { getBuildingPrefab } from '../buildings/BuildingPrefabs.ts';
 
 export class Engine {
   private sceneManager: SceneManager;
@@ -161,17 +162,41 @@ export class Engine {
     this.notifyStateChange();
   }
 
-  selectBuilding(buildingId: string | null): void {
+  async selectBuilding(buildingId: string | null): Promise<void> {
+    if (!buildingId) {
+      this.sceneManager.abortPatternGhostLoad();
+      this.sceneManager.clearBuilderGhost();
+      this.gameState.selectedBuilding = null;
+      this.notifyStateChange();
+      return;
+    }
+    /** Иначе updateBuilderGhostPosition сразу выходит и префаб-призрак не ставится на сетку; ЛКМ не срабатывает */
+    this.sceneManager.setBuilderDeconstructMode(false);
     this.gameState.selectedBuilding = buildingId;
-    if (buildingId) {
-      this.gameState.mode = GameMode.BuildMode;
-      const pattern = getBuildingPattern(buildingId);
-      if (pattern) {
-        this.sceneManager
-          .setPatternGhost(buildingId, pattern.parts)
-          .catch((err) =>
-            console.error("[Engine] Pattern ghost failed:", buildingId, err),
+    this.gameState.mode = GameMode.BuildMode;
+    const pattern = getBuildingPattern(buildingId);
+    if (pattern) {
+      this.sceneManager.clearBuilderGhost();
+      try {
+        await this.sceneManager.setPatternGhost(buildingId, pattern.parts);
+      } catch (err) {
+        console.error("[Engine] Pattern ghost failed:", buildingId, err);
+      }
+    } else {
+      const prefab = getBuildingPrefab(buildingId);
+      this.sceneManager.abortPatternGhostLoad();
+      if (prefab) {
+        try {
+          await this.sceneManager.setPrefabBuildingGhost(
+            prefab.modelPath,
+            prefab.scale,
+            buildingId,
           );
+        } catch (err) {
+          console.error("[Engine] Prefab ghost failed:", buildingId, err);
+        }
+      } else {
+        this.sceneManager.clearBuilderGhost();
       }
     }
     this.notifyStateChange();
@@ -319,7 +344,7 @@ export class Engine {
   }
 
   clearPatternGhost(): void {
-    this.sceneManager.clearPatternGhost();
+    this.sceneManager.abortPatternGhostLoad();
     this.gameState.selectedBuilding = null;
     this.gameState.mode = GameMode.Playing;
     this.notifyStateChange();
@@ -327,6 +352,31 @@ export class Engine {
 
   isPatternGhostActive(): boolean {
     return this.sceneManager.isPatternGhostActive();
+  }
+
+  isPrefabPlacementActive(): boolean {
+    return this.sceneManager.isPrefabPlacementActive();
+  }
+
+  /** ЛКМ после выбора одиночного GLB из меню (особые, производство, генераторы и т.д.) */
+  placePrefabFromMenu(): boolean {
+    if (!this.sceneManager.isPrefabPlacementActive()) return false;
+    const ok = this.sceneManager.placeBuilderPart();
+    if (ok) {
+      this.gameState.selectedBuilding = null;
+      this.gameState.mode = GameMode.Playing;
+      this.notifyStateChange();
+    }
+    return ok;
+  }
+
+  cancelPrefabPlacement(): void {
+    const id = this.gameState.selectedBuilding;
+    if (!id || !getBuildingPrefab(id)) return;
+    this.sceneManager.clearBuilderGhost();
+    this.gameState.selectedBuilding = null;
+    this.gameState.mode = GameMode.Playing;
+    this.notifyStateChange();
   }
 
   // ---- Handle window resize ----

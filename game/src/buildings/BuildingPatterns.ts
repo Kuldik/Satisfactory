@@ -15,6 +15,9 @@ import oilExtractor from "./waterSupply/oil_extractor.json";
 import pressureBooster from "./waterSupply/pressure_booster.json";
 import wellExtractor from "./waterSupply/well_extractor.json";
 import smelter from "./production/smelter.json";
+import sawmill from "./production/sawmill.json";
+import foundry from "./production/foundry.json";
+import biomassBurner from "./power/biomass_burner.json";
 
 export interface PatternPart {
   partName: string;
@@ -40,6 +43,9 @@ const raw: Record<string, { parts: PatternPart[] }> = {
   pressure_booster: pressureBooster as { parts: PatternPart[] },
   well_extractor: wellExtractor as { parts: PatternPart[] },
   smelter: smelter as { parts: PatternPart[] },
+  sawmill: sawmill as { parts: PatternPart[] },
+  foundry: foundry as { parts: PatternPart[] },
+  biomass_burner: biomassBurner as { parts: PatternPart[] },
 };
 
 const registry = new Map<string, BuildingPattern>();
