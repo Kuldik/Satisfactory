@@ -348,7 +348,9 @@ export class SceneManager {
   }
 
   isPrefabPlacementActive(): boolean {
-    return this.prefabPlacementScale !== null && this.builderGhostPivot !== null;
+    return (
+      this.prefabPlacementScale !== null && this.builderGhostPivot !== null
+    );
   }
 
   /** Префаб из меню (один GLB, голограмма как у конструктора) */
@@ -1371,7 +1373,9 @@ export class SceneManager {
         await this.ensureCached(part.partPath);
         this.builderCurrentPartPath = part.partPath;
         let menuId =
-          typeof part.menuBuildingId === "string" ? part.menuBuildingId : undefined;
+          typeof part.menuBuildingId === "string"
+            ? part.menuBuildingId
+            : undefined;
         if (!menuId && elevatorPath && part.partPath === elevatorPath) {
           menuId = "space_elevator";
         }
@@ -1495,11 +1499,7 @@ export class SceneManager {
   /** Update pattern ghost position to follow cursor */
   updatePatternGhostPosition(ndcX: number, ndcY: number): void {
     if (!this.patternGhostGroup) return;
-    const pos = this.getGridPositionUnderMouse(
-      ndcX,
-      ndcY,
-      this._visibleFloor,
-    );
+    const pos = this.getGridPositionUnderMouse(ndcX, ndcY, this._visibleFloor);
     if (!pos) return;
     this.patternCurrentPos.copy(pos);
     this.patternGhostGroup.position.copy(pos);
