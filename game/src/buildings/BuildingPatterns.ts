@@ -18,12 +18,19 @@ import smelter from "./production/smelter.json";
 import sawmill from "./production/sawmill.json";
 import foundry from "./production/foundry.json";
 import biomassBurner from "./power/biomass_burner.json";
+import alienExtractor from "./power/alien_extractor.json";
+import powerPoleMk1 from "./power/power_pole_mk1.json";
+import powerPoleMk2 from "./power/power_pole_mk2.json";
+import powerPoleMk3 from "./power/power_pole_mk3.json";
+import powerTower from "./power/power_tower.json";
 
 export interface PatternPart {
   partName: string;
   position: { x: number; y: number; z: number };
   rotationY: number;
   scale: number;
+  /** Из экспорта конструктора; при постановке из меню игнорируется (один compositeId на всю сборку). */
+  compositeId?: string;
 }
 
 export interface BuildingPattern {
@@ -46,6 +53,11 @@ const raw: Record<string, { parts: PatternPart[] }> = {
   sawmill: sawmill as { parts: PatternPart[] },
   foundry: foundry as { parts: PatternPart[] },
   biomass_burner: biomassBurner as { parts: PatternPart[] },
+  alien_extractor: alienExtractor as { parts: PatternPart[] },
+  power_pole_mk1: powerPoleMk1 as { parts: PatternPart[] },
+  power_pole_mk2: powerPoleMk2 as { parts: PatternPart[] },
+  power_pole_mk3: powerPoleMk3 as { parts: PatternPart[] },
+  power_tower: powerTower as { parts: PatternPart[] },
 };
 
 const registry = new Map<string, BuildingPattern>();

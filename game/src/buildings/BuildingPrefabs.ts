@@ -34,6 +34,10 @@ const RAW: Record<string, BuildingPrefabDef> = {
   coal_generator: { modelPath: `${CITY}/building-n.glb`, scale: 20 },
   fuel_generator: { modelPath: `${CITY}/building-m.glb`, scale: 20 },
   nuclear_power: { modelPath: `${CITY}/chimney-large.glb`, scale: 20 },
+  power_storage: {
+    modelPath: `${COMMERCIAL}/low-detail-building-h.glb`,
+    scale: 15,
+  },
 };
 
 export function getBuildingPrefab(

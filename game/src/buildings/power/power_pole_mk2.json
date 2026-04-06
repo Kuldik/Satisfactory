@@ -1,0 +1,40 @@
+{
+  "parts": [
+    {
+      "partName": "pipe.glb",
+      "position": { "x": 0, "y": 0, "z": 0 },
+      "rotationY": 0,
+      "scale": 6.1
+    },
+    {
+      "partName": "pipe.glb",
+      "position": { "x": 0, "y": 3.05, "z": 0 },
+      "rotationY": 0,
+      "scale": 6.1
+    },
+    {
+      "partName": "pipe.glb",
+      "position": { "x": 0, "y": 6.1, "z": 0 },
+      "rotationY": 0,
+      "scale": 6.1
+    },
+    {
+      "partName": "pipe.glb",
+      "position": { "x": 0, "y": 9.15, "z": 0 },
+      "rotationY": 0,
+      "scale": 6.1
+    },
+    {
+      "partName": "pipe-ring-colored.glb",
+      "position": { "x": 0, "y": 12.2, "z": 0 },
+      "rotationY": 0,
+      "scale": 6.1
+    },
+    {
+      "partName": "pipe-end-colored.glb",
+      "position": { "x": 0, "y": 15.25, "z": 0 },
+      "rotationY": 0,
+      "scale": 7.9
+    }
+  ]
+}

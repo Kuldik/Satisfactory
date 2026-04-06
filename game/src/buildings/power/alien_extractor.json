@@ -1,0 +1,420 @@
+{
+  "parts": [
+    {
+      "partName": "floor.glb",
+      "position": {
+        "x": -8.443,
+        "y": 0,
+        "z": -10.383
+      },
+      "rotationY": 0,
+      "scale": 4
+    },
+    {
+      "partName": "floor.glb",
+      "position": {
+        "x": -0.443,
+        "y": 0,
+        "z": -10.383
+      },
+      "rotationY": 0,
+      "scale": 4
+    },
+    {
+      "partName": "floor.glb",
+      "position": {
+        "x": 7.557,
+        "y": 0,
+        "z": -10.383
+      },
+      "rotationY": 0,
+      "scale": 4
+    },
+    {
+      "partName": "floor.glb",
+      "position": {
+        "x": 15.557,
+        "y": 0,
+        "z": -10.383
+      },
+      "rotationY": 0,
+      "scale": 4
+    },
+    {
+      "partName": "floor.glb",
+      "position": {
+        "x": 15.557,
+        "y": 0,
+        "z": -2.383
+      },
+      "rotationY": 0,
+      "scale": 4
+    },
+    {
+      "partName": "floor.glb",
+      "position": {
+        "x": 15.557,
+        "y": 0,
+        "z": 5.617
+      },
+      "rotationY": 0,
+      "scale": 4
+    },
+    {
+      "partName": "floor.glb",
+      "position": {
+        "x": 7.557,
+        "y": 0,
+        "z": 13.617
+      },
+      "rotationY": 0,
+      "scale": 4
+    },
+    {
+      "partName": "floor.glb",
+      "position": {
+        "x": -0.443,
+        "y": 0,
+        "z": 13.617
+      },
+      "rotationY": 0,
+      "scale": 4
+    },
+    {
+      "partName": "floor.glb",
+      "position": {
+        "x": -8.443,
+        "y": 0,
+        "z": 13.617
+      },
+      "rotationY": 0,
+      "scale": 4
+    },
+    {
+      "partName": "floor.glb",
+      "position": {
+        "x": -8.443,
+        "y": 0,
+        "z": 5.617
+      },
+      "rotationY": 0,
+      "scale": 4
+    },
+    {
+      "partName": "floor.glb",
+      "position": {
+        "x": -8.443,
+        "y": 0,
+        "z": -2.383
+      },
+      "rotationY": 0,
+      "scale": 4
+    },
+    {
+      "partName": "floor.glb",
+      "position": {
+        "x": -16.443,
+        "y": 0,
+        "z": 5.617
+      },
+      "rotationY": 0,
+      "scale": 4
+    },
+    {
+      "partName": "floor.glb",
+      "position": {
+        "x": -16.443,
+        "y": 0,
+        "z": -2.383
+      },
+      "rotationY": 0,
+      "scale": 4
+    },
+    {
+      "partName": "floor.glb",
+      "position": {
+        "x": -16.443,
+        "y": 0,
+        "z": -10.383
+      },
+      "rotationY": 0,
+      "scale": 4
+    },
+    {
+      "partName": "floor.glb",
+      "position": {
+        "x": 7.557,
+        "y": 0,
+        "z": 5.617
+      },
+      "rotationY": 0,
+      "scale": 4
+    },
+    {
+      "partName": "floor.glb",
+      "position": {
+        "x": 7.557,
+        "y": 0,
+        "z": -2.383
+      },
+      "rotationY": 0,
+      "scale": 4
+    },
+    {
+      "partName": "floor.glb",
+      "position": {
+        "x": -0.443,
+        "y": 0,
+        "z": -2.383
+      },
+      "rotationY": 0,
+      "scale": 4
+    },
+    {
+      "partName": "floor.glb",
+      "position": {
+        "x": -0.443,
+        "y": 0,
+        "z": 5.617
+      },
+      "rotationY": 0,
+      "scale": 4
+    },
+    {
+      "partName": "floor-corner-diagonal.glb",
+      "position": {
+        "x": -16.443,
+        "y": 0,
+        "z": -18.383
+      },
+      "rotationY": 3.1416,
+      "scale": 4
+    },
+    {
+      "partName": "floor-corner-diagonal.glb",
+      "position": {
+        "x": 15.557,
+        "y": 0,
+        "z": -18.383
+      },
+      "rotationY": 7.854,
+      "scale": 4
+    },
+    {
+      "partName": "floor-corner-diagonal.glb",
+      "position": {
+        "x": 15.557,
+        "y": 0,
+        "z": 13.617
+      },
+      "rotationY": 0,
+      "scale": 4
+    },
+    {
+      "partName": "floor-corner-diagonal.glb",
+      "position": {
+        "x": -16.443,
+        "y": 0,
+        "z": 13.617
+      },
+      "rotationY": 4.7124,
+      "scale": 4
+    },
+    {
+      "partName": "floor.glb",
+      "position": {
+        "x": -8.443,
+        "y": 0,
+        "z": -18.383
+      },
+      "rotationY": 0,
+      "scale": 4
+    },
+    {
+      "partName": "floor.glb",
+      "position": {
+        "x": -0.443,
+        "y": 0,
+        "z": -18.383
+      },
+      "rotationY": 0,
+      "scale": 4
+    },
+    {
+      "partName": "floor.glb",
+      "position": {
+        "x": 7.557,
+        "y": 0,
+        "z": -18.383
+      },
+      "rotationY": 0,
+      "scale": 4
+    },
+    {"partName": "border-corner-round.glb", "position": {"x": 2.906, "y": 0, "z": 1.754}, "rotationY": 0, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": 2.906, "y": 0, "z": -4.846}, "rotationY": 1.5708, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": -3.694, "y": 0, "z": -4.846}, "rotationY": 3.1416, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": -3.694, "y": 0, "z": 1.754}, "rotationY": 4.7124, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": -3.694, "y": 0.9, "z": 1.754}, "rotationY": 4.7124, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": -3.694, "y": 1.8, "z": 1.754}, "rotationY": 4.7124, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": -3.694, "y": 2.7, "z": 1.754}, "rotationY": 4.7124, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": -3.694, "y": 3.6, "z": 1.754}, "rotationY": 4.7124, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": -3.694, "y": 4.5, "z": 1.754}, "rotationY": 4.7124, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": -3.694, "y": 5.4, "z": 1.754}, "rotationY": 4.7124, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": -3.694, "y": 0.9, "z": -4.846}, "rotationY": 9.4248, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": -3.694, "y": 1.8, "z": -4.846}, "rotationY": 9.4248, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": -3.694, "y": 2.7, "z": -4.846}, "rotationY": 9.4248, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": -3.694, "y": 3.6, "z": -4.846}, "rotationY": 9.4248, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": -3.694, "y": 4.5, "z": -4.846}, "rotationY": 9.4248, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": -3.694, "y": 5.4, "z": -4.846}, "rotationY": 9.4248, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": 2.906, "y": 0.9, "z": -4.846}, "rotationY": 14.1372, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": 2.906, "y": 1.8, "z": -4.846}, "rotationY": 14.1372, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": 2.906, "y": 2.7, "z": -4.846}, "rotationY": 14.1372, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": 2.906, "y": 3.6, "z": -4.846}, "rotationY": 14.1372, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": 2.906, "y": 4.5, "z": -4.846}, "rotationY": 14.1372, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": 2.906, "y": 5.4, "z": -4.846}, "rotationY": 14.1372, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": 2.906, "y": 0.9, "z": 1.754}, "rotationY": 0, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": 2.906, "y": 1.8, "z": 1.754}, "rotationY": 0, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": 2.906, "y": 2.7, "z": 1.754}, "rotationY": 0, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": 2.906, "y": 3.6, "z": 1.754}, "rotationY": 0, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": 2.906, "y": 4.5, "z": 1.754}, "rotationY": 0, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": 2.906, "y": 5.4, "z": 1.754}, "rotationY": 0, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": -3.694, "y": 6.3, "z": 1.754}, "rotationY": 4.7124, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": -3.694, "y": 7.2, "z": 1.754}, "rotationY": 4.7124, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": -3.694, "y": 8.1, "z": 1.754}, "rotationY": 4.7124, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": -3.694, "y": 9, "z": 1.754}, "rotationY": 4.7124, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": 2.906, "y": 6.3, "z": 1.754}, "rotationY": 6.2832, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": 2.906, "y": 7.2, "z": 1.754}, "rotationY": 6.2832, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": 2.906, "y": 8.1, "z": 1.754}, "rotationY": 6.2832, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": 2.906, "y": 9, "z": 1.754}, "rotationY": 6.2832, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": -3.694, "y": 6.3, "z": -4.846}, "rotationY": 3.1416, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": -3.694, "y": 7.2, "z": -4.846}, "rotationY": 3.1416, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": -3.694, "y": 8.1, "z": -4.846}, "rotationY": 3.1416, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": -3.694, "y": 9, "z": -4.846}, "rotationY": 3.1416, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": 2.906, "y": 6.3, "z": -4.846}, "rotationY": 7.854, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": 2.906, "y": 7.2, "z": -4.846}, "rotationY": 1.5708, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": 2.906, "y": 8.1, "z": -4.846}, "rotationY": 1.5708, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "border-corner-round.glb", "position": {"x": 2.906, "y": 9, "z": -4.846}, "rotationY": 1.5708, "scale": 3, "compositeId": "722e1ccf-2290-48e6-ab94-428a78feea75"},
+    {"partName": "gutter-vertical-top.glb", "position": {"x": -0.443, "y": 0.4, "z": 8.617}, "rotationY": 3.1416, "scale": 20},
+    {"partName": "gutter-vertical-top.glb", "position": {"x": -9.994, "y": 0.4, "z": -4.846}, "rotationY": 1.5708, "scale": 20},
+    {"partName": "gutter-vertical-top.glb", "position": {"x": -9.994, "y": 0.4, "z": -0.846}, "rotationY": 1.5708, "scale": 20},
+    {"partName": "gutter-vertical-top.glb", "position": {"x": -9.994, "y": 0.4, "z": 3.154}, "rotationY": 1.5708, "scale": 20},
+    {"partName": "gutter-vertical-top.glb", "position": {"x": 9.206, "y": 0.4, "z": -4.846}, "rotationY": 4.7124, "scale": 20},
+    {"partName": "gutter-vertical-top.glb", "position": {"x": 9.206, "y": 0.4, "z": -0.846}, "rotationY": 4.7124, "scale": 20},
+    {"partName": "gutter-vertical-top.glb", "position": {"x": 9.206, "y": 0.4, "z": 3.154}, "rotationY": 4.7124, "scale": 20},
+    {"partName": "computer-wide.glb", "position": {"x": -6.843, "y": 0.4, "z": 8.017}, "rotationY": 0, "scale": 6},
+    {"partName": "computer-system.glb", "position": {"x": 5.557, "y": 0.4, "z": 7.617}, "rotationY": 0, "scale": 5.9},
+    {"partName": "computer.glb", "position": {"x": 5.337, "y": 0.4, "z": -10.383}, "rotationY": 3.1416, "scale": 8.9},
+    {"partName": "computer-screen.glb", "position": {"x": -7.563, "y": 0.4, "z": -10.383}, "rotationY": 3.1416, "scale": 7.8},
+    {"partName": "table.glb", "position": {"x": 9.907, "y": 0.4, "z": -10.383}, "rotationY": 0, "scale": 3},
+    {"partName": "table.glb", "position": {"x": -7.563, "y": 0.4, "z": -12.992}, "rotationY": 0, "scale": 3},
+    {"partName": "table.glb", "position": {"x": 5.557, "y": 0.4, "z": 10.567}, "rotationY": 0, "scale": 3},
+    {"partName": "table.glb", "position": {"x": -6.843, "y": 0.4, "z": 10.517}, "rotationY": 0, "scale": 3},
+    {"partName": "stairs-small-edges.glb", "position": {"x": -13.594, "y": 0.4, "z": -4.846}, "rotationY": 4.7124, "scale": 3},
+    {"partName": "stairs-small-edges.glb", "position": {"x": -13.594, "y": 0.4, "z": -0.846}, "rotationY": 4.7124, "scale": 3},
+    {"partName": "stairs-small-edges.glb", "position": {"x": -13.594, "y": 0.4, "z": 3.154}, "rotationY": 4.7124, "scale": 3},
+    {"partName": "wall-door.glb", "position": {"x": -0.493, "y": 0.4, "z": -10.383}, "rotationY": 0, "scale": 7.9},
+    {"partName": "stairs-small-edges.glb", "position": {"x": 12.806, "y": 0.4, "z": 3.154}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "stairs-small-edges.glb", "position": {"x": 12.806, "y": 0.4, "z": -0.846}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "stairs-small-edges.glb", "position": {"x": 12.806, "y": 0.4, "z": -4.846}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "stairs-small-edges.glb", "position": {"x": -0.443, "y": 0.4, "z": 12.217}, "rotationY": 6.2832, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/floor-corner-round.glb", "position": {"x": 2.906, "y": 9.9, "z": -4.846}, "rotationY": 7.854, "scale": 3.3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/floor-corner-round.glb", "position": {"x": -3.694, "y": 9.9, "z": -4.846}, "rotationY": 15.708, "scale": 3.3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/floor-corner-round.glb", "position": {"x": -3.694, "y": 9.9, "z": 1.754}, "rotationY": 17.2788, "scale": 3.3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/floor-corner-round.glb", "position": {"x": 2.906, "y": 9.9, "z": 1.754}, "rotationY": 18.8496, "scale": 3.3},
+    {"partName": "table-inset-small.glb", "position": {"x": -0.443, "y": 10.23, "z": -1.538}, "rotationY": 1.5708, "scale": 7.5},
+    {"partName": "wall-door-edge-banner.glb", "position": {"x": -3.343, "y": 0.4, "z": 18.027}, "rotationY": 3.1416, "scale": 12.6},
+    {"partName": "wall-door-edge-banner.glb", "position": {"x": -20.353, "y": 0.4, "z": 9.837}, "rotationY": 4.7124, "scale": 12.6},
+    {"partName": "wall-door-edge-banner.glb", "position": {"x": -20.353, "y": 0.4, "z": -2.763}, "rotationY": 4.7124, "scale": 12.6},
+    {"partName": "wall-door-edge-banner.glb", "position": {"x": -20.353, "y": 0.4, "z": -15.363}, "rotationY": 4.7124, "scale": 12.6},
+    {"partName": "wall-door-edge-banner.glb", "position": {"x": -12.163, "y": 0.4, "z": -19.773}, "rotationY": 3.1416, "scale": 12.6},
+    {"partName": "wall-door-edge-banner.glb", "position": {"x": 0.437, "y": 0.4, "z": -19.773}, "rotationY": 3.1416, "scale": 12.6},
+    {"partName": "wall-door-edge-banner.glb", "position": {"x": 17.447, "y": 0.4, "z": 13.617}, "rotationY": 4.7124, "scale": 12.6},
+    {"partName": "wall-door-edge-banner.glb", "position": {"x": 17.447, "y": 0.4, "z": 1.017}, "rotationY": 4.7124, "scale": 12.6},
+    {"partName": "wall-door-edge-banner.glb", "position": {"x": 17.447, "y": 0.4, "z": -11.583}, "rotationY": 4.7124, "scale": 12.6},
+    {"partName": "wall-door-edge-banner.glb", "position": {"x": 13.037, "y": 0.4, "z": -19.773}, "rotationY": 0, "scale": 12.6},
+    {"partName": "wall-door-edge-banner.glb", "position": {"x": -15.893, "y": 0.4, "z": 18.027}, "rotationY": 3.1416, "scale": 12.6},
+    {"partName": "wall-door-edge-banner.glb", "position": {"x": 9.257, "y": 0.4, "z": 18.027}, "rotationY": 6.2832, "scale": 12.6},
+    {"partName": "wall-detail.glb", "position": {"x": -0.443, "y": 10.23, "z": 2.682}, "rotationY": 0, "scale": 12.3},
+    {"partName": "wall-detail.glb", "position": {"x": -4.289, "y": 10.23, "z": -1.538}, "rotationY": 1.5708, "scale": 12.3},
+    {"partName": "wall-detail.glb", "position": {"x": -0.443, "y": 10.23, "z": -5.759}, "rotationY": 3.1416, "scale": 12.3},
+    {"partName": "wall-detail.glb", "position": {"x": 3.403, "y": 10.23, "z": -1.538}, "rotationY": 4.7124, "scale": 12.3},
+    {"partName": "wall-detail.glb", "position": {"x": -4.289, "y": 18.84, "z": -1.538}, "rotationY": 4.7124, "scale": 12.3},
+    {"partName": "wall-detail.glb", "position": {"x": 3.403, "y": 18.84, "z": -1.538}, "rotationY": 7.854, "scale": 12.3},
+    {"partName": "wall-detail.glb", "position": {"x": -2.158, "y": 13.23, "z": -1.538}, "rotationY": 1.5708, "scale": 12.3},
+    {"partName": "wall-detail.glb", "position": {"x": 1.272, "y": 13.23, "z": -1.538}, "rotationY": 1.5708, "scale": 12.3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": 12.557, "y": 13, "z": -19.883}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": 9.557, "y": 13, "z": -19.883}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": 6.557, "y": 13, "z": -19.883}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": 3.557, "y": 13, "z": -19.883}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": 0.557, "y": 13, "z": -19.883}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -2.443, "y": 13, "z": -19.883}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -5.443, "y": 13, "z": -19.883}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -8.443, "y": 13, "z": -19.883}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -11.443, "y": 13, "z": -19.883}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -14.443, "y": 13, "z": -19.883}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs-corner.glb", "position": {"x": 15.557, "y": 13, "z": -19.883}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -17.443, "y": 13, "z": -19.883}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs-corner.glb", "position": {"x": -20.443, "y": 13, "z": -19.883}, "rotationY": 4.7124, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -20.443, "y": 13, "z": -16.883}, "rotationY": 4.7124, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -20.443, "y": 13, "z": -13.883}, "rotationY": 4.7124, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -20.443, "y": 13, "z": -10.883}, "rotationY": 4.7124, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -20.443, "y": 13, "z": -7.883}, "rotationY": 4.7124, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -20.443, "y": 13, "z": -4.883}, "rotationY": 4.7124, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -20.443, "y": 13, "z": -1.883}, "rotationY": 4.7124, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -20.443, "y": 13, "z": 1.117}, "rotationY": 4.7124, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -20.443, "y": 13, "z": 4.117}, "rotationY": 4.7124, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -20.443, "y": 13, "z": 7.117}, "rotationY": 4.7124, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -20.443, "y": 13, "z": 10.117}, "rotationY": 4.7124, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -20.443, "y": 13, "z": 13.117}, "rotationY": 4.7124, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs-corner.glb", "position": {"x": -20.443, "y": 13, "z": 16.117}, "rotationY": 0, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -17.443, "y": 13, "z": 16.117}, "rotationY": 0, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -14.443, "y": 13, "z": 16.117}, "rotationY": 0, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -11.443, "y": 13, "z": 16.117}, "rotationY": 0, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -8.443, "y": 13, "z": 16.117}, "rotationY": 0, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -5.443, "y": 13, "z": 16.117}, "rotationY": 0, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": -2.443, "y": 13, "z": 16.117}, "rotationY": 0, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": 0.557, "y": 13, "z": 16.117}, "rotationY": 0, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": 3.557, "y": 13, "z": 16.117}, "rotationY": 0, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": 6.557, "y": 13, "z": 16.117}, "rotationY": 0, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": 9.557, "y": 13, "z": 16.117}, "rotationY": 0, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": 12.557, "y": 13, "z": 16.117}, "rotationY": 0, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs-corner.glb", "position": {"x": 15.557, "y": 13, "z": 16.117}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": 15.557, "y": 13, "z": 13.117}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": 15.557, "y": 13, "z": 10.117}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": 15.557, "y": 13, "z": 7.117}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": 15.557, "y": 13, "z": 4.117}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": 15.557, "y": 13, "z": 1.117}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": 15.557, "y": 13, "z": -1.883}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": 15.557, "y": 13, "z": -4.883}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": 15.557, "y": 13, "z": -7.883}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": 15.557, "y": 13, "z": -10.883}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": 15.557, "y": 13, "z": -13.883}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "/kits/kenney_space-station-kit/Models/GLB format/stairs.glb", "position": {"x": 15.557, "y": 13, "z": -16.883}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "/kits/kenney_building-kit/Models/GLB format/stairs-open.glb", "position": {"x": 16.217, "y": 0, "z": 29.517}, "rotationY": 3.1416, "scale": 4.8},
+    {"partName": "/kits/kenney_building-kit/Models/GLB format/stairs-open.glb", "position": {"x": -19.073, "y": 0, "z": 29.517}, "rotationY": 3.1416, "scale": 4.8},
+    {"partName": "rail.glb", "position": {"x": -18.943, "y": 13, "z": 17.767}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": -15.943, "y": 13, "z": 17.767}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": -12.943, "y": 13, "z": 17.767}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": -9.943, "y": 13, "z": 17.767}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": -6.943, "y": 13, "z": 17.767}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": -3.943, "y": 13, "z": 17.767}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": -0.943, "y": 13, "z": 17.767}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": 2.057, "y": 13, "z": 17.767}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": 5.057, "y": 13, "z": 17.767}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": 8.057, "y": 13, "z": 17.767}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": 11.057, "y": 13, "z": 17.767}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": 14.057, "y": 13, "z": 17.767}, "rotationY": 3.1416, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": 17.447, "y": 13, "z": 15.117}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": 17.447, "y": 13, "z": 12.117}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": 17.447, "y": 13, "z": 9.117}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": 17.447, "y": 13, "z": 6.117}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": 17.447, "y": 13, "z": 3.117}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": 17.447, "y": 13, "z": 0.117}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": 17.447, "y": 13, "z": -2.883}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": 17.447, "y": 13, "z": -5.883}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": 17.447, "y": 13, "z": -8.883}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": 17.447, "y": 13, "z": -11.883}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": 17.447, "y": 13, "z": -14.883}, "rotationY": 1.5708, "scale": 3},
+    {"partName": "rail.glb", "position": {"x": 17.447, "y": 13, "z": -17.883}, "rotationY": 1.5708, "scale": 3}
+  ]
+}

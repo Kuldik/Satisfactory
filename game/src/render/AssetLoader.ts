@@ -40,6 +40,8 @@ const MODEL_REGISTRY: Record<string, string> = {
   'coal_generator': '/kits/City Kit Industrial/Models/GLB format/building-n.glb',
   'fuel_generator': '/kits/City Kit Industrial/Models/GLB format/building-m.glb',
   'nuclear_power': '/kits/City Kit Industrial/Models/GLB format/chimney-large.glb',
+  'power_storage':
+    '/kits/kenney_city-kit-commercial_2.1/Models/GLB format/low-detail-building-h.glb',
 
   // Train Kit
   'locomotive':     '/assets/models/train/locomotive.glb',
@@ -72,6 +74,7 @@ const MODEL_SCALE_OVERRIDES: Record<string, number> = {
   coal_generator: 20,
   fuel_generator: 20,
   nuclear_power: 20,
+  power_storage: 10,
 };
 
 export class AssetLoader {

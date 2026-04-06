@@ -136,20 +136,26 @@ const ALL_BUILDINGS: BuildMenuItem[] = [
     iconPath: '/kits/City Kit Industrial/Previews/chimney-large.png',
     description: 'Колоссальная электростанция. Работает на урановых/плутониевых/фиксониевых стержнях + вода. Производит ядерные отходы (кроме фиксония). 1 вход ленты + 1 трубный + 1 выход отходов. Вырабатывает 2500 МВт.' },
   { id: 'alien_extractor', name: 'Alien Power Augmenter', nameRu: 'Экстрактор инопланетной энергии', category: BuildingCategory.Power, subcategory: 'Генераторы',
+    iconPath: '/kits/kenney_space-station-kit/Previews/pipe-end-colored.png',
     description: 'Самый продвинутый источник энергии. Статически вырабатывает 500 МВт. Главный бонус: +30% ко всей мощности электросети, к которой подключён. Несколько экстракторов — каждый +30% от базовой мощности (без учёта других бонусов).' },
 
   // — Подача энергии —
   { id: 'power_pole_mk1', name: 'Power Pole Mk.1', nameRu: 'Электростолб Ур.1', category: BuildingCategory.Power, subcategory: 'Подача энергии',
+    iconPath: '/kits/kenney_space-station-kit/Previews/pipe.png',
     description: 'Базовый электростолб. Позволяет подключить до 4 устройств (включая другие столбы). Дальность подключения — 50 м.' },
   { id: 'power_pole_mk2', name: 'Power Pole Mk.2', nameRu: 'Электростолб Ур.2', category: BuildingCategory.Power, subcategory: 'Подача энергии',
+    iconPath: '/kits/kenney_space-station-kit/Previews/pipe-ring-colored.png',
     description: 'Улучшенный электростолб. Позволяет подключить до 7 устройств. Дальность подключения — 50 м.' },
   { id: 'power_pole_mk3', name: 'Power Pole Mk.3', nameRu: 'Электростолб Ур.3', category: BuildingCategory.Power, subcategory: 'Подача энергии',
+    iconPath: '/kits/kenney_space-station-kit/Previews/pipe-end-colored.png',
     description: 'Максимальный электростолб. Позволяет подключить до 10 устройств. Дальность подключения — 50 м.' },
   { id: 'power_tower', name: 'Power Line Tower', nameRu: 'ЛЭП', category: BuildingCategory.Power, subcategory: 'Подача энергии',
+    iconPath: '/kits/kenney_space-station-kit/Previews/structure-barrier-high.png',
     description: 'Линия электропередач. Передаёт энергию на большие расстояния. До 3 подключений к другим ЛЭП (дальность 150 м) + 4 подключения к обычным электростолбам.' },
 
   // — Накопление энергии —
   { id: 'power_storage', name: 'Power Storage', nameRu: 'Накопитель энергии', category: BuildingCategory.Power, subcategory: 'Накопление энергии',
+    iconPath: '/kits/kenney_city-kit-commercial_2.1/Previews/low-detail-building-h.png',
     description: 'Накапливает излишки вырабатываемой энергии и отдаёт их при пиковых нагрузках. Предотвращает блэкаут при резких скачках потребления. Ёмкость: 100 МВт·ч.' },
 
   // ============ LOGISTICS ============
