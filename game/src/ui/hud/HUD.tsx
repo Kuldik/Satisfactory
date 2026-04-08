@@ -3,8 +3,9 @@
 // ============================================================
 
 import { type FC } from 'react';
-import type { GameState } from '../../core/types.ts';
-import { GameMode } from '../../core/types.ts';
+import { ENABLE_MULTI_FLOOR } from '../../core/constants.ts';
+import type { GameState, BuilderMode } from '../../core/types.ts';
+import { GameMode, BUILDER_MODE_LABELS } from '../../core/types.ts';
 import './HUD.css';
 
 interface HUDProps {
@@ -17,6 +18,7 @@ interface HUDProps {
   /** DEV — режим снятия деталей конструктора */
   isDeconstructMode?: boolean;
   onToggleDeconstruct?: () => void;
+  builderMode?: BuilderMode;
 }
 
 export const HUD: FC<HUDProps> = ({
@@ -27,6 +29,7 @@ export const HUD: FC<HUDProps> = ({
   isBuilderActive,
   isDeconstructMode = false,
   onToggleDeconstruct,
+  builderMode = "single",
 }) => {
   const formatTime = (seconds: number): string => {
     const hrs = Math.floor(seconds / 3600);
@@ -42,11 +45,17 @@ export const HUD: FC<HUDProps> = ({
         <div className="hud-time">
           ⏱ {formatTime(gameState.gameTime)}
         </div>
-        <div className="hud-floor">
-          Этаж: {gameState.currentFloor}
-          <button className="hud-btn" title="PageUp">▲</button>
-          <button className="hud-btn" title="PageDown">▼</button>
-        </div>
+        {ENABLE_MULTI_FLOOR && (
+          <div className="hud-floor">
+            Этаж: {gameState.currentFloor}
+            <button type="button" className="hud-btn" title="PageUp">
+              ▲
+            </button>
+            <button type="button" className="hud-btn" title="PageDown">
+              ▼
+            </button>
+          </div>
+        )}
         <div className="hud-mode">
           {gameState.mode === GameMode.BuildMode && '🔨 Режим строительства'}
           {gameState.mode === GameMode.Playing && '🎮 Игра'}
@@ -59,7 +68,7 @@ export const HUD: FC<HUDProps> = ({
           <span className="hud-deconstruct-banner__icon" aria-hidden />
           <div className="hud-deconstruct-banner__text">
             <strong>Демонтаж</strong>
-            <span>Сборка из меню / импорта: удерживай <strong>ЛКМ</strong> ~2 с (круг) — снос целиком. Одиночная деталь конструктора: <strong>ЛКМ</strong> сразу. Выкл: <strong>F</strong>, <strong>Esc</strong> или кнопка. ПКМ — камера.</span>
+            <span>Логистика (ленты, стойки, конвейерный kit): удерживай <strong>ЛКМ</strong> ~0,2 с. Прочие сборки из меню: ~2 с. Одиночная деталь конструктора (не логистика): <strong>ЛКМ</strong> сразу. Выкл: <strong>F</strong>, <strong>Esc</strong> или кнопка. ПКМ — камера.</span>
           </div>
           {onToggleDeconstruct && (
             <button
@@ -106,7 +115,17 @@ export const HUD: FC<HUDProps> = ({
       {gameState.selectedBuilding && (
         <div className="hud-build-info">
           Размещение: <strong>{gameState.selectedBuilding}</strong>
-          <span className="hud-hint">ЛКМ — поставить | T — повернуть | R — режим | F — деконстр. | Ctrl — выравнивание | Esc — отмена</span>
+          {/^conveyor_mk[1-6]$/.test(gameState.selectedBuilding) && (
+            <span className="hud-mode-badge">
+              {BUILDER_MODE_LABELS[builderMode]}
+            </span>
+          )}
+          <span className="hud-hint">
+            ЛКМ — поставить | T — повернуть | R — режим | F — деконстр. | Ctrl — выравнивание | Esc — отмена
+            {/^conveyor_mk[1-6]$/.test(gameState.selectedBuilding) && (
+              <> · R: прямая / L-угол / кривая · 1-й ЛКМ начало, 2-й конец · каждая 6-я — стойка</>
+            )}
+          </span>
         </div>
       )}
 
@@ -116,7 +135,7 @@ export const HUD: FC<HUDProps> = ({
         <div>ПКМ / СКМ — вращение камеры</div>
         <div>Shift+ЛКМ — перемещение мышью</div>
         <div>Колесо — масштаб</div>
-        <div>PgUp/PgDn — этаж ↑↓</div>
+        {ENABLE_MULTI_FLOOR && <div>PgUp/PgDn — этаж ↑↓</div>}
       </div>
     </div>
   );

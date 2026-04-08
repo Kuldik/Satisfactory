@@ -4,7 +4,7 @@
 
 import { useCallback, useRef, useState, type MouseEvent } from "react";
 import { GameMode } from "./core/types.ts";
-import type { GameState } from "./core/types.ts";
+import type { GameState, BuilderMode } from "./core/types.ts";
 import { HUD } from "./ui/hud/HUD.tsx";
 import { DeconstructHoldOverlay } from "./ui/hud/DeconstructHoldOverlay.tsx";
 import { PatternGhostLoadOverlay } from "./ui/hud/PatternGhostLoadOverlay.tsx";
@@ -21,8 +21,6 @@ import "./App.css";
 
 const IS_DEV = true; // TODO: revert to `import.meta.env.DEV !== false` for dev-only access
 
-const DECONSTRUCT_COMPOSITE_HOLD_MS = 2000;
-
 function App() {
   const [gameState, setGameState] = useState<GameState>({
     mode: GameMode.Playing,
@@ -36,7 +34,7 @@ function App() {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isBuilderActive, setIsBuilderActive] = useState(false);
   const [isDeconstructMode, setIsDeconstructMode] = useState(false);
-  const [builderMode, setBuilderMode] = useState<"single" | "line">("single");
+  const [builderMode, setBuilderMode] = useState<BuilderMode>("single");
   const [builderScale, setBuilderScale] = useState(1);
   const [placedCount, setPlacedCount] = useState(0);
   const [patternGhostLoading, setPatternGhostLoading] = useState(false);
@@ -58,12 +56,7 @@ function App() {
     resetHoldGesture,
     handleCompositeMouseDown,
     handleCompositeMouseUpPhase,
-  } = useDeconstructCompositeHold(
-    engineRef,
-    isDeconstructMode,
-    setPlacedCount,
-    DECONSTRUCT_COMPOSITE_HOLD_MS,
-  );
+  } = useDeconstructCompositeHold(engineRef, isDeconstructMode, setPlacedCount);
 
   useBuilderKeyboard(
     engineRef,
@@ -177,7 +170,7 @@ function App() {
   );
 
   const handleSetBuilderMode = useCallback(
-    (mode: "single" | "line") => {
+    (mode: BuilderMode) => {
       if (!engineRef.current) return;
       engineRef.current.setBuilderMode(mode);
       setBuilderMode(engineRef.current.getBuilderMode());
@@ -268,7 +261,11 @@ function App() {
             setPlacedCount(engineRef.current.getBuilderPlacedCount());
           }
         } else if (e.button === 2) {
-          engineRef.current.cancelPrefabPlacement();
+          if (engineRef.current.hasActiveConveyorLine()) {
+            engineRef.current.cancelConveyorLine();
+          } else {
+            engineRef.current.cancelPrefabPlacement();
+          }
         }
         return;
       }
@@ -327,6 +324,7 @@ function App() {
         isBuilderActive={isBuilderActive || isDeconstructMode}
         isDeconstructMode={IS_DEV ? isDeconstructMode : false}
         onToggleDeconstruct={IS_DEV ? handleToggleDeconstruct : undefined}
+        builderMode={builderMode}
       />
 
       <BuildMenu

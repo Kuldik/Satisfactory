@@ -3,8 +3,15 @@
 // Голограмма и постановка — через общий путь конструктора.
 // ============================================================
 
+import {
+  CONVEYOR_KIT_GLB_DIR,
+  CONVEYOR_TIER_GLBS,
+} from "./logistics/conveyorKitModels.ts";
+
 const CITY = "/kits/City Kit Industrial/Models/GLB format";
 const COMMERCIAL = "/kits/kenney_city-kit-commercial_2.1/Models/GLB format";
+/** Для реестра; реальный масштаб лент/стоек — подгонка по GLB до 6 m (conveyorFitScale + SceneManager). */
+const CONVEYOR_PLACEHOLDER_SCALE = 1;
 
 export interface BuildingPrefabDef {
   modelPath: string;
@@ -37,6 +44,30 @@ const RAW: Record<string, BuildingPrefabDef> = {
   power_storage: {
     modelPath: `${COMMERCIAL}/low-detail-building-h.glb`,
     scale: 15,
+  },
+  conveyor_mk1: {
+    modelPath: `${CONVEYOR_KIT_GLB_DIR}${CONVEYOR_TIER_GLBS.conveyor_mk1}`,
+    scale: CONVEYOR_PLACEHOLDER_SCALE,
+  },
+  conveyor_mk2: {
+    modelPath: `${CONVEYOR_KIT_GLB_DIR}${CONVEYOR_TIER_GLBS.conveyor_mk2}`,
+    scale: CONVEYOR_PLACEHOLDER_SCALE,
+  },
+  conveyor_mk3: {
+    modelPath: `${CONVEYOR_KIT_GLB_DIR}${CONVEYOR_TIER_GLBS.conveyor_mk3}`,
+    scale: CONVEYOR_PLACEHOLDER_SCALE,
+  },
+  conveyor_mk4: {
+    modelPath: `${CONVEYOR_KIT_GLB_DIR}${CONVEYOR_TIER_GLBS.conveyor_mk4}`,
+    scale: CONVEYOR_PLACEHOLDER_SCALE,
+  },
+  conveyor_mk5: {
+    modelPath: `${CONVEYOR_KIT_GLB_DIR}${CONVEYOR_TIER_GLBS.conveyor_mk5}`,
+    scale: CONVEYOR_PLACEHOLDER_SCALE,
+  },
+  conveyor_mk6: {
+    modelPath: `${CONVEYOR_KIT_GLB_DIR}${CONVEYOR_TIER_GLBS.conveyor_mk6}`,
+    scale: CONVEYOR_PLACEHOLDER_SCALE,
   },
 };
 

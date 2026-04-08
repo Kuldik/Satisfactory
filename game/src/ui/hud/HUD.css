@@ -229,6 +229,18 @@
   color: #888;
 }
 
+.hud-mode-badge {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0c4a6e;
+  background: rgba(56, 189, 248, 0.85);
+  border-radius: 4px;
+  vertical-align: middle;
+}
+
 /* Controls hint */
 .hud-controls {
   position: absolute;

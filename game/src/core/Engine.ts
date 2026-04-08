@@ -3,7 +3,7 @@
 // ============================================================
 
 import { TICK_INTERVAL, AUTOSAVE_INTERVAL } from './constants.ts';
-import type { GameState } from './types.ts';
+import type { GameState, BuilderMode } from './types.ts';
 import { GameMode } from './types.ts';
 import { SceneManager } from '../render/SceneManager.ts';
 import { InputManager } from '../input/InputManager.ts';
@@ -11,6 +11,7 @@ import { GridManager } from './grid/GridManager.ts';
 import { SaveManager } from './save/SaveManager.ts';
 import { getBuildingPattern } from '../buildings/BuildingPatterns.ts';
 import { getBuildingPrefab } from '../buildings/BuildingPrefabs.ts';
+import { isConveyorBeltMenuId } from '../buildings/logistics/conveyorKitModels.ts';
 
 export class Engine {
   private sceneManager: SceneManager;
@@ -198,6 +199,9 @@ export class Engine {
       } else {
         this.sceneManager.clearBuilderGhost();
       }
+      if (isConveyorBeltMenuId(buildingId)) {
+        this.sceneManager.setBuilderMode("straight");
+      }
     }
     this.notifyStateChange();
   }
@@ -267,15 +271,15 @@ export class Engine {
     return this.sceneManager.setBuilderScale(value);
   }
 
-  cycleBuilderMode(): 'single' | 'line' {
+  cycleBuilderMode(): BuilderMode {
     return this.sceneManager.cycleBuilderMode();
   }
 
-  setBuilderMode(mode: 'single' | 'line'): void {
+  setBuilderMode(mode: BuilderMode): void {
     this.sceneManager.setBuilderMode(mode);
   }
 
-  getBuilderMode(): 'single' | 'line' {
+  getBuilderMode(): BuilderMode {
     return this.sceneManager.getBuilderMode();
   }
 
@@ -293,6 +297,18 @@ export class Engine {
 
   getDeconstructHoverCompositeId(): string | undefined {
     return this.sceneManager.getDeconstructHoverCompositeId();
+  }
+
+  isDeconstructStandaloneLogisticsHover(): boolean {
+    return this.sceneManager.isDeconstructStandaloneLogisticsHover();
+  }
+
+  getDeconstructHoldMsForCurrentHover(): number {
+    return this.sceneManager.getDeconstructHoldMsForCurrentHover();
+  }
+
+  removeDeconstructHoveredStandalone(): boolean {
+    return this.sceneManager.removeDeconstructHoveredStandalone();
   }
 
   getDeconstructCompositeHoldScreenPosition(): {
@@ -362,12 +378,20 @@ export class Engine {
   placePrefabFromMenu(): boolean {
     if (!this.sceneManager.isPrefabPlacementActive()) return false;
     const ok = this.sceneManager.placeBuilderPart();
-    if (ok) {
+    if (ok && !this.sceneManager.hasActiveConveyorLine()) {
       this.gameState.selectedBuilding = null;
       this.gameState.mode = GameMode.Playing;
       this.notifyStateChange();
     }
     return ok;
+  }
+
+  hasActiveConveyorLine(): boolean {
+    return this.sceneManager.hasActiveConveyorLine();
+  }
+
+  cancelConveyorLine(): void {
+    this.sceneManager.cancelConveyorLine();
   }
 
   cancelPrefabPlacement(): void {

@@ -1,5 +1,5 @@
 // ============================================================
-// Удержание ЛКМ для полного сноса сборки (compositeId) + оверлей
+// Удержание ЛКМ для сноса сборки (composite) или одиночной логистики
 // ============================================================
 
 import {
@@ -17,7 +17,6 @@ export function useDeconstructCompositeHold(
   engineRef: RefObject<Engine | null>,
   isDeconstructMode: boolean,
   setPlacedCount: Dispatch<SetStateAction<number>>,
-  holdMs: number,
 ): {
   overlayRef: RefObject<DeconstructHoldOverlayHandle | null>;
   resetHoldGesture: () => void;
@@ -28,7 +27,9 @@ export function useDeconstructCompositeHold(
   const overlayRef = useRef<DeconstructHoldOverlayHandle | null>(null);
   const rafRef = useRef(0);
   const targetIdRef = useRef<string | null>(null);
+  const standaloneRef = useRef(false);
   const startRef = useRef(0);
+  const holdMsRef = useRef(2000);
   const startedRef = useRef(false);
   const completedRef = useRef(false);
 
@@ -38,6 +39,7 @@ export function useDeconstructCompositeHold(
       rafRef.current = 0;
     }
     targetIdRef.current = null;
+    standaloneRef.current = false;
     startedRef.current = false;
     overlayRef.current?.hide();
   }, []);
@@ -54,6 +56,7 @@ export function useDeconstructCompositeHold(
       if (startedRef.current && !completedRef.current) {
         startedRef.current = false;
         targetIdRef.current = null;
+        standaloneRef.current = false;
         overlay.current?.hide();
       }
     };
@@ -65,6 +68,7 @@ export function useDeconstructCompositeHold(
         rafRef.current = 0;
       }
       targetIdRef.current = null;
+      standaloneRef.current = false;
       startedRef.current = false;
       queueMicrotask(() => overlay.current?.hide());
     };
@@ -88,14 +92,17 @@ export function useDeconstructCompositeHold(
       }
 
       const cid = eng.getDeconstructHoverCompositeId();
-      if (!cid) {
+      const standaloneLogistics = eng.isDeconstructStandaloneLogisticsHover();
+      if (!cid && !standaloneLogistics) {
         startedRef.current = false;
         return;
       }
 
       startedRef.current = true;
-      targetIdRef.current = cid;
+      targetIdRef.current = cid ?? "__standalone_logistics__";
+      standaloneRef.current = !cid && standaloneLogistics;
       startRef.current = performance.now();
+      holdMsRef.current = eng.getDeconstructHoldMsForCurrentHover();
       overlayRef.current?.show();
 
       const tick = () => {
@@ -105,10 +112,17 @@ export function useDeconstructCompositeHold(
           cancelHold();
           return;
         }
-        if (engine.getDeconstructHoverCompositeId() !== tid) {
+
+        if (tid !== "__standalone_logistics__") {
+          if (engine.getDeconstructHoverCompositeId() !== tid) {
+            cancelHold();
+            return;
+          }
+        } else if (!engine.isDeconstructStandaloneLogisticsHover()) {
           cancelHold();
           return;
         }
+
         const screenPos = engine.getDeconstructCompositeHoldScreenPosition();
         if (!screenPos) {
           cancelHold();
@@ -116,6 +130,7 @@ export function useDeconstructCompositeHold(
         }
 
         const elapsed = performance.now() - startRef.current;
+        const holdMs = holdMsRef.current;
         const progress = Math.min(1, elapsed / holdMs);
         overlayRef.current?.update(
           progress,
@@ -126,10 +141,15 @@ export function useDeconstructCompositeHold(
         if (progress >= 1) {
           completedRef.current = true;
           targetIdRef.current = null;
+          standaloneRef.current = false;
           rafRef.current = 0;
           startedRef.current = false;
           overlayRef.current?.hide();
-          engine.removeCompositeBuilding(tid);
+          if (tid !== "__standalone_logistics__") {
+            engine.removeCompositeBuilding(tid);
+          } else {
+            engine.removeDeconstructHoveredStandalone();
+          }
           setPlacedCount(engine.getBuilderPlacedCount());
           return;
         }
@@ -139,7 +159,7 @@ export function useDeconstructCompositeHold(
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(tick);
     },
-    [isDeconstructMode, cancelHold, engineRef, holdMs, setPlacedCount],
+    [isDeconstructMode, cancelHold, engineRef, setPlacedCount],
   );
 
   const handleCompositeMouseUpPhase = useCallback(() => {
@@ -151,6 +171,7 @@ export function useDeconstructCompositeHold(
     if (earlyRelease) {
       startedRef.current = false;
       targetIdRef.current = null;
+      standaloneRef.current = false;
       overlayRef.current?.hide();
       completedRef.current = false;
       return true;

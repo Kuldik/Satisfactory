@@ -4,6 +4,7 @@
 
 import { useEffect, type Dispatch, type RefObject, type SetStateAction } from "react";
 import type { Engine } from "../core/Engine.ts";
+import type { BuilderMode } from "../core/types.ts";
 
 function isKeyboardTypingTarget(target: EventTarget | null): boolean {
   if (!target || !(target instanceof HTMLElement)) return false;
@@ -20,7 +21,7 @@ export function useBuilderKeyboard(
   isAdminOpen: boolean,
   setIsDeconstructMode: Dispatch<SetStateAction<boolean>>,
   setIsBuilderActive: Dispatch<SetStateAction<boolean>>,
-  setBuilderMode: Dispatch<SetStateAction<"single" | "line">>,
+  setBuilderMode: Dispatch<SetStateAction<BuilderMode>>,
   setBuilderScale: Dispatch<SetStateAction<number>>,
 ): void {
   useEffect(() => {
@@ -46,6 +47,11 @@ export function useBuilderKeyboard(
       if (engineRef.current.isPrefabPlacementActive()) {
         if (e.code === "KeyT") {
           engineRef.current.rotateBuilderGhost(1);
+          e.preventDefault();
+        }
+        if (e.code === "KeyR") {
+          const nextMode = engineRef.current.cycleBuilderMode();
+          setBuilderMode(nextMode);
           e.preventDefault();
         }
         if (e.key === "Escape") {

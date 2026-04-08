@@ -6,6 +6,8 @@
 // ============================================================
 
 import { useState, useCallback, type FC } from "react";
+import type { BuilderMode } from "../../core/types.ts";
+import { BUILDER_MODE_LABELS } from "../../core/types.ts";
 import {
   BUILDER_KIT_BASES,
   type BuilderKitId,
@@ -129,14 +131,14 @@ interface AdminPanelProps {
   isDeconstructMode: boolean;
   placedCount: number;
   builderScale: number;
-  builderMode: "single" | "line";
+  builderMode: BuilderMode;
   onClose: () => void;
   onSelectPart: (partPath: string) => void;
   onSelectComposition?: (compositionId: string) => void | Promise<void>;
   onClearComposition: () => void;
   onExportRequest: () => string;
   onImportRequest: (json: string) => Promise<number>;
-  onSetBuilderMode: (mode: "single" | "line") => void;
+  onSetBuilderMode: (mode: BuilderMode) => void;
   onToggleDeconstructMode: () => void;
   onAdjustScale: (delta: number) => void;
 }
@@ -311,7 +313,7 @@ export const AdminPanel: FC<AdminPanelProps> = ({
             </div>
             <div className="admin-comp-stat">
               Режим:{" "}
-              <strong>{builderMode === "single" ? "Обычный" : "ВЖУХ"}</strong>
+              <strong>{BUILDER_MODE_LABELS[builderMode]}</strong>
             </div>
             <div className="admin-comp-stat">
               Деконстр.: <strong>{isDeconstructMode ? "ON" : "OFF"}</strong>
@@ -348,9 +350,21 @@ export const AdminPanel: FC<AdminPanelProps> = ({
               </button>
               <button
                 className="admin-btn"
-                onClick={() => onSetBuilderMode("line")}
+                onClick={() => onSetBuilderMode("straight")}
               >
-                ВЖУХ
+                Прямая
+              </button>
+              <button
+                className="admin-btn"
+                onClick={() => onSetBuilderMode("default")}
+              >
+                L-угол
+              </button>
+              <button
+                className="admin-btn"
+                onClick={() => onSetBuilderMode("curve")}
+              >
+                Кривая
               </button>
             </div>
             <button className="admin-btn" onClick={onToggleDeconstructMode}>

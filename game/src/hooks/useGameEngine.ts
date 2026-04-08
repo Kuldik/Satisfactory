@@ -11,14 +11,14 @@ import {
 } from "react";
 import { Engine } from "../core/Engine.ts";
 import { GameMode } from "../core/types.ts";
-import type { GameState } from "../core/types.ts";
+import type { GameState, BuilderMode } from "../core/types.ts";
 
 export function useGameEngine(
   setGameState: Dispatch<SetStateAction<GameState>>,
   setIsBuildMenuOpen: Dispatch<SetStateAction<boolean>>,
   setPlacedCount: Dispatch<SetStateAction<number>>,
   setBuilderScale: Dispatch<SetStateAction<number>>,
-  setBuilderMode: Dispatch<SetStateAction<"single" | "line">>,
+  setBuilderMode: Dispatch<SetStateAction<BuilderMode>>,
   setIsDeconstructMode: Dispatch<SetStateAction<boolean>>,
 ): {
   canvasRef: RefObject<HTMLCanvasElement | null>;

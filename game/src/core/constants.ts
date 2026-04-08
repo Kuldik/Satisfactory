@@ -76,6 +76,9 @@ export const SAWMILL = {
   grassOutputRate: 30, // items/min
 };
 
+/** Несколько этажей: HUD, PgUp/PgDn. Пока false — один этаж, логика currentFloor остаётся в движке. */
+export const ENABLE_MULTI_FLOOR = false;
+
 /** Keyboard bindings */
 export const KEYBINDS = {
   buildMenu: 'KeyQ',
@@ -88,6 +91,10 @@ export const KEYBINDS = {
   floorUp: 'PageUp',
   floorDown: 'PageDown',
 };
+
+/** Удержание ЛКМ перед сносом сборки: логистика vs прочие */
+export const DECONSTRUCT_HOLD_LOGISTICS_MS = 200;
+export const DECONSTRUCT_HOLD_DEFAULT_MS = 2000;
 
 /** Power pole range in meters */
 export const POWER_POLE_RANGE_M = 50;

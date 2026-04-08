@@ -4,6 +4,14 @@
 
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
+import {
+  scaleToFitMaxExtent,
+  usesConveyorGalleryFitScale,
+} from '../buildings/logistics/conveyorFitScale.ts';
+import {
+  CONVEYOR_KIT_GLB_DIR,
+  CONVEYOR_TIER_GLBS,
+} from '../buildings/logistics/conveyorKitModels.ts';
 
 export interface LoadedModel {
   scene: THREE.Group;
@@ -13,10 +21,13 @@ export interface LoadedModel {
 
 /** Mapping from building IDs to model paths */
 const MODEL_REGISTRY: Record<string, string> = {
-  // Conveyor Kit models
-  'conveyor_mk1':   '/assets/models/conveyor/conveyorBelt.glb',
-  'conveyor_mk2':   '/assets/models/conveyor/conveyorBelt.glb',
-  'conveyor_mk3':   '/assets/models/conveyor/conveyorBelt.glb',
+  // Conveyor — Kenney Conveyor Kit (см. CONVEYOR_TIER_GLBS)
+  'conveyor_mk1': `${CONVEYOR_KIT_GLB_DIR}${CONVEYOR_TIER_GLBS.conveyor_mk1}`,
+  'conveyor_mk2': `${CONVEYOR_KIT_GLB_DIR}${CONVEYOR_TIER_GLBS.conveyor_mk2}`,
+  'conveyor_mk3': `${CONVEYOR_KIT_GLB_DIR}${CONVEYOR_TIER_GLBS.conveyor_mk3}`,
+  'conveyor_mk4': `${CONVEYOR_KIT_GLB_DIR}${CONVEYOR_TIER_GLBS.conveyor_mk4}`,
+  'conveyor_mk5': `${CONVEYOR_KIT_GLB_DIR}${CONVEYOR_TIER_GLBS.conveyor_mk5}`,
+  'conveyor_mk6': `${CONVEYOR_KIT_GLB_DIR}${CONVEYOR_TIER_GLBS.conveyor_mk6}`,
   'splitter':       '/assets/models/conveyor/conveyorSplitter.glb',
   'merger':         '/assets/models/conveyor/conveyorMerger.glb',
 
@@ -142,11 +153,14 @@ export class AssetLoader {
 
     try {
       const model = await this.loadModel(modelPath, buildingId);
-      // Clone the scene for instancing
       const instance = model.scene.clone();
-      const scale = MODEL_SCALE_OVERRIDES[buildingId] ?? 1;
-      if (scale !== 1) {
-        instance.scale.multiplyScalar(scale);
+      if (usesConveyorGalleryFitScale(buildingId, modelPath)) {
+        instance.scale.setScalar(scaleToFitMaxExtent(model.scene));
+      } else {
+        const scale = MODEL_SCALE_OVERRIDES[buildingId] ?? 1;
+        if (scale !== 1) {
+          instance.scale.multiplyScalar(scale);
+        }
       }
       return instance;
     } catch {

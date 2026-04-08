@@ -3,8 +3,8 @@
 // them on the map in a grid with labels for identification
 // ============================================================
 
-import * as THREE from 'three';
-import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
+import * as THREE from "three";
+import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 
 /** One kit definition: name + list of GLB file paths */
 interface KitDefinition {
@@ -14,63 +14,63 @@ interface KitDefinition {
   fallbackModels?: string[];
 }
 
-type ModelCategory = 'belts' | 'pipes' | 'trains' | 'buildings' | 'other';
+type ModelCategory = "belts" | "pipes" | "trains" | "buildings" | "other";
 
 /**
  * Manual per-kit, per-category size control (max bounding dimension in meters).
  * Tune these values to scale categories independently.
  */
 const KIT_CATEGORY_MAX_SIZE: Record<string, Record<ModelCategory, number>> = {
-  'Conveyor Kit': {
+  "Conveyor Kit": {
     belts: 6,
     pipes: 6,
     trains: 6,
     buildings: 6,
     other: 6,
   },
-  'Train Kit': {
+  "Train Kit": {
     belts: 25,
     pipes: 25,
     trains: 25,
     buildings: 25,
     other: 25,
   },
-  'Modular Space Kit': {
+  "Modular Space Kit": {
     belts: 10,
     pipes: 10,
     trains: 10,
     buildings: 10,
     other: 10,
   },
-  'Space Station Kit': {
+  "Space Station Kit": {
     belts: 6,
     pipes: 6,
     trains: 6,
     buildings: 6,
     other: 6,
   },
-  'City Kit Industrial': {
+  "City Kit Industrial": {
     belts: 25,
     pipes: 25,
     trains: 25,
     buildings: 25,
     other: 25,
   },
-  'Modular Buildings': {
+  "Modular Buildings": {
     belts: 15,
     pipes: 15,
     trains: 15,
     buildings: 15,
     other: 15,
   },
-  'City Kit Commercial': {
+  "City Kit Commercial": {
     belts: 20,
     pipes: 20,
     trains: 20,
     buildings: 20,
     other: 20,
   },
-  'Building Kit': {
+  "Building Kit": {
     belts: 10,
     pipes: 10,
     trains: 10,
@@ -82,44 +82,44 @@ const KIT_CATEGORY_MAX_SIZE: Record<string, Record<ModelCategory, number>> = {
 /** All available kits with their GLB model files */
 const KITS: KitDefinition[] = [
   {
-    name: 'Conveyor Kit',
-    basePath: '/kits/Conveyor Kit/Models/GLB format/',
-    overviewPath: '/kits/Conveyor Kit/Overview.html',
+    name: "Conveyor Kit",
+    basePath: "/kits/Conveyor Kit/Models/GLB format/",
+    overviewPath: "/kits/Conveyor Kit/Overview.html",
   },
   {
-    name: 'Train Kit',
-    basePath: '/kits/kenney_train-kit/Models/GLB format/',
-    overviewPath: '/kits/kenney_train-kit/Overview.html',
+    name: "Train Kit",
+    basePath: "/kits/kenney_train-kit/Models/GLB format/",
+    overviewPath: "/kits/kenney_train-kit/Overview.html",
   },
   {
-    name: 'Modular Space Kit',
-    basePath: '/kits/Modular Space Kit/Models/GLB format/',
-    overviewPath: '/kits/Modular Space Kit/Overview.html',
+    name: "Modular Space Kit",
+    basePath: "/kits/Modular Space Kit/Models/GLB format/",
+    overviewPath: "/kits/Modular Space Kit/Overview.html",
   },
   {
-    name: 'Space Station Kit',
-    basePath: '/kits/kenney_space-station-kit/Models/GLB format/',
-    overviewPath: '/kits/kenney_space-station-kit/Overview.html',
+    name: "Space Station Kit",
+    basePath: "/kits/kenney_space-station-kit/Models/GLB format/",
+    overviewPath: "/kits/kenney_space-station-kit/Overview.html",
   },
   {
-    name: 'City Kit Industrial',
-    basePath: '/kits/City Kit Industrial/Models/GLB format/',
-    overviewPath: '/kits/City Kit Industrial/Overview.html',
+    name: "City Kit Industrial",
+    basePath: "/kits/City Kit Industrial/Models/GLB format/",
+    overviewPath: "/kits/City Kit Industrial/Overview.html",
   },
   {
-    name: 'Modular Buildings',
-    basePath: '/kits/Modular Buildings/Models/GLB format/',
-    overviewPath: '/kits/Modular Buildings/Overview.html',
+    name: "Modular Buildings",
+    basePath: "/kits/Modular Buildings/Models/GLB format/",
+    overviewPath: "/kits/Modular Buildings/Overview.html",
   },
   {
-    name: 'City Kit Commercial',
-    basePath: '/kits/kenney_city-kit-commercial_2.1/Models/GLB format/',
-    overviewPath: '/kits/kenney_city-kit-commercial_2.1/Overview.html',
+    name: "City Kit Commercial",
+    basePath: "/kits/kenney_city-kit-commercial_2.1/Models/GLB format/",
+    overviewPath: "/kits/kenney_city-kit-commercial_2.1/Overview.html",
   },
   {
-    name: 'Building Kit',
-    basePath: '/kits/kenney_building-kit/Models/GLB format/',
-    overviewPath: '/kits/kenney_building-kit/Overview.html',
+    name: "Building Kit",
+    basePath: "/kits/kenney_building-kit/Models/GLB format/",
+    overviewPath: "/kits/kenney_building-kit/Overview.html",
   },
 ];
 
@@ -129,7 +129,7 @@ export class ModelGallery {
   private galleryGroup: THREE.Group;
 
   /** Spacing between models in the gallery */
-  private readonly SPACING_X = 28;  // 8m between models in a row
+  private readonly SPACING_X = 28; // 8m between models in a row
   private readonly SPACING_Z = 32; // 12m between rows
   private readonly MODELS_PER_ROW = 12;
   private readonly GALLERY_OFFSET_Z = 50; // Start gallery 50m ahead of center
@@ -142,7 +142,7 @@ export class ModelGallery {
     this.scene = scene;
     this.loader = new GLTFLoader();
     this.galleryGroup = new THREE.Group();
-    this.galleryGroup.name = 'model-gallery';
+    this.galleryGroup.name = "model-gallery";
     this.scene.add(this.galleryGroup);
   }
 
@@ -156,8 +156,13 @@ export class ModelGallery {
     );
 
     // Calculate total count
-    this.totalCount = kitsWithModels.reduce((sum, kit) => sum + kit.models.length, 0);
-    console.log(`[ModelGallery] Loading ${this.totalCount} models from ${kitsWithModels.length} kits...`);
+    this.totalCount = kitsWithModels.reduce(
+      (sum, kit) => sum + kit.models.length,
+      0,
+    );
+    console.log(
+      `[ModelGallery] Loading ${this.totalCount} models from ${kitsWithModels.length} kits...`,
+    );
 
     let globalIndex = 0;
 
@@ -173,7 +178,12 @@ export class ModelGallery {
       // Load each model in the kit
       const promises = kit.models.map((modelFile, localIndex) => {
         const currentGlobalIndex = globalIndex + localIndex;
-        return this.loadAndPlace(kit.basePath + modelFile, modelFile, kit.name, currentGlobalIndex);
+        return this.loadAndPlace(
+          kit.basePath + modelFile,
+          modelFile,
+          kit.name,
+          currentGlobalIndex,
+        );
       });
 
       // Load in batches of 8 to avoid overwhelming the browser
@@ -187,13 +197,17 @@ export class ModelGallery {
     }
 
     await this.addBuildingKitExamples();
-    console.log(`[ModelGallery] Loaded ${this.loadedCount}/${this.totalCount} models`);
+    console.log(
+      `[ModelGallery] Loaded ${this.loadedCount}/${this.totalCount} models`,
+    );
   }
 
   /** Parse kit Overview.html and extract all model names as *.glb */
-  private async discoverModelsFromOverview(kit: KitDefinition): Promise<string[]> {
+  private async discoverModelsFromOverview(
+    kit: KitDefinition,
+  ): Promise<string[]> {
     try {
-      const response = await fetch(kit.overviewPath, { cache: 'no-store' });
+      const response = await fetch(kit.overviewPath, { cache: "no-store" });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
@@ -211,15 +225,22 @@ export class ModelGallery {
 
       const uniqueModels = Array.from(new Set(discoveredNames));
       if (uniqueModels.length > 0) {
-        console.log(`[ModelGallery] ${kit.name}: discovered ${uniqueModels.length} models from Overview.html`);
+        console.log(
+          `[ModelGallery] ${kit.name}: discovered ${uniqueModels.length} models from Overview.html`,
+        );
         return uniqueModels;
       }
     } catch (err) {
-      console.warn(`[ModelGallery] ${kit.name}: failed to parse ${kit.overviewPath}`, err);
+      console.warn(
+        `[ModelGallery] ${kit.name}: failed to parse ${kit.overviewPath}`,
+        err,
+      );
     }
 
     const fallback = kit.fallbackModels ?? [];
-    console.warn(`[ModelGallery] ${kit.name}: using fallback list (${fallback.length})`);
+    console.warn(
+      `[ModelGallery] ${kit.name}: using fallback list (${fallback.length})`,
+    );
     return fallback;
   }
 
@@ -253,11 +274,7 @@ export class ModelGallery {
       const center = box.getCenter(new THREE.Vector3());
 
       // Position: center on X/Z, sit on ground
-      model.position.set(
-        x - center.x,
-        -box.min.y,
-        z - center.z,
-      );
+      model.position.set(x - center.x, -box.min.y, z - center.z);
 
       // Enable shadows
       model.traverse((child) => {
@@ -269,7 +286,7 @@ export class ModelGallery {
 
       // Store metadata
       model.userData = {
-        type: 'gallery_model',
+        type: "gallery_model",
         fileName,
         fullPath,
         globalIndex,
@@ -277,10 +294,37 @@ export class ModelGallery {
 
       this.galleryGroup.add(model);
 
-      // Add label below
-      const label = fileName.replace('.glb', '');
-      const labelY = category === 'buildings' ? box.max.y + 1.5 : -0.5;
-      this.addModelLabel(label, x, labelY, z);
+      // Подпись над моделью (мир. AABB) — для belts раньше был y=-0.5 и подписи не читались
+      const worldBox = new THREE.Box3().setFromObject(model);
+      const wCenter = worldBox.getCenter(new THREE.Vector3());
+      const lift = kitName === "Conveyor Kit" ? 1.35 : 0.9;
+      const labelY = worldBox.max.y + lift;
+      const isConveyorBelt =
+        kitName === "Conveyor Kit" &&
+        fileName.toLowerCase().startsWith("conveyor");
+      const isConveyorKitOther = kitName === "Conveyor Kit" && !isConveyorBelt;
+      this.addModelLabel(
+        fileName,
+        wCenter.x,
+        labelY,
+        wCenter.z,
+        isConveyorBelt
+          ? {
+              fontSize: 19,
+              canvasWidth: 720,
+              canvasHeight: 76,
+              spriteScale: [10, 1.05],
+              titleLine: "",
+            }
+          : isConveyorKitOther
+            ? {
+                fontSize: 18,
+                canvasWidth: 560,
+                canvasHeight: 60,
+                spriteScale: [8, 0.88],
+              }
+            : undefined,
+      );
 
       this.loadedCount++;
     } catch (err) {
@@ -301,55 +345,85 @@ export class ModelGallery {
   private resolveCategory(kitName: string, fileName: string): ModelCategory {
     const name = fileName.toLowerCase();
 
-    if (kitName === 'Train Kit') return 'trains';
-    if (name.startsWith('pipe')) return 'pipes';
-    if (name.startsWith('conveyor')) return 'belts';
+    if (kitName === "Train Kit") return "trains";
+    if (name.startsWith("pipe")) return "pipes";
+    if (name.startsWith("conveyor")) return "belts";
 
     if (
-      kitName === 'City Kit Industrial' ||
-      kitName === 'Modular Buildings' ||
-      name.startsWith('building') ||
-      name.startsWith('structure') ||
-      name.startsWith('wall') ||
-      name.startsWith('room') ||
-      name.startsWith('corridor') ||
-      name.startsWith('roof') ||
-      name.startsWith('floor') ||
-      name.startsWith('stairs') ||
-      name.startsWith('column') ||
-      name.startsWith('border') ||
-      name.startsWith('plating') ||
-      name.startsWith('gutter')
+      kitName === "City Kit Industrial" ||
+      kitName === "Modular Buildings" ||
+      name.startsWith("building") ||
+      name.startsWith("structure") ||
+      name.startsWith("wall") ||
+      name.startsWith("room") ||
+      name.startsWith("corridor") ||
+      name.startsWith("roof") ||
+      name.startsWith("floor") ||
+      name.startsWith("stairs") ||
+      name.startsWith("column") ||
+      name.startsWith("border") ||
+      name.startsWith("plating") ||
+      name.startsWith("gutter")
     ) {
-      return 'buildings';
+      return "buildings";
     }
 
-    return 'other';
+    return "other";
   }
 
-  /** Add a text label under a model */
-  private addModelLabel(text: string, x: number, y: number, z: number): void {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+  /** Текстовая подпись над моделью (имя файла, для конвейеров — с полным .glb). */
+  private addModelLabel(
+    text: string,
+    x: number,
+    y: number,
+    z: number,
+    style?: {
+      fontSize?: number;
+      canvasWidth?: number;
+      canvasHeight?: number;
+      spriteScale?: readonly [number, number];
+      /** Вторая строка мелким шрифтом (категория) */
+      titleLine?: string;
+    },
+  ): void {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    canvas.width = 512;
-    canvas.height = 64;
+    const cw = style?.canvasWidth ?? 512;
+    const ch = style?.canvasHeight ?? 64;
+    const fontSize = style?.fontSize ?? 22;
+    const titleLine = style?.titleLine;
 
-    // Background
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.roundRect(0, 0, 512, 64, 6);
+    canvas.width = cw;
+    canvas.height = ch;
+
+    ctx.fillStyle = "rgba(0, 0, 0, 0.78)";
+    ctx.roundRect(0, 0, cw, ch, 6);
     ctx.fill();
 
-    // Text
-    ctx.fillStyle = '#ccddff';
-    ctx.font = 'bold 22px monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#e8f0ff";
+    ctx.font = `bold ${fontSize}px monospace`;
 
-    // Truncate long names
-    const displayText = text.length > 30 ? text.substring(0, 28) + '…' : text;
-    ctx.fillText(displayText, 256, 32);
+    const maxLen = Math.floor(cw / (fontSize * 0.52));
+    const main =
+      text.length > maxLen
+        ? `${text.slice(0, Math.max(8, maxLen - 1))}…`
+        : text;
+
+    if (titleLine) {
+      ctx.font = "600 14px system-ui, sans-serif";
+      ctx.fillStyle = "rgba(180, 200, 255, 0.9)";
+      ctx.textBaseline = "middle";
+      ctx.fillText(titleLine, cw / 2, 18);
+      ctx.font = `bold ${fontSize}px monospace`;
+      ctx.fillStyle = "#ccddff";
+      ctx.fillText(main, cw / 2, ch / 2 + 10);
+    } else {
+      ctx.textBaseline = "middle";
+      ctx.fillText(main, cw / 2, ch / 2);
+    }
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.minFilter = THREE.LinearFilter;
@@ -360,34 +434,36 @@ export class ModelGallery {
       depthWrite: false,
     });
     const sprite = new THREE.Sprite(mat);
-    sprite.position.set(x, y, z + 3);
-    sprite.scale.set(7, 0.9, 1);
+    sprite.position.set(x, y, z);
+    const [sx, sy] = style?.spriteScale ?? [7, 0.9];
+    sprite.scale.set(sx, sy, 1);
+    sprite.renderOrder = 999;
     this.galleryGroup.add(sprite);
   }
 
   /** Add a kit name banner */
   private addKitBanner(name: string, x: number, z: number): void {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     canvas.width = 512;
     canvas.height = 80;
 
     // Background
-    ctx.fillStyle = 'rgba(50, 60, 130, 0.85)';
+    ctx.fillStyle = "rgba(50, 60, 130, 0.85)";
     ctx.roundRect(0, 0, 512, 80, 8);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(100, 140, 255, 0.6)';
+    ctx.strokeStyle = "rgba(100, 140, 255, 0.6)";
     ctx.lineWidth = 2;
     ctx.roundRect(0, 0, 512, 80, 8);
     ctx.stroke();
 
     // Text
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 28px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 28px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
     ctx.fillText(`📦 ${name}`, 256, 40);
 
     const texture = new THREE.CanvasTexture(canvas);
@@ -407,29 +483,32 @@ export class ModelGallery {
   /** Place a red error cube when model fails to load */
   private addErrorMarker(fileName: string, x: number, z: number): void {
     const geo = new THREE.BoxGeometry(1, 1, 1);
-    const mat = new THREE.MeshStandardMaterial({ color: 0xff3333, roughness: 0.5 });
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xff3333,
+      roughness: 0.5,
+    });
     const cube = new THREE.Mesh(geo, mat);
     cube.position.set(x, 0.5, z);
     this.galleryGroup.add(cube);
 
     // Still add label
-    this.addModelLabel(`❌ ${fileName.replace('.glb', '')}`, x, -0.5, z);
+    this.addModelLabel(`❌ ${fileName}`, x, 2.2, z);
   }
 
   /** Add 2 hand-made examples assembled from Building Kit parts */
   private async addBuildingKitExamples(): Promise<void> {
-    const buildingKitBase = '/kits/kenney_building-kit/Models/GLB format/';
+    const buildingKitBase = "/kits/kenney_building-kit/Models/GLB format/";
     const anchorX = this.GALLERY_OFFSET_X - 220;
     const anchorZ = this.GALLERY_OFFSET_Z - 35;
     const moduleSize = 4;
 
     const parts = [
-      'wall.glb',
-      'wall-window-square.glb',
-      'wall-doorway-square.glb',
-      'floor.glb',
-      'roof-flat-center.glb',
-      'stairs-open.glb',
+      "wall.glb",
+      "wall-window-square.glb",
+      "wall-doorway-square.glb",
+      "floor.glb",
+      "roof-flat-center.glb",
+      "stairs-open.glb",
     ];
 
     const loaded = await Promise.all(
@@ -441,14 +520,20 @@ export class ModelGallery {
     const partMap = new Map<string, THREE.Group>(loaded);
 
     // Derive one common scale so modular pieces still fit each other.
-    const wallRef = partMap.get('wall.glb')?.clone();
+    const wallRef = partMap.get("wall.glb")?.clone();
     if (!wallRef) return;
     const wallBox = new THREE.Box3().setFromObject(wallRef);
     const wallSize = wallBox.getSize(new THREE.Vector3());
     const wallMaxHorizontal = Math.max(wallSize.x, wallSize.z);
-    const commonScale = wallMaxHorizontal > 0 ? moduleSize / wallMaxHorizontal : 1;
+    const commonScale =
+      wallMaxHorizontal > 0 ? moduleSize / wallMaxHorizontal : 1;
 
-    const spawnPart = (name: string, x: number, z: number, rotY = 0): THREE.Group => {
+    const spawnPart = (
+      name: string,
+      x: number,
+      z: number,
+      rotY = 0,
+    ): THREE.Group => {
       const src = partMap.get(name);
       if (!src) return new THREE.Group();
       const model = src.clone();
@@ -469,43 +554,68 @@ export class ModelGallery {
       return model;
     };
 
-    const machineHall = new THREE.Group();
-    machineHall.name = 'building-kit-example-machine-hall';
-    machineHall.add(spawnPart('floor.glb', anchorX, anchorZ));
-    machineHall.add(spawnPart('roof-flat-center.glb', anchorX, anchorZ));
-    machineHall.add(spawnPart('wall.glb', anchorX, anchorZ - moduleSize / 2));
-    machineHall.add(spawnPart('wall-window-square.glb', anchorX + moduleSize / 2, anchorZ, Math.PI / 2));
-    machineHall.add(spawnPart('wall-window-square.glb', anchorX - moduleSize / 2, anchorZ, Math.PI / 2));
-    machineHall.add(spawnPart('wall-doorway-square.glb', anchorX, anchorZ + moduleSize / 2, Math.PI));
-    this.galleryGroup.add(machineHall);
-    this.addModelLabel('Building Kit Example: Hall', anchorX, moduleSize + 1.5, anchorZ);
-
     const centerX = 120;
     const centerZ = 80;
     const g = new THREE.Group();
 
-    g.add(spawnPart('floor.glb', centerX, centerZ));
-    g.add(spawnPart('wall.glb', centerX, centerZ - moduleSize / 2));
-    g.add(spawnPart('wall-window-square.glb', centerX + moduleSize / 2, centerZ, Math.PI / 2));
-    g.add(spawnPart('wall-window-square.glb', centerX - moduleSize / 2, centerZ, Math.PI / 2));
-    g.add(spawnPart('wall-doorway-square.glb', centerX, centerZ + moduleSize / 2, Math.PI));
-    g.add(spawnPart('roof-flat-center.glb', centerX, centerZ));
+    g.add(spawnPart("floor.glb", centerX, centerZ));
+    g.add(spawnPart("wall.glb", centerX, centerZ - moduleSize / 2));
+    g.add(
+      spawnPart(
+        "wall-window-square.glb",
+        centerX + moduleSize / 2,
+        centerZ,
+        Math.PI / 2,
+      ),
+    );
+    g.add(
+      spawnPart(
+        "wall-window-square.glb",
+        centerX - moduleSize / 2,
+        centerZ,
+        Math.PI / 2,
+      ),
+    );
+    g.add(
+      spawnPart(
+        "wall-doorway-square.glb",
+        centerX,
+        centerZ + moduleSize / 2,
+        Math.PI,
+      ),
+    );
+    g.add(spawnPart("roof-flat-center.glb", centerX, centerZ));
 
     this.galleryGroup.add(g);
-    this.addModelLabel('Custom Module', centerX, moduleSize + 1.5, centerZ);
+    this.addModelLabel("Custom Module", centerX, moduleSize + 1.5, centerZ);
 
     const stairTowerX = anchorX + 28;
     const stairTowerZ = anchorZ;
     const stairTower = new THREE.Group();
-    stairTower.name = 'building-kit-example-stair-tower';
-    stairTower.add(spawnPart('floor.glb', stairTowerX, stairTowerZ));
-    stairTower.add(spawnPart('wall-window-square.glb', stairTowerX, stairTowerZ - moduleSize / 2));
-    stairTower.add(spawnPart('wall.glb', stairTowerX + moduleSize / 2, stairTowerZ, Math.PI / 2));
-    stairTower.add(spawnPart('stairs-open.glb', stairTowerX - 0.4, stairTowerZ + 0.4, Math.PI / 2));
-    stairTower.add(spawnPart('roof-flat-center.glb', stairTowerX, stairTowerZ));
-    this.galleryGroup.add(stairTower);
-    this.addModelLabel('Building Kit Example: Stair Tower', stairTowerX, moduleSize + 1.5, stairTowerZ);
-
-    this.addKitBanner('Building Kit Examples', anchorX - 10, anchorZ - 18);
+    stairTower.name = "building-kit-example-stair-tower";
+    stairTower.add(spawnPart("floor.glb", stairTowerX, stairTowerZ));
+    stairTower.add(
+      spawnPart(
+        "wall-window-square.glb",
+        stairTowerX,
+        stairTowerZ - moduleSize / 2,
+      ),
+    );
+    stairTower.add(
+      spawnPart(
+        "wall.glb",
+        stairTowerX + moduleSize / 2,
+        stairTowerZ,
+        Math.PI / 2,
+      ),
+    );
+    stairTower.add(
+      spawnPart(
+        "stairs-open.glb",
+        stairTowerX - 0.4,
+        stairTowerZ + 0.4,
+        Math.PI / 2,
+      ),
+    );
   }
 }

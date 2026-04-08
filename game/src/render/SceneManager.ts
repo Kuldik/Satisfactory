@@ -5,11 +5,27 @@
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { CAMERA, GRID_CELL_SIZE, ORE_COLORS } from "../core/constants.ts";
+import type { BuilderMode } from "../core/types.ts";
+import { CONVEYOR_PLACEMENT_MODES } from "../core/types.ts";
+import type { ConveyorPlacementMode } from "../core/types.ts";
 import { CameraController } from "./CameraController.ts";
 import { GridRenderer } from "./GridRenderer.ts";
 import { ModelGallery } from "./ModelGallery.ts";
 import type { PatternPart } from "../buildings/BuildingPatterns.ts";
 import { getBuildingPrefab } from "../buildings/BuildingPrefabs.ts";
+import {
+  scaleToFitMaxExtent,
+  usesConveyorGalleryFitScale,
+} from "../buildings/logistics/conveyorFitScale.ts";
+import {
+  isConveyorBeltMenuId,
+  isLogisticsConveyorKitPath,
+  isLogisticsMenuBuildingId,
+} from "../buildings/logistics/conveyorKitModels.ts";
+import {
+  DECONSTRUCT_HOLD_DEFAULT_MS,
+  DECONSTRUCT_HOLD_LOGISTICS_MS,
+} from "../core/constants.ts";
 import { resolveBuilderModelPath } from "./builderModelPath.ts";
 
 export class SceneManager {
@@ -30,7 +46,7 @@ export class SceneManager {
   private builderGhostRotY = 0;
   private builderCurrentPartPath = "";
   private builderScale = 1;
-  private builderMode: "single" | "line" = "single";
+  private builderMode: BuilderMode = "single";
   private builderPointerNDC = new THREE.Vector2(0, 0);
   private builderHasPointer = false;
   private builderLineStart: THREE.Vector3 | null = null;
@@ -41,6 +57,8 @@ export class SceneManager {
   private prefabPlacementScale: number | null = null;
   /** Id пункта меню (например space_elevator) — в сейв подставляется актуальный scale из BuildingPrefabs */
   private prefabMenuBuildingId: string | null = null;
+  /** Rotation offset for conveyor models: -π/2 when belt axis is X, 0 when Z */
+  private conveyorRotOffset = 0;
   private builderCtrlHeld = false;
   private builderDeconstructMode = false;
   private deconstructHovered: THREE.Object3D | null = null;
@@ -361,7 +379,6 @@ export class SceneManager {
   ): Promise<void> {
     this.clearBuilderGhost();
     this.setBuilderDeconstructMode(false);
-    this.prefabPlacementScale = scale;
     this.prefabMenuBuildingId = menuBuildingId;
     this.builderGhostRotY = 0;
     this.builderCurrentPartPath = partPath;
@@ -372,6 +389,17 @@ export class SceneManager {
       original = gltf.scene;
       this.glbCache.set(partPath, original);
     }
+
+    this.prefabPlacementScale = usesConveyorGalleryFitScale(
+      menuBuildingId,
+      partPath,
+    )
+      ? scaleToFitMaxExtent(original)
+      : scale;
+
+    this.conveyorRotOffset = isConveyorBeltMenuId(menuBuildingId)
+      ? -Math.PI / 2
+      : 0;
 
     const ghost = original.clone(true);
     ghost.traverse((child) => {
@@ -467,9 +495,15 @@ export class SceneManager {
     this.builderGhostInvalid = this.computeGhostInvalid(this.builderGhostPivot);
     this.refreshGhostMaterial();
 
-    if (this.builderMode === "line" && this.builderLineStart) {
+    const isMultiSegmentMode = this.builderMode !== "single";
+    const linePreviewActive =
+      isMultiSegmentMode &&
+      this.builderLineStart &&
+      (this.prefabPlacementScale === null ||
+        isConveyorBeltMenuId(this.prefabMenuBuildingId));
+    if (linePreviewActive) {
       this.rebuildLinePreview(
-        this.builderLineStart,
+        this.builderLineStart!,
         this.builderGhostCurrentPos,
       );
     } else {
@@ -484,6 +518,9 @@ export class SceneManager {
         if (this.deconstructHovered.userData.compositeId) {
           return false;
         }
+        if (this.isDeconstructStandaloneLogisticsHover()) {
+          return false;
+        }
         this.builderPlacedGroup.remove(this.deconstructHovered);
         this.builderPlaced = this.builderPlaced.filter(
           (p) => p !== this.deconstructHovered?.userData.builderRecord,
@@ -495,14 +532,56 @@ export class SceneManager {
       return false;
     }
 
+    const isConveyorLine =
+      this.builderMode !== "single" &&
+      this.prefabPlacementScale !== null &&
+      isConveyorBeltMenuId(this.prefabMenuBuildingId);
+
+    const hasLineAnchor = isConveyorLine && this.builderLineStart !== null;
+
     if (
       !this.builderGhostPivot ||
       !this.builderCurrentPartPath ||
-      this.builderGhostInvalid
+      (this.builderGhostInvalid && !hasLineAnchor)
     )
       return false;
 
-    if (this.builderMode === "line" && this.prefabPlacementScale === null) {
+    if (isConveyorLine) {
+      if (!this.builderLineStart) {
+        this.builderLineStart = this.builderGhostCurrentPos.clone();
+        this.rebuildLinePreview(
+          this.builderLineStart,
+          this.builderGhostCurrentPos,
+        );
+        return false;
+      }
+      const start = this.builderLineStart.clone();
+      const end = this.builderGhostCurrentPos.clone();
+      this.builderLinePreviewGroup.clear();
+      const segments = this.computePathSegments(start, end);
+      const conveyorPath = this.builderCurrentPartPath;
+      const compositeId = this.newCompositeId();
+      const segmentScale = this.prefabPlacementScale ?? this.builderScale;
+      let placedAny = false;
+      for (const seg of segments) {
+        placedAny =
+          this.placeSingleAt(
+            seg.position,
+            seg.rotationY,
+            segmentScale,
+            compositeId,
+            this.prefabMenuBuildingId ?? undefined,
+            conveyorPath,
+          ) || placedAny;
+      }
+      if (placedAny) {
+        this.persistBuilderState();
+      }
+      this.builderLineStart = end.clone();
+      return placedAny;
+    }
+
+    if (this.builderMode !== "single" && this.prefabPlacementScale === null) {
       if (!this.builderLineStart) {
         this.builderLineStart = this.builderGhostCurrentPos.clone();
         this.rebuildLinePreview(
@@ -553,6 +632,20 @@ export class SceneManager {
       this.builderGhostPivot.rotation.y = this.builderGhostRotY;
     }
     this.normalizeGhostModel();
+  }
+
+  /** True when a conveyor line anchor is active and placement can continue. */
+  hasActiveConveyorLine(): boolean {
+    return (
+      this.builderLineStart !== null &&
+      isConveyorBeltMenuId(this.prefabMenuBuildingId)
+    );
+  }
+
+  /** Cancel conveyor line anchor but keep the ghost active for fresh placement. */
+  cancelConveyorLine(): void {
+    this.builderLineStart = null;
+    this.builderLinePreviewGroup.clear();
   }
 
   /** Remove ghost without placing */
@@ -696,18 +789,29 @@ export class SceneManager {
     return count;
   }
 
-  setBuilderMode(mode: "single" | "line"): void {
+  setBuilderMode(mode: BuilderMode): void {
     this.builderMode = mode;
     this.builderLineStart = null;
     this.builderLinePreviewGroup.clear();
   }
 
-  cycleBuilderMode(): "single" | "line" {
-    this.setBuilderMode(this.builderMode === "single" ? "line" : "single");
+  cycleBuilderMode(): BuilderMode {
+    if (this.builderMode === "single") {
+      this.setBuilderMode("straight");
+    } else {
+      const idx = CONVEYOR_PLACEMENT_MODES.indexOf(
+        this.builderMode as ConveyorPlacementMode,
+      );
+      const next =
+        idx >= 0
+          ? CONVEYOR_PLACEMENT_MODES[(idx + 1) % CONVEYOR_PLACEMENT_MODES.length]
+          : "straight";
+      this.setBuilderMode(next);
+    }
     return this.builderMode;
   }
 
-  getBuilderMode(): "single" | "line" {
+  getBuilderMode(): BuilderMode {
     return this.builderMode;
   }
 
@@ -747,6 +851,57 @@ export class SceneManager {
     return typeof id === "string" ? id : undefined;
   }
 
+  /** Одиночная деталь логистики под курсором (без compositeId) — снос только удержанием ЛКМ. */
+  isDeconstructStandaloneLogisticsHover(): boolean {
+    const h = this.deconstructHovered;
+    if (!h || h.userData?.compositeId) return false;
+    const rec = h.userData?.builderRecord as
+      | (typeof this.builderPlaced)[number]
+      | undefined;
+    if (!rec) return false;
+    if (isLogisticsMenuBuildingId(rec.menuBuildingId)) return true;
+    if (isLogisticsConveyorKitPath(rec.partPath)) return true;
+    return false;
+  }
+
+  /** Длительность удержания для текущего hover (логистика 0.2 с, остальное 2 с). */
+  getDeconstructHoldMsForCurrentHover(): number {
+    const cid = this.getDeconstructHoverCompositeId();
+    if (cid) {
+      return this.isCompositeLogisticsOnly(cid)
+        ? DECONSTRUCT_HOLD_LOGISTICS_MS
+        : DECONSTRUCT_HOLD_DEFAULT_MS;
+    }
+    if (this.isDeconstructStandaloneLogisticsHover()) {
+      return DECONSTRUCT_HOLD_LOGISTICS_MS;
+    }
+    return DECONSTRUCT_HOLD_DEFAULT_MS;
+  }
+
+  private isCompositeLogisticsOnly(compositeId: string): boolean {
+    const parts = this.builderPlaced.filter(
+      (p) => p.compositeId === compositeId,
+    );
+    if (parts.length === 0) return false;
+    return parts.every((p) => {
+      if (isLogisticsMenuBuildingId(p.menuBuildingId)) return true;
+      if (isLogisticsConveyorKitPath(p.partPath)) return true;
+      return false;
+    });
+  }
+
+  removeDeconstructHoveredStandalone(): boolean {
+    if (!this.deconstructHovered || this.deconstructHovered.userData?.compositeId)
+      return false;
+    this.builderPlacedGroup.remove(this.deconstructHovered);
+    this.builderPlaced = this.builderPlaced.filter(
+      (p) => p !== this.deconstructHovered?.userData.builderRecord,
+    );
+    this.clearDeconstructHover();
+    this.persistBuilderState();
+    return true;
+  }
+
   /**
    * Экранная позиция круга удержания: центр pivot под курсором (дешево, без union bbox по сотням мешей).
    */
@@ -755,7 +910,13 @@ export class SceneManager {
     top: number;
   } | null {
     const hovered = this.deconstructHovered;
-    if (!hovered || !this.getDeconstructHoverCompositeId()) return null;
+    if (!hovered) return null;
+    if (
+      !this.getDeconstructHoverCompositeId() &&
+      !this.isDeconstructStandaloneLogisticsHover()
+    ) {
+      return null;
+    }
     const c = new THREE.Vector3();
     hovered.getWorldPosition(c);
     c.project(this.camera);
@@ -913,15 +1074,21 @@ export class SceneManager {
     forcedScale?: number,
     compositeId?: string,
     menuBuildingId?: string,
+    /** Иначе берётся builderCurrentPartPath (линия конвейера + стойка). */
+    sourcePath?: string,
   ): boolean {
-    if (!this.builderCurrentPartPath) return false;
-    const original = this.glbCache.get(this.builderCurrentPartPath);
+    const path = sourcePath ?? this.builderCurrentPartPath;
+    if (!path) return false;
+    const original = this.glbCache.get(path);
     if (!original) return false;
 
     const rotY =
       typeof forcedRotY === "number" ? forcedRotY : this.builderGhostRotY;
-    const scale =
+    const baseScale =
       typeof forcedScale === "number" ? forcedScale : this.builderScale;
+    const scale = usesConveyorGalleryFitScale(menuBuildingId, path)
+      ? scaleToFitMaxExtent(original)
+      : baseScale;
 
     const placed = original.clone(true);
     placed.scale.setScalar(scale);
@@ -947,7 +1114,7 @@ export class SceneManager {
     pivot.rotation.y = rotY;
 
     const record: (typeof this.builderPlaced)[number] = {
-      partPath: this.builderCurrentPartPath,
+      partPath: path,
       x: pivot.position.x,
       y: pivot.position.y,
       z: pivot.position.z,
@@ -1232,6 +1399,242 @@ export class SceneManager {
     return hits[0]?.point.y ?? null;
   }
 
+  // ---- Path segment computation for multi-segment placement ----
+
+  /** Step size = model's belt-direction extent (longest horizontal dim after scale). */
+  private getSegmentStep(): number {
+    return Math.max(
+      Math.max(this.builderGhostFootprint.x, this.builderGhostFootprint.z),
+      0.1,
+    );
+  }
+
+  /**
+   * Dispatch to the correct path algorithm based on current builderMode.
+   * Returns segments with per-segment position + rotation.
+   */
+  private computePathSegments(
+    start: THREE.Vector3,
+    end: THREE.Vector3,
+  ): Array<{ position: THREE.Vector3; rotationY: number }> {
+    switch (this.builderMode) {
+      case "straight":
+        return this.getStraightPath(start, end);
+      case "default":
+        return this.getLShapedPath(start, end);
+      case "curve":
+        return this.getCurvePath(start, end);
+      default:
+        return this.getAxisAlignedPath(start, end);
+    }
+  }
+
+  /** Straight: direct line from start to end, each segment rotated along the direction vector. */
+  private getStraightPath(
+    start: THREE.Vector3,
+    end: THREE.Vector3,
+  ): Array<{ position: THREE.Vector3; rotationY: number }> {
+    const dx = end.x - start.x;
+    const dz = end.z - start.z;
+    const dist = Math.hypot(dx, dz);
+    const step = this.getSegmentStep();
+    if (dist < 0.01) {
+      return [{ position: start.clone(), rotationY: this.builderGhostRotY }];
+    }
+    const rotY = Math.atan2(dx, dz) + this.conveyorRotOffset;
+    const count = Math.max(1, Math.round(dist / step));
+    const result: Array<{ position: THREE.Vector3; rotationY: number }> = [];
+    for (let i = 0; i <= count; i++) {
+      const t = i / count;
+      result.push({
+        position: new THREE.Vector3(
+          start.x + dx * t,
+          start.y,
+          start.z + dz * t,
+        ),
+        rotationY: rotY,
+      });
+    }
+    return result;
+  }
+
+  /**
+   * L-shaped: first leg along dominant axis, second leg along the other axis.
+   * Smooth quarter-arc rounding inserted at the corner.
+   */
+  private getLShapedPath(
+    start: THREE.Vector3,
+    end: THREE.Vector3,
+  ): Array<{ position: THREE.Vector3; rotationY: number }> {
+    const dx = end.x - start.x;
+    const dz = end.z - start.z;
+    const step = this.getSegmentStep();
+    if (Math.hypot(dx, dz) < 0.01) {
+      return [{ position: start.clone(), rotationY: this.builderGhostRotY }];
+    }
+    const result: Array<{ position: THREE.Vector3; rotationY: number }> = [];
+    const offset = this.conveyorRotOffset;
+
+    const absDx = Math.abs(dx);
+    const absDz = Math.abs(dz);
+    const firstAlongX = absDx >= absDz;
+
+    const corner = firstAlongX
+      ? new THREE.Vector3(end.x, start.y, start.z)
+      : new THREE.Vector3(start.x, start.y, end.z);
+
+    const ARC_SEGMENTS = 4;
+    const arcRadius = Math.min(step * 2, absDx, absDz);
+
+    const leg1Dx = corner.x - start.x;
+    const leg1Dz = corner.z - start.z;
+    const leg1Dist = Math.hypot(leg1Dx, leg1Dz);
+    const leg1RotY =
+      leg1Dist > 0.01
+        ? Math.atan2(leg1Dx, leg1Dz) + offset
+        : this.builderGhostRotY;
+
+    const shortenedLeg1Dist = Math.max(0, leg1Dist - arcRadius);
+    if (shortenedLeg1Dist > 0.01) {
+      const count1 = Math.max(1, Math.round(shortenedLeg1Dist / step));
+      const dirX = leg1Dx / leg1Dist;
+      const dirZ = leg1Dz / leg1Dist;
+      for (let i = 0; i <= count1; i++) {
+        const d = (i / count1) * shortenedLeg1Dist;
+        result.push({
+          position: new THREE.Vector3(
+            start.x + dirX * d,
+            start.y,
+            start.z + dirZ * d,
+          ),
+          rotationY: leg1RotY,
+        });
+      }
+    } else {
+      result.push({ position: start.clone(), rotationY: leg1RotY });
+    }
+
+    const leg2Dx = end.x - corner.x;
+    const leg2Dz = end.z - corner.z;
+    const leg2Dist = Math.hypot(leg2Dx, leg2Dz);
+    const leg2RotY =
+      leg2Dist > 0.01
+        ? Math.atan2(leg2Dx, leg2Dz) + offset
+        : leg1RotY;
+
+    if (arcRadius > 0.01 && leg1Dist > 0.01 && leg2Dist > 0.01) {
+      const leg1DirX = leg1Dx / leg1Dist;
+      const leg1DirZ = leg1Dz / leg1Dist;
+      const leg2DirX = leg2Dx / leg2Dist;
+      const leg2DirZ = leg2Dz / leg2Dist;
+      const arcStart = new THREE.Vector3(
+        corner.x - leg1DirX * arcRadius,
+        start.y,
+        corner.z - leg1DirZ * arcRadius,
+      );
+      const arcEnd = new THREE.Vector3(
+        corner.x + leg2DirX * arcRadius,
+        start.y,
+        corner.z + leg2DirZ * arcRadius,
+      );
+      for (let i = 1; i <= ARC_SEGMENTS; i++) {
+        const t = i / ARC_SEGMENTS;
+        const px = arcStart.x * (1 - t) * (1 - t) + corner.x * 2 * t * (1 - t) + arcEnd.x * t * t;
+        const pz = arcStart.z * (1 - t) * (1 - t) + corner.z * 2 * t * (1 - t) + arcEnd.z * t * t;
+        const tx = 2 * (1 - t) * (corner.x - arcStart.x) + 2 * t * (arcEnd.x - corner.x);
+        const tz = 2 * (1 - t) * (corner.z - arcStart.z) + 2 * t * (arcEnd.z - corner.z);
+        result.push({
+          position: new THREE.Vector3(px, start.y, pz),
+          rotationY: Math.atan2(tx, tz) + offset,
+        });
+      }
+    }
+
+    const shortenedLeg2Dist = Math.max(0, leg2Dist - arcRadius);
+    if (shortenedLeg2Dist > 0.01) {
+      const count2 = Math.max(1, Math.round(shortenedLeg2Dist / step));
+      const dirX2 = leg2Dx / leg2Dist;
+      const dirZ2 = leg2Dz / leg2Dist;
+      for (let i = 1; i <= count2; i++) {
+        const d = arcRadius + (i / count2) * shortenedLeg2Dist;
+        result.push({
+          position: new THREE.Vector3(
+            corner.x + dirX2 * d,
+            start.y,
+            corner.z + dirZ2 * d,
+          ),
+          rotationY: leg2RotY,
+        });
+      }
+    }
+
+    return result;
+  }
+
+  /** Curve: quadratic bezier from start to end with automatic control point for a smooth arc. */
+  private getCurvePath(
+    start: THREE.Vector3,
+    end: THREE.Vector3,
+  ): Array<{ position: THREE.Vector3; rotationY: number }> {
+    const dx = end.x - start.x;
+    const dz = end.z - start.z;
+    const dist = Math.hypot(dx, dz);
+    const step = this.getSegmentStep();
+    if (dist < 0.01) {
+      return [{ position: start.clone(), rotationY: this.builderGhostRotY }];
+    }
+
+    const mid = new THREE.Vector3(
+      (start.x + end.x) / 2,
+      start.y,
+      (start.z + end.z) / 2,
+    );
+    const perpX = -dz;
+    const perpZ = dx;
+    const bulge = dist * 0.35;
+    const control = new THREE.Vector3(
+      mid.x + (perpX / dist) * bulge,
+      start.y,
+      mid.z + (perpZ / dist) * bulge,
+    );
+
+    const curve = new THREE.QuadraticBezierCurve3(
+      new THREE.Vector3(start.x, start.y, start.z),
+      control,
+      new THREE.Vector3(end.x, start.y, end.z),
+    );
+
+    const arcLength = curve.getLength();
+    const count = Math.max(2, Math.round(arcLength / step));
+    const result: Array<{ position: THREE.Vector3; rotationY: number }> = [];
+    const offset = this.conveyorRotOffset;
+
+    for (let i = 0; i <= count; i++) {
+      const t = i / count;
+      const pt = curve.getPointAt(t);
+      const tangent = curve.getTangentAt(t);
+      const rotY = Math.atan2(tangent.x, tangent.z) + offset;
+      result.push({
+        position: new THREE.Vector3(pt.x, start.y, pt.z),
+        rotationY: rotY,
+      });
+    }
+
+    return result;
+  }
+
+  /** Legacy axis-aligned path (admin builder "single" mode fallback for line commands). */
+  private getAxisAlignedPath(
+    start: THREE.Vector3,
+    end: THREE.Vector3,
+  ): Array<{ position: THREE.Vector3; rotationY: number }> {
+    const positions = this.getLinePlacementPositions(start, end);
+    return positions.map((p) => ({
+      position: p,
+      rotationY: this.builderGhostRotY,
+    }));
+  }
+
   private getLinePlacementPositions(
     start: THREE.Vector3,
     end: THREE.Vector3,
@@ -1267,16 +1670,34 @@ export class SceneManager {
   private rebuildLinePreview(start: THREE.Vector3, end: THREE.Vector3): void {
     this.builderLinePreviewGroup.clear();
     if (!this.builderGhostModelRoot || !this.builderCurrentPartPath) return;
-    const positions = this.getLinePlacementPositions(start, end);
-    positions.forEach((p) => {
-      this.resolveVerticalSupport(p);
-      const clone = this.builderGhostModelRoot!.clone(true);
-      const pivot = new THREE.Group();
-      pivot.add(clone);
-      pivot.position.copy(p);
-      pivot.rotation.y = this.builderGhostRotY;
-      this.builderLinePreviewGroup.add(pivot);
-    });
+
+    const isConveyorMultiSegment =
+      this.builderMode !== "single" &&
+      this.prefabPlacementScale !== null &&
+      isConveyorBeltMenuId(this.prefabMenuBuildingId);
+
+    if (isConveyorMultiSegment) {
+      const segments = this.computePathSegments(start, end);
+      for (const seg of segments) {
+        const clone = this.builderGhostModelRoot!.clone(true);
+        const pivot = new THREE.Group();
+        pivot.add(clone);
+        pivot.position.copy(seg.position);
+        pivot.rotation.y = seg.rotationY;
+        this.builderLinePreviewGroup.add(pivot);
+      }
+    } else {
+      const positions = this.getLinePlacementPositions(start, end);
+      for (const p of positions) {
+        this.resolveVerticalSupport(p);
+        const clone = this.builderGhostModelRoot!.clone(true);
+        const pivot = new THREE.Group();
+        pivot.add(clone);
+        pivot.position.copy(p);
+        pivot.rotation.y = this.builderGhostRotY;
+        this.builderLinePreviewGroup.add(pivot);
+      }
+    }
   }
 
   private updateDeconstructHover(ndcX: number, ndcY: number): void {
@@ -1344,7 +1765,7 @@ export class SceneManager {
     try {
       const parsed = JSON.parse(raw) as {
         scale?: number;
-        mode?: "single" | "line";
+        mode?: string;
         parts?: Array<{
           partPath: string;
           x: number;
@@ -1363,8 +1784,9 @@ export class SceneManager {
           SceneManager.BUILDER_SCALE_MAX,
         );
       }
-      if (parsed.mode === "single" || parsed.mode === "line") {
-        this.builderMode = parsed.mode;
+      const validModes: BuilderMode[] = ["single", "straight", "default", "curve"];
+      if (parsed.mode && validModes.includes(parsed.mode as BuilderMode)) {
+        this.builderMode = parsed.mode as BuilderMode;
       }
       const parts = parsed.parts ?? [];
       const elevatorPath = getBuildingPrefab("space_elevator")?.modelPath;
@@ -1379,9 +1801,12 @@ export class SceneManager {
         if (!menuId && elevatorPath && part.partPath === elevatorPath) {
           menuId = "space_elevator";
         }
+        const origCached = this.glbCache.get(part.partPath);
         let scaleForPart =
           typeof part.scale === "number" ? part.scale : this.builderScale;
-        if (menuId) {
+        if (origCached && usesConveyorGalleryFitScale(menuId, part.partPath)) {
+          scaleForPart = scaleToFitMaxExtent(origCached);
+        } else if (menuId) {
           const def = getBuildingPrefab(menuId);
           if (def) scaleForPart = def.scale;
         }

@@ -2,7 +2,7 @@
 // InputManager — keyboard and mouse input handling
 // ============================================================
 
-import { KEYBINDS } from '../core/constants.ts';
+import { ENABLE_MULTI_FLOOR, KEYBINDS } from '../core/constants.ts';
 import type { Engine } from '../core/Engine.ts';
 import { GameMode } from '../core/types.ts';
 
@@ -116,14 +116,16 @@ export class InputManager {
       e.preventDefault();
     }
 
-    // PageUp / PageDown — change floor
-    if (e.code === KEYBINDS.floorUp) {
-      this.engine.setCurrentFloor(state.currentFloor + 1);
-      e.preventDefault();
-    }
-    if (e.code === KEYBINDS.floorDown) {
-      this.engine.setCurrentFloor(Math.max(0, state.currentFloor - 1));
-      e.preventDefault();
+    // PageUp / PageDown — смена этажа (вкл. в constants при ENABLE_MULTI_FLOOR)
+    if (ENABLE_MULTI_FLOOR) {
+      if (e.code === KEYBINDS.floorUp) {
+        this.engine.setCurrentFloor(state.currentFloor + 1);
+        e.preventDefault();
+      }
+      if (e.code === KEYBINDS.floorDown) {
+        this.engine.setCurrentFloor(Math.max(0, state.currentFloor - 1));
+        e.preventDefault();
+      }
     }
 
     // Ctrl+S — manual save
