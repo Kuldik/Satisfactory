@@ -233,18 +233,16 @@ export interface SavedEntity {
 
 // ---- Builder placement modes ----
 
-export type ConveyorPlacementMode = "straight" | "default" | "curve";
+export type ConveyorPlacementMode = "default" | "curve";
 export type BuilderMode = "single" | ConveyorPlacementMode;
 
 export const CONVEYOR_PLACEMENT_MODES: ConveyorPlacementMode[] = [
-  "straight",
   "default",
   "curve",
 ];
 
 export const BUILDER_MODE_LABELS: Record<BuilderMode, string> = {
   single: "Обычный",
-  straight: "Прямая",
   default: "По умолчанию",
   curve: "Кривая",
 };

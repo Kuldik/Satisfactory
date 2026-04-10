@@ -200,7 +200,7 @@ export class Engine {
         this.sceneManager.clearBuilderGhost();
       }
       if (isConveyorBeltMenuId(buildingId)) {
-        this.sceneManager.setBuilderMode("straight");
+        this.sceneManager.setBuilderMode("default");
       }
     }
     this.notifyStateChange();

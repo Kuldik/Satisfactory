@@ -350,12 +350,6 @@ export const AdminPanel: FC<AdminPanelProps> = ({
               </button>
               <button
                 className="admin-btn"
-                onClick={() => onSetBuilderMode("straight")}
-              >
-                Прямая
-              </button>
-              <button
-                className="admin-btn"
                 onClick={() => onSetBuilderMode("default")}
               >
                 L-угол

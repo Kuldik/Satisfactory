@@ -14,6 +14,11 @@ import { ModelGallery } from "./ModelGallery.ts";
 import type { PatternPart } from "../buildings/BuildingPatterns.ts";
 import { getBuildingPrefab } from "../buildings/BuildingPrefabs.ts";
 import {
+  getBuildingPorts,
+  PORT_MODEL_INPUT,
+  PORT_MODEL_OUTPUT,
+} from "../buildings/BuildingPorts.ts";
+import {
   scaleToFitMaxExtent,
   usesConveyorGalleryFitScale,
 } from "../buildings/logistics/conveyorFitScale.ts";
@@ -27,7 +32,28 @@ import {
   DECONSTRUCT_HOLD_LOGISTICS_MS,
 } from "../core/constants.ts";
 import { resolveBuilderModelPath } from "./builderModelPath.ts";
+import {
+  computeAxisAlignedPathSegments,
+  getAxisLinePlacementPositions,
+} from "./builder/builderAxisLinePlacement.ts";
+import {
+  edgeAlignGhostToPlaced,
+  faceSnapGhostToPlaced,
+  resolveGhostVerticalSupport,
+} from "./builder/builderGhostSnapping.ts";
+import {
+  computeConveyorPathSegments,
+  getPlacementSegmentStep,
+} from "./builder/conveyorPathSegments.ts";
 
+/**
+ * SceneManager — жизненный цикл сцены, камера, сетка, демо-ресурсы.
+ *
+ * Вынесено в `render/builder/`:
+ * - conveyorPathSegments — траектории лент (L, кривая, двойной снап).
+ * - builderGhostSnapping — Ctrl-снап, face-снап, вертикальная опора под призраком.
+ * - builderAxisLinePlacement — ось-выровненная линия для админ-билдера.
+ */
 export class SceneManager {
   readonly scene: THREE.Scene;
   readonly camera: THREE.PerspectiveCamera;
@@ -59,6 +85,22 @@ export class SceneManager {
   private prefabMenuBuildingId: string | null = null;
   /** Rotation offset for conveyor models: -π/2 when belt axis is X, 0 when Z */
   private conveyorRotOffset = 0;
+  /** Registry of placed conveyor line endpoints for snapping */
+  private readonly conveyorEndpoints: Array<{
+    position: THREE.Vector3;
+    rotationY: number;
+    compositeId: string;
+  }> = [];
+  /**
+   * Belt rotationY at the current line start (after snap, auto-continue, or first click).
+   * Used so L-shaped and curve paths extend along the incoming belt instead of picking
+   * a perpendicular world axis from start→end alone.
+   */
+  private conveyorTangentAtLineStart: number | null = null;
+  /** Belt rotationY at line end when cursor snaps to a conveyor endpoint (curve + dual-snap default). */
+  private conveyorTangentAtLineEnd: number | null = null;
+  /** Default (L) mode: both legs shorter than min turn → red ghost, no place */
+  private conveyorDefaultTooTight = false;
   private builderCtrlHeld = false;
   private builderDeconstructMode = false;
   private deconstructHovered: THREE.Object3D | null = null;
@@ -90,6 +132,13 @@ export class SceneManager {
   private readonly builderPlacedGroup = new THREE.Group();
   private readonly builderLinePreviewGroup = new THREE.Group();
   private readonly glbCache = new Map<string, THREE.Group>();
+  /** World-space port positions from placed buildings — used for conveyor auto-snap. */
+  private readonly placedPorts: Array<{
+    worldPos: THREE.Vector3;
+    worldDir: number;
+    type: "input" | "output";
+    buildingPivot: THREE.Group;
+  }> = [];
   private readonly ghostMaterialOk = new THREE.MeshStandardMaterial({
     color: 0x38bdf8,
     transparent: true,
@@ -482,17 +531,55 @@ export class SceneManager {
     // Ctrl-held edge alignment: snap to the same line as a nearby building edge
     this.edgeAlignToPlaced(pos);
 
+    const isConveyorGhost = isConveyorBeltMenuId(this.prefabMenuBuildingId);
+
     // Face-snap to nearby placed parts (overrides grid on both axes when close)
-    if (!this.builderCtrlHeld) this.faceSnapToPlaced(pos);
+    if (!this.builderCtrlHeld && !isConveyorGhost) this.faceSnapToPlaced(pos);
 
     // After XZ is final: sit on floor or on top of any placed volume under footprint + vertical probe
-    this.resolveVerticalSupport(pos);
+    if (!isConveyorGhost) {
+      this.resolveVerticalSupport(pos);
+    }
+
+    this.conveyorTangentAtLineEnd = null;
+    if (isConveyorGhost) {
+      const snapRadius = this.getSegmentStep() * 1.5;
+      const nearestEp = this.findNearestConveyorEndpoint(pos, snapRadius);
+      if (nearestEp) {
+        pos.copy(nearestEp.position);
+        if (this.builderLineStart) {
+          this.conveyorTangentAtLineEnd = nearestEp.rotationY;
+        }
+      } else {
+        const nearestPort = this.findNearestPort(pos, snapRadius);
+        if (nearestPort) {
+          pos.copy(nearestPort.worldPos);
+        }
+      }
+    }
 
     this.builderGhostCurrentPos.copy(pos);
     this.builderGhostPivot.position.copy(pos);
     this.builderGhostPivot.rotation.y = this.builderGhostRotY;
 
-    this.builderGhostInvalid = this.computeGhostInvalid(this.builderGhostPivot);
+    let conveyorTooTight = false;
+    if (
+      isConveyorGhost &&
+      this.builderMode === "default" &&
+      this.builderLineStart
+    ) {
+      const s = this.builderLineStart;
+      const ddx = this.builderGhostCurrentPos.x - s.x;
+      const ddz = this.builderGhostCurrentPos.z - s.z;
+      const st = this.getSegmentStep();
+      if (Math.hypot(ddx, ddz) > 0.04) {
+        conveyorTooTight = Math.min(Math.abs(ddx), Math.abs(ddz)) < st * 0.32;
+      }
+    }
+    this.conveyorDefaultTooTight = conveyorTooTight;
+    this.builderGhostInvalid = isConveyorGhost
+      ? conveyorTooTight
+      : this.computeGhostInvalid(this.builderGhostPivot);
     this.refreshGhostMaterial();
 
     const isMultiSegmentMode = this.builderMode !== "single";
@@ -542,13 +629,21 @@ export class SceneManager {
     if (
       !this.builderGhostPivot ||
       !this.builderCurrentPartPath ||
-      (this.builderGhostInvalid && !hasLineAnchor)
+      (this.builderGhostInvalid &&
+        (!hasLineAnchor || this.conveyorDefaultTooTight))
     )
       return false;
 
     if (isConveyorLine) {
       if (!this.builderLineStart) {
         this.builderLineStart = this.builderGhostCurrentPos.clone();
+        const snapR = this.getSegmentStep() * 1.5;
+        const epAtStart = this.findNearestConveyorEndpoint(
+          this.builderLineStart,
+          snapR,
+        );
+        this.conveyorTangentAtLineStart =
+          epAtStart != null ? epAtStart.rotationY : null;
         this.rebuildLinePreview(
           this.builderLineStart,
           this.builderGhostCurrentPos,
@@ -576,8 +671,48 @@ export class SceneManager {
       }
       if (placedAny) {
         this.persistBuilderState();
+        const step = this.getSegmentStep();
+        const firstSeg = segments[0];
+        const lastSeg = segments[segments.length - 1];
+        if (firstSeg) {
+          const dir = firstSeg.rotationY - this.conveyorRotOffset;
+          this.conveyorEndpoints.push({
+            position: new THREE.Vector3(
+              firstSeg.position.x - Math.sin(dir) * step,
+              firstSeg.position.y,
+              firstSeg.position.z - Math.cos(dir) * step,
+            ),
+            rotationY: firstSeg.rotationY,
+            compositeId,
+          });
+        }
+        if (lastSeg && segments.length > 1) {
+          const dir = lastSeg.rotationY - this.conveyorRotOffset;
+          this.conveyorEndpoints.push({
+            position: new THREE.Vector3(
+              lastSeg.position.x + Math.sin(dir) * step,
+              lastSeg.position.y,
+              lastSeg.position.z + Math.cos(dir) * step,
+            ),
+            rotationY: lastSeg.rotationY,
+            compositeId,
+          });
+        }
       }
-      this.builderLineStart = end.clone();
+      const lastSeg = segments[segments.length - 1];
+      if (lastSeg) {
+        const step = this.getSegmentStep();
+        const dir = lastSeg.rotationY - this.conveyorRotOffset;
+        this.builderLineStart = new THREE.Vector3(
+          lastSeg.position.x + Math.sin(dir) * step,
+          lastSeg.position.y,
+          lastSeg.position.z + Math.cos(dir) * step,
+        );
+        this.conveyorTangentAtLineStart = lastSeg.rotationY;
+      } else {
+        this.builderLineStart = end.clone();
+        this.conveyorTangentAtLineStart = null;
+      }
       return placedAny;
     }
 
@@ -594,7 +729,11 @@ export class SceneManager {
       const end = this.builderGhostCurrentPos.clone();
       this.builderLineStart = null;
       this.builderLinePreviewGroup.clear();
-      const records = this.getLinePlacementPositions(start, end);
+      const records = getAxisLinePlacementPositions(
+        start,
+        end,
+        this.getRotatedFootprint(),
+      );
       let placedAny = false;
       for (const pos of records) {
         this.resolveVerticalSupport(pos);
@@ -645,6 +784,9 @@ export class SceneManager {
   /** Cancel conveyor line anchor but keep the ghost active for fresh placement. */
   cancelConveyorLine(): void {
     this.builderLineStart = null;
+    this.conveyorTangentAtLineStart = null;
+    this.conveyorTangentAtLineEnd = null;
+    this.conveyorDefaultTooTight = false;
     this.builderLinePreviewGroup.clear();
   }
 
@@ -659,6 +801,9 @@ export class SceneManager {
     this.prefabPlacementScale = null;
     this.prefabMenuBuildingId = null;
     this.builderLineStart = null;
+    this.conveyorTangentAtLineStart = null;
+    this.conveyorTangentAtLineEnd = null;
+    this.conveyorDefaultTooTight = false;
     this.builderLinePreviewGroup.clear();
     this.builderGhostInvalid = false;
   }
@@ -667,6 +812,8 @@ export class SceneManager {
   clearBuilderComposition(): void {
     this.builderPlacedGroup.clear();
     this.builderPlaced = [];
+    this.placedPorts.length = 0;
+    this.conveyorEndpoints.length = 0;
     this.builderLineStart = null;
     this.builderLinePreviewGroup.clear();
     this.persistBuilderState();
@@ -797,15 +944,17 @@ export class SceneManager {
 
   cycleBuilderMode(): BuilderMode {
     if (this.builderMode === "single") {
-      this.setBuilderMode("straight");
+      this.setBuilderMode("default");
     } else {
       const idx = CONVEYOR_PLACEMENT_MODES.indexOf(
         this.builderMode as ConveyorPlacementMode,
       );
       const next =
         idx >= 0
-          ? CONVEYOR_PLACEMENT_MODES[(idx + 1) % CONVEYOR_PLACEMENT_MODES.length]
-          : "straight";
+          ? CONVEYOR_PLACEMENT_MODES[
+              (idx + 1) % CONVEYOR_PLACEMENT_MODES.length
+            ]
+          : "default";
       this.setBuilderMode(next);
     }
     return this.builderMode;
@@ -891,7 +1040,10 @@ export class SceneManager {
   }
 
   removeDeconstructHoveredStandalone(): boolean {
-    if (!this.deconstructHovered || this.deconstructHovered.userData?.compositeId)
+    if (
+      !this.deconstructHovered ||
+      this.deconstructHovered.userData?.compositeId
+    )
       return false;
     this.builderPlacedGroup.remove(this.deconstructHovered);
     this.builderPlaced = this.builderPlaced.filter(
@@ -937,6 +1089,7 @@ export class SceneManager {
     let removed = 0;
     for (const c of toRemove) {
       this.builderPlacedGroup.remove(c);
+      this.removePortsForBuilding(c as THREE.Group);
       const rec = c.userData.builderRecord as
         | (typeof this.builderPlaced)[number]
         | undefined;
@@ -951,7 +1104,14 @@ export class SceneManager {
     ) {
       this.clearDeconstructHover();
     }
-    if (removed > 0) this.persistBuilderState();
+    if (removed > 0) {
+      for (let i = this.conveyorEndpoints.length - 1; i >= 0; i--) {
+        if (this.conveyorEndpoints[i].compositeId === compositeId) {
+          this.conveyorEndpoints.splice(i, 1);
+        }
+      }
+      this.persistBuilderState();
+    }
     return removed;
   }
 
@@ -1132,7 +1292,145 @@ export class SceneManager {
     pivot.userData.builderRecord = record;
     this.builderPlacedGroup.add(pivot);
     this.builderPlaced.push(record);
+
+    if (menuBuildingId) {
+      this.attachBuildingPorts(pivot, menuBuildingId, scale, rotY);
+    }
+
     return true;
+  }
+
+  /**
+   * Load and attach I/O port models to a placed building, and register
+   * world-space port positions for conveyor auto-snap.
+   */
+  private async attachBuildingPorts(
+    buildingPivot: THREE.Group,
+    buildingId: string,
+    buildingScale: number,
+    buildingRotY: number,
+  ): Promise<void> {
+    const ports = getBuildingPorts(buildingId);
+    if (!ports) return;
+
+    const bx = buildingPivot.position.x;
+    const by = buildingPivot.position.y;
+    const bz = buildingPivot.position.z;
+    const cosR = Math.cos(buildingRotY);
+    const sinR = Math.sin(buildingRotY);
+
+    for (const port of ports) {
+      const lx = port.localPos.x * buildingScale;
+      const ly = port.localPos.y * buildingScale;
+      const lz = port.localPos.z * buildingScale;
+      const wx = bx + lx * cosR - lz * sinR;
+      const wz = bz + lx * sinR + lz * cosR;
+      const wy = by + ly;
+      const wDir = port.direction + buildingRotY;
+
+      this.placedPorts.push({
+        worldPos: new THREE.Vector3(wx, wy, wz),
+        worldDir: wDir,
+        type: port.type,
+        buildingPivot,
+      });
+
+      const modelPath =
+        port.type === "input" ? PORT_MODEL_INPUT : PORT_MODEL_OUTPUT;
+      await this.ensureCached(modelPath);
+      const portOriginal = this.glbCache.get(modelPath);
+      if (!portOriginal) continue;
+
+      const portModel = portOriginal.clone(true);
+      const portScale = 3;
+      portModel.scale.setScalar(portScale);
+      portModel.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+
+      const portPivot = new THREE.Group();
+      portPivot.add(portModel);
+      portPivot.position.set(wx, wy, wz);
+      portPivot.rotation.y = wDir;
+      portPivot.userData.isPort = true;
+      portPivot.userData.portType = port.type;
+      portPivot.userData.ownerBuilding = buildingPivot;
+      this.builderPlacedGroup.add(portPivot);
+    }
+  }
+
+  /**
+   * Find the nearest placed conveyor endpoint within maxRadius of the given world position.
+   * Returns null if none found.
+   */
+  private findNearestConveyorEndpoint(
+    worldPos: THREE.Vector3,
+    maxRadius: number,
+  ): {
+    position: THREE.Vector3;
+    rotationY: number;
+    compositeId: string;
+  } | null {
+    let best: (typeof this.conveyorEndpoints)[number] | null = null;
+    let bestDist = maxRadius;
+    for (const ep of this.conveyorEndpoints) {
+      const dx = ep.position.x - worldPos.x;
+      const dz = ep.position.z - worldPos.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = ep;
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Find the nearest placed building port within maxRadius of the given world position.
+   * Returns null if none found.
+   */
+  findNearestPort(
+    worldPos: THREE.Vector3,
+    maxRadius: number,
+  ): {
+    worldPos: THREE.Vector3;
+    worldDir: number;
+    type: "input" | "output";
+  } | null {
+    let best: (typeof this.placedPorts)[number] | null = null;
+    let bestDist = maxRadius;
+    for (const port of this.placedPorts) {
+      const dx = port.worldPos.x - worldPos.x;
+      const dz = port.worldPos.z - worldPos.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = port;
+      }
+    }
+    return best;
+  }
+
+  /** Remove all port registrations and port scene objects tied to a building. */
+  private removePortsForBuilding(buildingPivot: THREE.Group): void {
+    for (let i = this.placedPorts.length - 1; i >= 0; i--) {
+      if (this.placedPorts[i].buildingPivot === buildingPivot) {
+        this.placedPorts.splice(i, 1);
+      }
+    }
+    const portPivots: THREE.Object3D[] = [];
+    for (const child of this.builderPlacedGroup.children) {
+      if (
+        child.userData.isPort &&
+        child.userData.ownerBuilding === buildingPivot
+      ) {
+        portPivots.push(child);
+      }
+    }
+    for (const p of portPivots) this.builderPlacedGroup.remove(p);
   }
 
   private computeGhostInvalid(candidatePivot: THREE.Group): boolean {
@@ -1161,510 +1459,65 @@ export class SceneManager {
     return invalid;
   }
 
-  /** When Ctrl is held, magnetically snap the ghost to the nearest attachment point
-   *  on any placed building. Generates all 4 face-adjacent positions for every placed
-   *  part, plus 4 inline-continuation positions (extending the wall), and picks the
-   *  closest complete (x, z) candidate to the cursor. */
+  /** Ctrl: магнит к рёбрам/продолжениям стен — см. builderGhostSnapping. */
   private edgeAlignToPlaced(pos: THREE.Vector3): void {
     if (!this.builderCtrlHeld) return;
-    if (this.builderPlacedGroup.children.length === 0) return;
-
-    const fp = this.getRotatedFootprint();
-    const ghostHalfX = fp.x / 2;
-    const ghostHalfZ = fp.z / 2;
-    const maxRange = Math.max(fp.x, fp.z) * 6;
-
-    let bestDist = maxRange;
-    let bestX = pos.x;
-    let bestZ = pos.z;
-
-    for (const placed of this.builderPlacedGroup.children) {
-      const box = new THREE.Box3().setFromObject(placed);
-      const pc = box.getCenter(new THREE.Vector3());
-      const pHalfX = (box.max.x - box.min.x) / 2;
-      const pHalfZ = (box.max.z - box.min.z) / 2;
-
-      if (
-        Math.abs(pc.x - pos.x) > maxRange &&
-        Math.abs(pc.z - pos.z) > maxRange
-      )
-        continue;
-
-      // 4 face-adjacent positions: ghost touching each face, centered on that face
-      // Plus 4 inline-continuation positions: ghost extending the wall in its direction
-      const candidates: Array<{ x: number; z: number }> = [
-        // Flush against +X face, aligned on Z
-        { x: box.max.x + ghostHalfX, z: pc.z },
-        // Flush against -X face, aligned on Z
-        { x: box.min.x - ghostHalfX, z: pc.z },
-        // Flush against +Z face, aligned on X
-        { x: pc.x, z: box.max.z + ghostHalfZ },
-        // Flush against -Z face, aligned on X
-        { x: pc.x, z: box.min.z - ghostHalfZ },
-
-        // Inline continuation along +X (same Z-line, extending right)
-        { x: pc.x + pHalfX + ghostHalfX + pHalfX, z: pc.z },
-        // Inline continuation along -X (same Z-line, extending left)
-        { x: pc.x - pHalfX - ghostHalfX - pHalfX, z: pc.z },
-        // Inline continuation along +Z
-        { x: pc.x, z: pc.z + pHalfZ + ghostHalfZ + pHalfZ },
-        // Inline continuation along -Z
-        { x: pc.x, z: pc.z - pHalfZ - ghostHalfZ - pHalfZ },
-
-        // Corner attachments: ghost at each corner of the placed part
-        { x: box.max.x + ghostHalfX, z: box.max.z + ghostHalfZ },
-        { x: box.max.x + ghostHalfX, z: box.min.z - ghostHalfZ },
-        { x: box.min.x - ghostHalfX, z: box.max.z + ghostHalfZ },
-        { x: box.min.x - ghostHalfX, z: box.min.z - ghostHalfZ },
-
-        // Edge-aligned: ghost shares the same min/max X or Z edge as the placed part
-        // (for continuing a line of different-sized pieces)
-        { x: box.min.x + ghostHalfX, z: box.max.z + ghostHalfZ },
-        { x: box.min.x + ghostHalfX, z: box.min.z - ghostHalfZ },
-        { x: box.max.x - ghostHalfX, z: box.max.z + ghostHalfZ },
-        { x: box.max.x - ghostHalfX, z: box.min.z - ghostHalfZ },
-        { x: box.max.x + ghostHalfX, z: box.min.z + ghostHalfZ },
-        { x: box.max.x + ghostHalfX, z: box.max.z - ghostHalfZ },
-        { x: box.min.x - ghostHalfX, z: box.min.z + ghostHalfZ },
-        { x: box.min.x - ghostHalfX, z: box.max.z - ghostHalfZ },
-      ];
-
-      for (const c of candidates) {
-        const d = Math.hypot(c.x - pos.x, c.z - pos.z);
-        if (d < bestDist) {
-          bestDist = d;
-          bestX = c.x;
-          bestZ = c.z;
-        }
-      }
-    }
-
-    if (bestDist < maxRange) {
-      pos.x = bestX;
-      pos.z = bestZ;
-    }
-  }
-
-  /** Snap pos so the ghost's face is flush against the nearest placed part face.
-   *  Both X and Z are aligned when snapping to avoid staircase drift. */
-  private faceSnapToPlaced(pos: THREE.Vector3): void {
-    const fp = this.getRotatedFootprint();
-    const ghostHalfX = fp.x / 2;
-    const ghostHalfZ = fp.z / 2;
-    const threshold = Math.max(fp.x, fp.z) * 0.65;
-
-    let bestDist = threshold;
-    let snapResult: { x: number; z: number } | null = null;
-
-    for (const placed of this.builderPlacedGroup.children) {
-      const box = new THREE.Box3().setFromObject(placed);
-      const pc = box.getCenter(new THREE.Vector3());
-
-      // 4 candidate snap positions: one for each face of the placed part
-      const candidates = [
-        { x: box.max.x + ghostHalfX, z: pc.z }, // right face
-        { x: box.min.x - ghostHalfX, z: pc.z }, // left face
-        { x: pc.x, z: box.max.z + ghostHalfZ }, // front face (+Z)
-        { x: pc.x, z: box.min.z - ghostHalfZ }, // back face (-Z)
-      ];
-
-      for (const c of candidates) {
-        if (
-          Math.abs(c.x - pos.x) > threshold ||
-          Math.abs(c.z - pos.z) > threshold
-        )
-          continue;
-        const dist = Math.hypot(c.x - pos.x, c.z - pos.z);
-        if (dist < bestDist) {
-          bestDist = dist;
-          snapResult = c;
-        }
-      }
-    }
-
-    if (snapResult) {
-      pos.x = snapResult.x;
-      pos.z = snapResult.z;
-    }
-  }
-
-  /**
-   * Углы и середины рёбер отпечатка (с учётом поворота призрака) — для лучей вниз.
-   */
-  private getFootprintSamplePointsXZ(
-    pos: THREE.Vector3,
-    hx: number,
-    hz: number,
-    rotY: number,
-    includeEdgeMids: boolean,
-  ): Array<{ x: number; z: number }> {
-    const c = Math.cos(rotY);
-    const s = Math.sin(rotY);
-    const toWorld = (lx: number, lz: number) => ({
-      x: pos.x + lx * c - lz * s,
-      z: pos.z + lx * s + lz * c,
-    });
-    const corners = [
-      toWorld(-hx, -hz),
-      toWorld(hx, -hz),
-      toWorld(hx, hz),
-      toWorld(-hx, hz),
-    ];
-    if (!includeEdgeMids) return corners;
-    return [
-      ...corners,
-      toWorld(0, -hz),
-      toWorld(hx, 0),
-      toWorld(0, hz),
-      toWorld(-hx, 0),
-    ];
-  }
-
-  /**
-   * Вертикальная опора: сохраняем стек (AABB + луч из центра), но если под периметром
-   * лучи находят заметно **ниже** опору, чем «стек» по всему прямоугольнику (типично
-   * высокий объект в центре при опоре по углам на колоннах), берём высоту по периметру.
-   */
-  private resolveVerticalSupport(pos: THREE.Vector3): void {
-    const floorY = this._visibleFloor * GRID_CELL_SIZE;
-    const fp = this.getRotatedFootprint();
-    const hx = fp.x / 2;
-    const hz = fp.z / 2;
-    const gMinX = pos.x - hx;
-    const gMaxX = pos.x + hx;
-    const gMinZ = pos.z - hz;
-    const gMaxZ = pos.z + hz;
-
-    let yAabb = floorY;
-    for (const placed of this.builderPlacedGroup.children) {
-      const box = new THREE.Box3().setFromObject(placed);
-      const ox = Math.min(gMaxX, box.max.x) - Math.max(gMinX, box.min.x);
-      const oz = Math.min(gMaxZ, box.max.z) - Math.max(gMinZ, box.min.z);
-      if (ox > 0.04 && oz > 0.04) {
-        yAabb = Math.max(yAabb, box.max.y);
-      }
-    }
-
-    const centerRay = this.sampleVerticalSupportRay(pos.x, pos.z);
-    const yStack = Math.max(yAabb, centerRay ?? floorY);
-
-    const span = Math.max(fp.x, fp.z);
-    const includeMids = span > 1.15;
-    const samples = this.getFootprintSamplePointsXZ(
+    edgeAlignGhostToPlaced(
       pos,
-      hx,
-      hz,
+      this.builderPlacedGroup,
+      this.getRotatedFootprint(),
+    );
+  }
+
+  /** Прилипание гранью к ближайшей постройке — см. builderGhostSnapping. */
+  private faceSnapToPlaced(pos: THREE.Vector3): void {
+    faceSnapGhostToPlaced(
+      pos,
+      this.builderPlacedGroup,
+      this.getRotatedFootprint(),
+    );
+  }
+
+  /** Высота Y под призраком (стек + лучи) — см. builderGhostSnapping. */
+  private resolveVerticalSupport(pos: THREE.Vector3): void {
+    resolveGhostVerticalSupport(
+      pos,
+      this.builderPlacedGroup,
+      this.getRotatedFootprint(),
       this.builderGhostRotY,
-      includeMids,
+      this._visibleFloor,
     );
-    let yPerimeter = floorY;
-    for (const p of samples) {
-      const t = this.sampleVerticalSupportRay(p.x, p.z);
-      if (t !== null) yPerimeter = Math.max(yPerimeter, t);
-    }
-
-    /** Насколько выше «периметр» должен быть ниже стека, чтобы считать центр артефактом */
-    const perimeterVsStackClearance = 0.12;
-    const perimeterMustExceedFloor = 0.02;
-
-    if (
-      yPerimeter > floorY + perimeterMustExceedFloor &&
-      yStack > yPerimeter + perimeterVsStackClearance
-    ) {
-      pos.y = yPerimeter;
-    } else {
-      pos.y = yStack;
-    }
   }
 
-  /** Topmost hit along a downward ray through (x,z); ignores horizontal grazes. */
-  private sampleVerticalSupportRay(x: number, z: number): number | null {
-    if (this.builderPlacedGroup.children.length === 0) return null;
-    const origin = new THREE.Vector3(x, 5000, z);
-    const dir = new THREE.Vector3(0, -1, 0);
-    const raycaster = new THREE.Raycaster(origin, dir);
-    raycaster.far = 10000;
-    const hits = raycaster.intersectObjects(
-      this.builderPlacedGroup.children,
-      true,
-    );
-    for (const hit of hits) {
-      const n = hit.face?.normal;
-      if (n) {
-        const worldN = n.clone().transformDirection(hit.object.matrixWorld);
-        if (worldN.y < 0.22) continue;
-      }
-      return hit.point.y;
-    }
-    return hits[0]?.point.y ?? null;
-  }
+  // ---- Сегменты линии: конвейер → conveyorPathSegments; ось → builderAxisLinePlacement ----
 
-  // ---- Path segment computation for multi-segment placement ----
-
-  /** Step size = model's belt-direction extent (longest horizontal dim after scale). */
   private getSegmentStep(): number {
-    return Math.max(
-      Math.max(this.builderGhostFootprint.x, this.builderGhostFootprint.z),
-      0.1,
+    return getPlacementSegmentStep(
+      this.builderGhostFootprint,
+      this.prefabMenuBuildingId,
     );
   }
 
-  /**
-   * Dispatch to the correct path algorithm based on current builderMode.
-   * Returns segments with per-segment position + rotation.
-   */
   private computePathSegments(
     start: THREE.Vector3,
     end: THREE.Vector3,
   ): Array<{ position: THREE.Vector3; rotationY: number }> {
-    switch (this.builderMode) {
-      case "straight":
-        return this.getStraightPath(start, end);
-      case "default":
-        return this.getLShapedPath(start, end);
-      case "curve":
-        return this.getCurvePath(start, end);
-      default:
-        return this.getAxisAlignedPath(start, end);
-    }
-  }
-
-  /** Straight: direct line from start to end, each segment rotated along the direction vector. */
-  private getStraightPath(
-    start: THREE.Vector3,
-    end: THREE.Vector3,
-  ): Array<{ position: THREE.Vector3; rotationY: number }> {
-    const dx = end.x - start.x;
-    const dz = end.z - start.z;
-    const dist = Math.hypot(dx, dz);
-    const step = this.getSegmentStep();
-    if (dist < 0.01) {
-      return [{ position: start.clone(), rotationY: this.builderGhostRotY }];
-    }
-    const rotY = Math.atan2(dx, dz) + this.conveyorRotOffset;
-    const count = Math.max(1, Math.round(dist / step));
-    const result: Array<{ position: THREE.Vector3; rotationY: number }> = [];
-    for (let i = 0; i <= count; i++) {
-      const t = i / count;
-      result.push({
-        position: new THREE.Vector3(
-          start.x + dx * t,
-          start.y,
-          start.z + dz * t,
-        ),
-        rotationY: rotY,
-      });
-    }
-    return result;
-  }
-
-  /**
-   * L-shaped: first leg along dominant axis, second leg along the other axis.
-   * Smooth quarter-arc rounding inserted at the corner.
-   */
-  private getLShapedPath(
-    start: THREE.Vector3,
-    end: THREE.Vector3,
-  ): Array<{ position: THREE.Vector3; rotationY: number }> {
-    const dx = end.x - start.x;
-    const dz = end.z - start.z;
-    const step = this.getSegmentStep();
-    if (Math.hypot(dx, dz) < 0.01) {
-      return [{ position: start.clone(), rotationY: this.builderGhostRotY }];
-    }
-    const result: Array<{ position: THREE.Vector3; rotationY: number }> = [];
-    const offset = this.conveyorRotOffset;
-
-    const absDx = Math.abs(dx);
-    const absDz = Math.abs(dz);
-    const firstAlongX = absDx >= absDz;
-
-    const corner = firstAlongX
-      ? new THREE.Vector3(end.x, start.y, start.z)
-      : new THREE.Vector3(start.x, start.y, end.z);
-
-    const ARC_SEGMENTS = 4;
-    const arcRadius = Math.min(step * 2, absDx, absDz);
-
-    const leg1Dx = corner.x - start.x;
-    const leg1Dz = corner.z - start.z;
-    const leg1Dist = Math.hypot(leg1Dx, leg1Dz);
-    const leg1RotY =
-      leg1Dist > 0.01
-        ? Math.atan2(leg1Dx, leg1Dz) + offset
-        : this.builderGhostRotY;
-
-    const shortenedLeg1Dist = Math.max(0, leg1Dist - arcRadius);
-    if (shortenedLeg1Dist > 0.01) {
-      const count1 = Math.max(1, Math.round(shortenedLeg1Dist / step));
-      const dirX = leg1Dx / leg1Dist;
-      const dirZ = leg1Dz / leg1Dist;
-      for (let i = 0; i <= count1; i++) {
-        const d = (i / count1) * shortenedLeg1Dist;
-        result.push({
-          position: new THREE.Vector3(
-            start.x + dirX * d,
-            start.y,
-            start.z + dirZ * d,
-          ),
-          rotationY: leg1RotY,
-        });
-      }
-    } else {
-      result.push({ position: start.clone(), rotationY: leg1RotY });
-    }
-
-    const leg2Dx = end.x - corner.x;
-    const leg2Dz = end.z - corner.z;
-    const leg2Dist = Math.hypot(leg2Dx, leg2Dz);
-    const leg2RotY =
-      leg2Dist > 0.01
-        ? Math.atan2(leg2Dx, leg2Dz) + offset
-        : leg1RotY;
-
-    if (arcRadius > 0.01 && leg1Dist > 0.01 && leg2Dist > 0.01) {
-      const leg1DirX = leg1Dx / leg1Dist;
-      const leg1DirZ = leg1Dz / leg1Dist;
-      const leg2DirX = leg2Dx / leg2Dist;
-      const leg2DirZ = leg2Dz / leg2Dist;
-      const arcStart = new THREE.Vector3(
-        corner.x - leg1DirX * arcRadius,
-        start.y,
-        corner.z - leg1DirZ * arcRadius,
+    if (!isConveyorBeltMenuId(this.prefabMenuBuildingId)) {
+      return computeAxisAlignedPathSegments(
+        start,
+        end,
+        this.getRotatedFootprint(),
+        this.builderGhostRotY,
       );
-      const arcEnd = new THREE.Vector3(
-        corner.x + leg2DirX * arcRadius,
-        start.y,
-        corner.z + leg2DirZ * arcRadius,
-      );
-      for (let i = 1; i <= ARC_SEGMENTS; i++) {
-        const t = i / ARC_SEGMENTS;
-        const px = arcStart.x * (1 - t) * (1 - t) + corner.x * 2 * t * (1 - t) + arcEnd.x * t * t;
-        const pz = arcStart.z * (1 - t) * (1 - t) + corner.z * 2 * t * (1 - t) + arcEnd.z * t * t;
-        const tx = 2 * (1 - t) * (corner.x - arcStart.x) + 2 * t * (arcEnd.x - corner.x);
-        const tz = 2 * (1 - t) * (corner.z - arcStart.z) + 2 * t * (arcEnd.z - corner.z);
-        result.push({
-          position: new THREE.Vector3(px, start.y, pz),
-          rotationY: Math.atan2(tx, tz) + offset,
-        });
-      }
     }
-
-    const shortenedLeg2Dist = Math.max(0, leg2Dist - arcRadius);
-    if (shortenedLeg2Dist > 0.01) {
-      const count2 = Math.max(1, Math.round(shortenedLeg2Dist / step));
-      const dirX2 = leg2Dx / leg2Dist;
-      const dirZ2 = leg2Dz / leg2Dist;
-      for (let i = 1; i <= count2; i++) {
-        const d = arcRadius + (i / count2) * shortenedLeg2Dist;
-        result.push({
-          position: new THREE.Vector3(
-            corner.x + dirX2 * d,
-            start.y,
-            corner.z + dirZ2 * d,
-          ),
-          rotationY: leg2RotY,
-        });
-      }
-    }
-
-    return result;
-  }
-
-  /** Curve: quadratic bezier from start to end with automatic control point for a smooth arc. */
-  private getCurvePath(
-    start: THREE.Vector3,
-    end: THREE.Vector3,
-  ): Array<{ position: THREE.Vector3; rotationY: number }> {
-    const dx = end.x - start.x;
-    const dz = end.z - start.z;
-    const dist = Math.hypot(dx, dz);
-    const step = this.getSegmentStep();
-    if (dist < 0.01) {
-      return [{ position: start.clone(), rotationY: this.builderGhostRotY }];
-    }
-
-    const mid = new THREE.Vector3(
-      (start.x + end.x) / 2,
-      start.y,
-      (start.z + end.z) / 2,
-    );
-    const perpX = -dz;
-    const perpZ = dx;
-    const bulge = dist * 0.35;
-    const control = new THREE.Vector3(
-      mid.x + (perpX / dist) * bulge,
-      start.y,
-      mid.z + (perpZ / dist) * bulge,
-    );
-
-    const curve = new THREE.QuadraticBezierCurve3(
-      new THREE.Vector3(start.x, start.y, start.z),
-      control,
-      new THREE.Vector3(end.x, start.y, end.z),
-    );
-
-    const arcLength = curve.getLength();
-    const count = Math.max(2, Math.round(arcLength / step));
-    const result: Array<{ position: THREE.Vector3; rotationY: number }> = [];
-    const offset = this.conveyorRotOffset;
-
-    for (let i = 0; i <= count; i++) {
-      const t = i / count;
-      const pt = curve.getPointAt(t);
-      const tangent = curve.getTangentAt(t);
-      const rotY = Math.atan2(tangent.x, tangent.z) + offset;
-      result.push({
-        position: new THREE.Vector3(pt.x, start.y, pt.z),
-        rotationY: rotY,
-      });
-    }
-
-    return result;
-  }
-
-  /** Legacy axis-aligned path (admin builder "single" mode fallback for line commands). */
-  private getAxisAlignedPath(
-    start: THREE.Vector3,
-    end: THREE.Vector3,
-  ): Array<{ position: THREE.Vector3; rotationY: number }> {
-    const positions = this.getLinePlacementPositions(start, end);
-    return positions.map((p) => ({
-      position: p,
-      rotationY: this.builderGhostRotY,
-    }));
-  }
-
-  private getLinePlacementPositions(
-    start: THREE.Vector3,
-    end: THREE.Vector3,
-  ): THREE.Vector3[] {
-    const dx = end.x - start.x;
-    const dz = end.z - start.z;
-    const alongX = Math.abs(dx) >= Math.abs(dz);
-    const fp = this.getRotatedFootprint();
-    const step = alongX ? Math.max(fp.x, 0.1) : Math.max(fp.z, 0.1);
-    const result: THREE.Vector3[] = [];
-    if (alongX) {
-      const dir = Math.sign(dx) || 1;
-      const dist = Math.abs(dx);
-      const count = Math.max(1, Math.round(dist / step));
-      for (let i = 0; i <= count; i++) {
-        result.push(
-          new THREE.Vector3(start.x + dir * i * step, start.y, start.z),
-        );
-      }
-    } else {
-      const dir = Math.sign(dz) || 1;
-      const dist = Math.abs(dz);
-      const count = Math.max(1, Math.round(dist / step));
-      for (let i = 0; i <= count; i++) {
-        result.push(
-          new THREE.Vector3(start.x, start.y, start.z + dir * i * step),
-        );
-      }
-    }
-    return result;
+    return computeConveyorPathSegments(start, end, {
+      builderMode: this.builderMode,
+      step: this.getSegmentStep(),
+      conveyorRotOffset: this.conveyorRotOffset,
+      tangentStart: this.conveyorTangentAtLineStart,
+      tangentEnd: this.conveyorTangentAtLineEnd,
+      ghostRotY: this.builderGhostRotY,
+    });
   }
 
   private rebuildLinePreview(start: THREE.Vector3, end: THREE.Vector3): void {
@@ -1687,7 +1540,11 @@ export class SceneManager {
         this.builderLinePreviewGroup.add(pivot);
       }
     } else {
-      const positions = this.getLinePlacementPositions(start, end);
+      const positions = getAxisLinePlacementPositions(
+        start,
+        end,
+        this.getRotatedFootprint(),
+      );
       for (const p of positions) {
         this.resolveVerticalSupport(p);
         const clone = this.builderGhostModelRoot!.clone(true);
@@ -1784,9 +1641,11 @@ export class SceneManager {
           SceneManager.BUILDER_SCALE_MAX,
         );
       }
-      const validModes: BuilderMode[] = ["single", "straight", "default", "curve"];
-      if (parsed.mode && validModes.includes(parsed.mode as BuilderMode)) {
-        this.builderMode = parsed.mode as BuilderMode;
+      const validModes: BuilderMode[] = ["single", "default", "curve"];
+      let mode = parsed.mode as string | undefined;
+      if (mode === "straight") mode = "default";
+      if (mode && validModes.includes(mode as BuilderMode)) {
+        this.builderMode = mode as BuilderMode;
       }
       const parts = parsed.parts ?? [];
       const elevatorPath = getBuildingPrefab("space_elevator")?.modelPath;

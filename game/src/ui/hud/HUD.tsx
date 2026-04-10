@@ -123,7 +123,7 @@ export const HUD: FC<HUDProps> = ({
           <span className="hud-hint">
             ЛКМ — поставить | T — повернуть | R — режим | F — деконстр. | Ctrl — выравнивание | Esc — отмена
             {/^conveyor_mk[1-6]$/.test(gameState.selectedBuilding) && (
-              <> · R: прямая / L-угол / кривая · 1-й ЛКМ начало, 2-й конец · каждая 6-я — стойка</>
+              <> · R: L-угол / кривая · 1-й ЛКМ начало, 2-й конец</>
             )}
           </span>
         </div>
