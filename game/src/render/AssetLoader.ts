@@ -28,7 +28,7 @@ const MODEL_REGISTRY: Record<string, string> = {
   'conveyor_mk4': `${CONVEYOR_KIT_GLB_DIR}${CONVEYOR_TIER_GLBS.conveyor_mk4}`,
   'conveyor_mk5': `${CONVEYOR_KIT_GLB_DIR}${CONVEYOR_TIER_GLBS.conveyor_mk5}`,
   'conveyor_mk6': `${CONVEYOR_KIT_GLB_DIR}${CONVEYOR_TIER_GLBS.conveyor_mk6}`,
-  'splitter':       '/assets/models/conveyor/conveyorSplitter.glb',
+  splitter: "/kits/models/splitter.glb",
   'merger':         '/assets/models/conveyor/conveyorMerger.glb',
 
   // City Kit Industrial mappings for key factory buildings

@@ -4,7 +4,12 @@
 
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
-import { CAMERA, GRID_CELL_SIZE, ORE_COLORS } from "../core/constants.ts";
+import {
+  CAMERA,
+  GRID_CELL_SIZE,
+  ORE_COLORS,
+  ORE_DEMO_MODEL_PATH,
+} from "../core/constants.ts";
 import type { BuilderMode } from "../core/types.ts";
 import { CONVEYOR_PLACEMENT_MODES } from "../core/types.ts";
 import type { ConveyorPlacementMode } from "../core/types.ts";
@@ -45,6 +50,7 @@ import {
   computeConveyorPathSegments,
   getPlacementSegmentStep,
 } from "./builder/conveyorPathSegments.ts";
+import { applyPrefabMaterialPalette } from "./buildingMaterialPalettes.ts";
 
 /**
  * SceneManager — жизненный цикл сцены, камера, сетка, демо-ресурсы.
@@ -165,6 +171,10 @@ export class SceneManager {
   private patternCurrentPos = new THREE.Vector3();
   /** Инкремент при отмене / новом выборе: устаревший setPatternGhost не вешает группу на сцену. */
   private patternGhostLoadGeneration = 0;
+  /** Согласовано с UI `data-theme` — фон, туман, земля, сетка. */
+  private sceneVisualTheme: "dark" | "light" = "dark";
+  private groundMesh!: THREE.Mesh;
+
   constructor(canvas: HTMLCanvasElement) {
     // Scene
     this.scene = new THREE.Scene();
@@ -212,8 +222,8 @@ export class SceneManager {
     this.builderLinePreviewGroup.name = "builder-line-preview";
     this.scene.add(this.builderLinePreviewGroup);
 
-    // Demo ore nodes (improved rocks)
-    this.addDemoOres();
+    // Demo ore nodes — `kits/models/ore.glb`, тинт по ORE_COLORS
+    void this.addDemoOres();
 
     // Load model gallery from all kits
     this.loadModelGallery();
@@ -258,90 +268,141 @@ export class SceneManager {
     ground.position.y = -0.05;
     ground.receiveShadow = true;
     this.scene.add(ground);
+    this.groundMesh = ground;
   }
 
-  /** Create a natural-looking rock mesh for ore nodes */
-  private createRockMesh(
-    radius: number,
-    color: number,
-    isEmissive = false,
-  ): THREE.Mesh {
-    // Use IcosahedronGeometry with detail=2 for smoother base
-    const geo = new THREE.IcosahedronGeometry(radius, 2);
-    const positions = geo.attributes.position;
+  /**
+   * Тёмная / светлая визуальная тема сцены (небо, туман, платформа, сетка).
+   * Вызывается из движка при загрузке и по `SCENE_THEME_EVENT` с UI.
+   */
+  setVisualTheme(theme: "dark" | "light"): void {
+    if (this.sceneVisualTheme === theme) return;
+    this.sceneVisualTheme = theme;
 
-    // Seed-based pseudo-random for consistent deformation
-    const seed = color * 17 + radius * 31;
-    const pseudoRandom = (i: number) => {
-      const x = Math.sin(seed + i * 127.1) * 43758.5453;
-      return x - Math.floor(x);
-    };
-
-    // Gentle vertex displacement for natural rock look
-    for (let i = 0; i < positions.count; i++) {
-      const px = positions.getX(i);
-      const py = positions.getY(i);
-      const pz = positions.getZ(i);
-
-      // Noise factor: gentle displacement (0.85–1.15)
-      const noise = 0.85 + pseudoRandom(i) * 0.3;
-      // Flatten bottom slightly
-      const yScale = py < 0 ? 0.5 : 0.9;
-
-      positions.setXYZ(i, px * noise, py * noise * yScale, pz * noise);
+    const bg = theme === "light" ? 0xe4e6ea : 0x141018;
+    if (this.scene.background instanceof THREE.Color) {
+      this.scene.background.setHex(bg);
+    } else {
+      this.scene.background = new THREE.Color(bg);
     }
-    geo.computeVertexNormals();
 
-    const mat = new THREE.MeshStandardMaterial({
-      color,
-      roughness: 0.75,
-      metalness: 0.15,
-      flatShading: false, // smooth shading for natural look
+    const fog = this.scene.fog;
+    if (fog instanceof THREE.Fog) {
+      fog.color.setHex(bg);
+      if (theme === "light") {
+        fog.near = 260;
+        fog.far = 1000;
+      } else {
+        fog.near = 300;
+        fog.far = 1200;
+      }
+    }
+
+    const gmat = this.groundMesh.material as THREE.MeshStandardMaterial;
+    gmat.color.setHex(theme === "light" ? 0xc8c4bc : 0x2c2620);
+
+    this.gridRenderer.setVisualTheme(theme);
+    this.renderer.toneMappingExposure = theme === "light" ? 1.28 : 1.2;
+  }
+
+  /**
+   * Перекрасить клон `ore.glb` под тип ресурса (отдельные клоны материалов на меш).
+   */
+  private tintOreGltf(root: THREE.Object3D, tintHex: number, uraniumGlow: boolean): void {
+    const tint = new THREE.Color(tintHex);
+    root.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh)) return;
+      const applyOne = (m: THREE.Material): THREE.Material => {
+        const mat = m.clone();
+        if (
+          mat instanceof THREE.MeshStandardMaterial ||
+          mat instanceof THREE.MeshPhysicalMaterial
+        ) {
+          mat.color.copy(tint);
+          if (uraniumGlow) {
+            mat.emissive = new THREE.Color(0x39ff14);
+            mat.emissiveIntensity = 0.5;
+          }
+        } else if (
+          mat instanceof THREE.MeshLambertMaterial ||
+          mat instanceof THREE.MeshPhongMaterial
+        ) {
+          mat.color.copy(tint);
+          if (uraniumGlow && "emissive" in mat) {
+            mat.emissive = new THREE.Color(0x39ff14);
+            if ("emissiveIntensity" in mat) {
+              (mat as THREE.MeshPhongMaterial).emissiveIntensity = 0.5;
+            }
+          }
+        }
+        return mat;
+      };
+      if (Array.isArray(obj.material)) {
+        obj.material = obj.material.map(applyOne);
+      } else {
+        obj.material = applyOne(obj.material);
+      }
+      obj.castShadow = true;
+      obj.receiveShadow = true;
     });
-
-    if (isEmissive) {
-      mat.emissive = new THREE.Color(0x39ff14);
-      mat.emissiveIntensity = 0.5;
-    }
-
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-
-    return mesh;
   }
 
-  /** Add demo ore nodes to visualize the color scheme */
-  private addDemoOres(): void {
+  /** Резерв: процедурные «камни», если `ore.glb` не загрузился. */
+  private addDemoOresProcedural(): void {
     const oreTypes = Object.entries(ORE_COLORS);
     const radius = 1.8;
+    const pseudoRock = (
+      r: number,
+      color: number,
+      isEmissive: boolean,
+    ): THREE.Mesh => {
+      const geo = new THREE.IcosahedronGeometry(r, 2);
+      const positions = geo.attributes.position;
+      const seed = color * 17 + r * 31;
+      const pseudoRandom = (i: number) => {
+        const x = Math.sin(seed + i * 127.1) * 43758.5453;
+        return x - Math.floor(x);
+      };
+      for (let i = 0; i < positions.count; i++) {
+        const px = positions.getX(i);
+        const py = positions.getY(i);
+        const pz = positions.getZ(i);
+        const noise = 0.85 + pseudoRandom(i) * 0.3;
+        const yScale = py < 0 ? 0.5 : 0.9;
+        positions.setXYZ(i, px * noise, py * noise * yScale, pz * noise);
+      }
+      geo.computeVertexNormals();
+      const mat = new THREE.MeshStandardMaterial({
+        color,
+        roughness: 0.75,
+        metalness: 0.15,
+      });
+      if (isEmissive) {
+        mat.emissive = new THREE.Color(0x39ff14);
+        mat.emissiveIntensity = 0.5;
+      }
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      return mesh;
+    };
 
     oreTypes.forEach(([type, color], index) => {
       const x = (index % 5) * 10 - 20;
       const z = Math.floor(index / 5) * 10 - 30;
-
-      // Create main rock
-      const rock = this.createRockMesh(radius, color, type === "uranium");
+      const rock = pseudoRock(radius, color, type === "uranium");
       rock.position.set(x, radius * 0.35, z);
       rock.userData = { type: "ore_node", oreType: type };
-
-      // Add 2-3 smaller rocks around the main one for cluster look
       const clusterGroup = new THREE.Group();
       clusterGroup.add(rock);
-
       for (let j = 0; j < 3; j++) {
-        const smallRadius = radius * (0.35 + Math.random() * 0.3);
+        const smallR = radius * (0.35 + Math.random() * 0.3);
         const angle = (j / 3) * Math.PI * 2 + Math.random() * 0.5;
         const dist = radius * 0.8 + Math.random() * 0.5;
-
-        const smallRock = this.createRockMesh(
-          smallRadius,
-          color,
-          type === "uranium",
-        );
+        const smallRock = pseudoRock(smallR, color, type === "uranium");
         smallRock.position.set(
           Math.cos(angle) * dist,
-          smallRadius * 0.3,
+          smallR * 0.3,
           Math.sin(angle) * dist,
         );
         smallRock.rotation.set(
@@ -351,13 +412,64 @@ export class SceneManager {
         );
         clusterGroup.add(smallRock);
       }
-
       clusterGroup.position.set(x, 0, z);
       rock.position.set(0, radius * 0.35, 0);
       this.scene.add(clusterGroup);
-
-      // Add text label as a sprite
       this.addTextSprite(type, x, radius * 2.5, z);
+    });
+  }
+
+  /** Демо-узлы руды: одна glb-модель на тип, масштаб под сетку, цвет из ORE_COLORS. */
+  private async addDemoOres(): Promise<void> {
+    let template: THREE.Object3D;
+    try {
+      const gltf = await this.loadGLB(
+        this.buildingKitLoader,
+        ORE_DEMO_MODEL_PATH,
+      );
+      template = gltf.scene;
+    } catch (err) {
+      console.warn(
+        `[SceneManager] Не удалось загрузить ${ORE_DEMO_MODEL_PATH}, процедурный fallback:`,
+        err,
+      );
+      this.addDemoOresProcedural();
+      return;
+    }
+
+    const oreTypes = Object.entries(ORE_COLORS);
+    const unitBox = new THREE.Box3().setFromObject(template);
+    const unitSize = unitBox.getSize(new THREE.Vector3());
+    const unitMax = Math.max(unitSize.x, unitSize.y, unitSize.z, 0.01);
+    /** ~диаметр старого кластера (1.8 * 2) */
+    const targetWorldSize = 3.4;
+    const unitScale = targetWorldSize / unitMax;
+
+    oreTypes.forEach(([type, color], index) => {
+      const x = (index % 5) * 10 - 20;
+      const z = Math.floor(index / 5) * 10 - 30;
+
+      const root = template.clone(true);
+      root.scale.setScalar(unitScale);
+      root.rotation.y = (index * 0.37) % (Math.PI * 2);
+      root.updateMatrixWorld(true);
+
+      const bb = new THREE.Box3().setFromObject(root);
+      const cx = (bb.min.x + bb.max.x) / 2;
+      const cz = (bb.min.z + bb.max.z) / 2;
+      root.position.set(-cx, -bb.min.y, -cz);
+
+      this.tintOreGltf(root, color, type === "uranium");
+
+      const clusterGroup = new THREE.Group();
+      clusterGroup.name = `ore-demo-${type}`;
+      clusterGroup.userData = { type: "ore_node", oreType: type };
+      clusterGroup.add(root);
+      clusterGroup.position.set(x, 0, z);
+      this.scene.add(clusterGroup);
+
+      const topY = new THREE.Box3().setFromObject(clusterGroup).max.y;
+      this.addTextSprite(type, x, topY + 0.6, z);
     });
   }
 
@@ -1258,6 +1370,10 @@ export class SceneManager {
         child.receiveShadow = true;
       }
     });
+
+    if (menuBuildingId) {
+      applyPrefabMaterialPalette(menuBuildingId, placed);
+    }
 
     // Normalize: center on XZ, bottom at y=0 (same formula as normalizeGhostModel)
     const origBox = new THREE.Box3().setFromObject(original);

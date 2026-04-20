@@ -138,6 +138,10 @@ const ALL_BUILDINGS: BuildMenuItem[] = [
   { id: 'alien_extractor', name: 'Alien Power Augmenter', nameRu: 'Экстрактор инопланетной энергии', category: BuildingCategory.Power, subcategory: 'Генераторы',
     iconPath: '/kits/kenney_space-station-kit/Previews/pipe-end-colored.png',
     description: 'Самый продвинутый источник энергии. Статически вырабатывает 500 МВт. Главный бонус: +30% ко всей мощности электросети, к которой подключён. Несколько экстракторов — каждый +30% от базовой мощности (без учёта других бонусов).' },
+  { id: 'alien_energy_extractor', name: 'Alien Power Augmenter (model)', nameRu: 'Экстрактор инопланетной энергии (3D)', category: BuildingCategory.Power, subcategory: 'Генераторы',
+    modelPath: '/kits/models/energy%20extractor.glb',
+    iconPath: '/kits/kenney_space-station-kit/Previews/pipe-end-colored.png',
+    description: 'Та же роль, что у экстрактора из набора деталей, но отдельная glb-модель (`energy extractor.glb`). Старый вариант в меню сохранён.' },
 
   // — Подача энергии —
   { id: 'power_pole_mk1', name: 'Power Pole Mk.1', nameRu: 'Электростолб Ур.1', category: BuildingCategory.Power, subcategory: 'Подача энергии',
@@ -177,6 +181,7 @@ const ALL_BUILDINGS: BuildMenuItem[] = [
 
   // — Управление конвейерами —
   { id: 'splitter', name: 'Splitter', nameRu: 'Разветвитель', category: BuildingCategory.Logistics, subcategory: 'Управление конвейерами',
+    modelPath: '/kits/models/splitter.glb',
     description: 'Разделяет поток одной конвейерной ленты на 2 или 3 выхода. Предметы распределяются равномерно. 1 вход, до 3 выходов.' },
   { id: 'smart_splitter', name: 'Smart Splitter', nameRu: 'Умный разветвитель', category: BuildingCategory.Logistics, subcategory: 'Управление конвейерами',
     description: 'Разветвитель с фильтрацией: каждому выходу можно назначить один тип предмета. Поддерживает режимы Any, Overflow, None. Идеален для сортировки ресурсов.' },

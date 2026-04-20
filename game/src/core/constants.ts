@@ -63,6 +63,9 @@ export const ORE_COLORS: Record<string, number> = {
   nitrogen_gas:  0xE0E0E0, // White
 };
 
+/** Общая glTF-модель демо-узлов руды на сцене (`kits/models/ore.glb` → `/kits/models/ore.glb`). */
+export const ORE_DEMO_MODEL_PATH = "/kits/models/ore.glb";
+
 /** Uranium glow intensity */
 export const URANIUM_GLOW_INTENSITY = 2.0;
 

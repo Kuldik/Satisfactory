@@ -1,5 +1,3 @@
-/* Центральный индикатор: загрузка композитной голограммы (как круг при сносе, но индетерминатный) */
-
 .pattern-ghost-load-overlay {
   position: fixed;
   left: 50%;
@@ -14,16 +12,16 @@
 }
 
 .pattern-ghost-load-overlay__svg {
-  filter: drop-shadow(0 0 10px rgba(80, 200, 255, 0.55));
+  filter: drop-shadow(0 0 10px var(--ui-pattern-svg-shadow));
   animation: pattern-ghost-load-spin 1.1s linear infinite;
 }
 
 .pattern-ghost-load-overlay__track {
-  stroke: rgba(20, 35, 45, 0.9);
+  stroke: var(--ui-pattern-track);
 }
 
 .pattern-ghost-load-overlay__arc {
-  stroke: #6ec8ff;
+  stroke: var(--ui-pattern-arc);
   stroke-linecap: round;
 }
 
@@ -36,8 +34,8 @@
 .pattern-ghost-load-overlay__hint {
   font-size: 12px;
   font-weight: 600;
-  color: #b8e8ff;
-  text-shadow: 0 0 8px #000, 0 1px 2px #000;
+  color: var(--ui-pattern-hint);
+  text-shadow: 0 0 8px var(--ui-shadow-deep), 0 1px 2px var(--ui-shadow-deep);
   letter-spacing: 0.03em;
   white-space: nowrap;
 }

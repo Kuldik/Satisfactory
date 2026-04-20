@@ -31,7 +31,8 @@ export function isLogisticsMenuBuildingId(id: string | null | undefined): boolea
 export function isLogisticsConveyorKitPath(partPath: string): boolean {
   return (
     partPath.includes("/Conveyor Kit/") ||
-    partPath.includes("\\Conveyor Kit\\")
+    partPath.includes("\\Conveyor Kit\\") ||
+    partPath.includes("/kits/models/splitter.glb")
   );
 }
 

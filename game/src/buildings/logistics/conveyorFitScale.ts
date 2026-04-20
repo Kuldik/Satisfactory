@@ -27,6 +27,7 @@ export function usesConveyorGalleryFitScale(
   partPath?: string,
 ): boolean {
   if (isConveyorBeltMenuId(menuBuildingId)) return true;
+  if (menuBuildingId === "splitter") return true;
   if (partPath && isLogisticsConveyorKitPath(partPath)) return true;
   return false;
 }

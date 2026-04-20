@@ -41,6 +41,14 @@ const RAW: Record<string, BuildingPrefabDef> = {
   coal_generator: { modelPath: `${CITY}/building-n.glb`, scale: 20 },
   fuel_generator: { modelPath: `${CITY}/building-m.glb`, scale: 20 },
   nuclear_power: { modelPath: `${CITY}/chimney-large.glb`, scale: 20 },
+  /**
+   * Вторая визуальная версия инопланетного экстрактора (`kits/models/energy extractor.glb`).
+   * Паттерн `alien_extractor` не трогаем — отдельный id в меню и сейве.
+   */
+  alien_energy_extractor: {
+    modelPath: "/kits/models/energy%20extractor.glb",
+    scale: 15,
+  },
   power_storage: {
     modelPath: `${COMMERCIAL}/low-detail-building-h.glb`,
     scale: 15,
@@ -67,6 +75,11 @@ const RAW: Record<string, BuildingPrefabDef> = {
   },
   conveyor_mk6: {
     modelPath: `${CONVEYOR_KIT_GLB_DIR}${CONVEYOR_TIER_GLBS.conveyor_mk6}`,
+    scale: CONVEYOR_PLACEHOLDER_SCALE,
+  },
+  /** Разветвитель — `kits/models/splitter.glb` (масштаб как у лент: до 6 m по большей стороне). */
+  splitter: {
+    modelPath: "/kits/models/splitter.glb",
     scale: CONVEYOR_PLACEHOLDER_SCALE,
   },
 };

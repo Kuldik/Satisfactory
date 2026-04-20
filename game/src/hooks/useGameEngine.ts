@@ -12,6 +12,11 @@ import {
 import { Engine } from "../core/Engine.ts";
 import { GameMode } from "../core/types.ts";
 import type { GameState, BuilderMode } from "../core/types.ts";
+import {
+  applyStoredDocumentThemeEarly,
+  getDocumentSceneTheme,
+  SCENE_THEME_EVENT,
+} from "../ui/themeSync.ts";
 
 export function useGameEngine(
   setGameState: Dispatch<SetStateAction<GameState>>,
@@ -31,6 +36,8 @@ export function useGameEngine(
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    applyStoredDocumentThemeEarly();
+
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
@@ -49,6 +56,16 @@ export function useGameEngine(
     });
 
     engine.start();
+    engine.getSceneManager().setVisualTheme(getDocumentSceneTheme());
+
+    const onSceneTheme = (e: Event): void => {
+      const mode = (e as CustomEvent<{ mode?: string }>).detail?.mode;
+      if (mode === "light" || mode === "dark") {
+        engine.getSceneManager().setVisualTheme(mode);
+      }
+    };
+    window.addEventListener(SCENE_THEME_EVENT, onSceneTheme);
+
     const syncBuilderStateTimer = window.setTimeout(() => {
       setPlacedCount(engine.getBuilderPlacedCount());
       setBuilderScale(engine.getBuilderScale());
@@ -65,6 +82,7 @@ export function useGameEngine(
 
     return () => {
       window.removeEventListener("resize", handleResize);
+      window.removeEventListener(SCENE_THEME_EVENT, onSceneTheme);
       window.clearTimeout(syncBuilderStateTimer);
       engine.dispose();
     };

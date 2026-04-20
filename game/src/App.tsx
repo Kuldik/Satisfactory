@@ -17,6 +17,7 @@ import { useDeconstructCompositeHold } from "./hooks/useDeconstructCompositeHold
 import { useBuilderKeyboard } from "./hooks/useBuilderKeyboard.ts";
 import { useWindowShortcutGuards } from "./hooks/useWindowShortcutGuards.ts";
 import { useAdminPanelHotkey } from "./hooks/useAdminPanelHotkey.ts";
+import { useThemeHotkey } from "./hooks/useThemeHotkey.ts";
 import "./App.css";
 
 const IS_DEV = true; // TODO: revert to `import.meta.env.DEV !== false` for dev-only access
@@ -71,6 +72,7 @@ function App() {
   );
   useWindowShortcutGuards();
   useAdminPanelHotkey(IS_DEV, setIsAdminOpen);
+  useThemeHotkey();
 
   const handleOpenBuildMenu = useCallback(() => {
     setIsBuildMenuOpen(true);

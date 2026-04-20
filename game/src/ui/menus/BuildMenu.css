@@ -1,5 +1,5 @@
 /* ============================================================
-   BuildMenu — warm industrial (amber frame, slate panels)
+   BuildMenu — переменные темы (theme.css)
    ============================================================ */
 
 .build-menu-overlay {
@@ -8,7 +8,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(4, 3, 8, 0.72);
+  background: var(--ui-overlay-scrim);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -22,22 +22,21 @@
   max-width: 1200px;
   height: 80vh;
   max-height: 750px;
-  background: var(--ui-surface, rgba(20, 16, 30, 0.96));
-  border: 1px solid var(--ui-border, rgba(245, 158, 11, 0.42));
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
   border-radius: 12px;
   overflow: hidden;
   box-shadow:
-    0 8px 48px rgba(0, 0, 0, 0.85),
-    0 0 0 1px rgba(34, 211, 238, 0.06),
-    0 0 40px rgba(245, 158, 11, 0.06);
+    0 8px 48px var(--ui-shadow-deep),
+    0 0 0 1px var(--ui-menu-cyan-line),
+    0 0 40px var(--ui-menu-outer-glow);
 }
 
-/* Left: Categories */
 .build-menu-categories {
   width: 200px;
   min-width: 200px;
-  background: var(--ui-surface-deep, rgba(12, 10, 22, 0.98));
-  border-right: 1px solid rgba(56, 189, 248, 0.15);
+  background: var(--ui-surface-deep);
+  border-right: 1px solid var(--ui-cat-side-border);
   display: flex;
   flex-direction: column;
   padding: 16px 0;
@@ -47,9 +46,9 @@
   padding: 0 20px 16px;
   font-size: 20px;
   font-weight: 700;
-  color: var(--ui-accent-bright, #fbbf24);
+  color: var(--ui-accent-bright);
   letter-spacing: 1px;
-  border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+  border-bottom: 1px solid var(--ui-title-underline);
   margin-bottom: 8px;
 }
 
@@ -60,7 +59,7 @@
   padding: 12px 20px;
   background: transparent;
   border: none;
-  color: var(--ui-text-muted, #9b92a8);
+  color: var(--ui-text-muted);
   font-size: 14px;
   cursor: pointer;
   text-align: left;
@@ -68,14 +67,14 @@
 }
 
 .build-menu-cat-btn:hover {
-  background: rgba(245, 158, 11, 0.08);
-  color: #f5ead8;
+  background: var(--ui-cat-hover-bg);
+  color: var(--ui-cat-hover-text);
 }
 
 .build-menu-cat-btn.active {
-  background: rgba(245, 158, 11, 0.14);
-  color: #ffffff;
-  border-left: 3px solid var(--ui-accent, #f59e0b);
+  background: var(--ui-cat-active-bg);
+  color: var(--ui-text-strong);
+  border-left: 3px solid var(--ui-accent);
 }
 
 .cat-icon {
@@ -86,7 +85,6 @@
   font-weight: 500;
 }
 
-/* Center: Building list */
 .build-menu-list {
   flex: 1;
   overflow-y: auto;
@@ -96,7 +94,6 @@
   gap: 4px;
 }
 
-/* Subcategory wrapper */
 .build-subcategory {
   margin-bottom: 8px;
 }
@@ -106,25 +103,22 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1.5px;
-  color: #8a7d9a;
+  color: var(--ui-subcat-label);
   padding: 8px 4px 6px;
-  border-bottom: 1px solid rgba(245, 158, 11, 0.12);
+  border-bottom: 1px solid var(--ui-subcat-rule);
   margin-bottom: 8px;
 }
 
-/* Grid for building items within subcategory */
 .subcategory-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 6px;
 }
 
-/* Special items get a bigger grid */
 .subcategory-grid.special-grid {
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
 }
 
-/* Building item button */
 .build-menu-item {
   position: relative;
   display: flex;
@@ -132,23 +126,22 @@
   align-items: center;
   gap: 6px;
   padding: 12px 6px;
-  background: rgba(28, 24, 44, 0.82);
-  border: 1px solid rgba(56, 189, 248, 0.12);
+  background: var(--ui-card-bg);
+  border: 1px solid var(--ui-card-border);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.15s;
-  color: #b8b0c4;
+  color: var(--ui-card-text);
   min-height: 70px;
 }
 
 .build-menu-item:hover {
-  background: rgba(40, 32, 58, 0.92);
-  border-color: rgba(251, 191, 36, 0.45);
-  color: #ffffff;
+  background: var(--ui-card-hover-bg);
+  border-color: var(--ui-card-hover-border);
+  color: var(--ui-text-strong);
   transform: translateY(-1px);
 }
 
-/* Special category items — bigger */
 .build-menu-item-special {
   padding: 20px 12px;
   min-height: 100px;
@@ -174,7 +167,7 @@
   object-fit: contain;
   image-rendering: auto;
   border-radius: 6px;
-  background: rgba(10, 8, 18, 0.65);
+  background: var(--ui-preview-bg);
   padding: 4px;
 }
 
@@ -184,12 +177,11 @@
   line-height: 1.3;
 }
 
-/* Right: Details panel */
 .build-menu-details {
   width: 280px;
   min-width: 280px;
-  background: rgba(16, 14, 28, 0.94);
-  border-left: 1px solid rgba(245, 158, 11, 0.2);
+  background: var(--ui-details-bg);
+  border-left: 1px solid var(--ui-details-border);
   padding: 24px 20px;
   display: flex;
   flex-direction: column;
@@ -207,54 +199,53 @@
   height: 128px;
   object-fit: contain;
   border-radius: 10px;
-  background: rgba(10, 8, 18, 0.72);
+  background: var(--ui-preview-bg);
   padding: 8px;
   margin-bottom: 16px;
 }
 
 .build-menu-details h3 {
   font-size: 18px;
-  color: #ffffff;
+  color: var(--ui-detail-title);
   margin: 0 0 4px;
   text-align: center;
 }
 
 .detail-name-en {
   font-size: 12px;
-  color: #667788;
+  color: var(--ui-detail-en);
   margin: 0 0 16px;
 }
 
 .detail-desc {
   font-size: 13px;
-  color: #8899aa;
+  color: var(--ui-detail-desc);
   text-align: center;
   line-height: 1.6;
 }
 
 .detail-hint {
-  color: #556677;
+  color: var(--ui-detail-hint);
   font-size: 14px;
   text-align: center;
   margin-top: 100px;
 }
 
-/* Scrollbar */
 .build-menu-list::-webkit-scrollbar {
   width: 6px;
 }
 
 .build-menu-list::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--ui-scrollbar-track);
 }
 
 .build-menu-list::-webkit-scrollbar-thumb {
-  background: rgba(245, 158, 11, 0.35);
+  background: var(--ui-scrollbar-thumb);
   border-radius: 3px;
 }
 
 .build-menu-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(251, 191, 36, 0.5);
+  background: var(--ui-scrollbar-thumb-hover);
 }
 
 .build-menu-details::-webkit-scrollbar {
@@ -262,25 +253,28 @@
 }
 
 .build-menu-details::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--ui-scrollbar-track);
 }
 
 .build-menu-details::-webkit-scrollbar-thumb {
-  background: rgba(34, 211, 238, 0.28);
+  background: var(--ui-scrollbar-thumb-cool);
   border-radius: 2px;
 }
 
-/* Pattern badge — cyan accent (not green) */
 .build-menu-item.has-pattern {
-  border-color: rgba(34, 211, 238, 0.5);
+  border-color: var(--ui-pattern-item-border);
 }
 
 .pattern-badge {
   position: absolute;
   top: 3px;
   right: 3px;
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.92), rgba(217, 119, 6, 0.88));
-  color: #1a1020;
+  background: linear-gradient(
+    135deg,
+    var(--ui-pattern-badge-bg1),
+    var(--ui-pattern-badge-bg2)
+  );
+  color: var(--ui-pattern-badge-fg);
   font-size: 9px;
   font-weight: 700;
   padding: 1px 4px;

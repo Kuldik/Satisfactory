@@ -10,23 +10,23 @@
 }
 
 .deconstruct-hold-overlay__svg {
-  filter: drop-shadow(0 0 8px rgba(255, 60, 60, 0.6));
+  filter: drop-shadow(0 0 8px var(--ui-decon-svg-shadow));
 }
 
 .deconstruct-hold-overlay__track {
-  stroke: rgba(40, 20, 20, 0.85);
+  stroke: var(--ui-decon-track);
 }
 
 .deconstruct-hold-overlay__fill {
-  stroke: #ff5555;
+  stroke: var(--ui-decon-fill);
   stroke-linecap: round;
 }
 
 .deconstruct-hold-overlay__hint {
   font-size: 11px;
   font-weight: 600;
-  color: #ffaaaa;
-  text-shadow: 0 0 6px #000, 0 1px 2px #000;
+  color: var(--ui-decon-hint);
+  text-shadow: 0 0 6px var(--ui-shadow-deep), 0 1px 2px var(--ui-shadow-deep);
   letter-spacing: 0.02em;
   white-space: nowrap;
 }

@@ -1,0 +1,248 @@
+/* ============================================================
+   Тема UI: :root = тёмная (по умолчанию), [data-theme="light"]
+   Переключение: клавиша ` (Backquote), без Shift — см. useThemeHotkey
+   ============================================================ */
+
+:root {
+  --ui-bg-void: #060508;
+  --ui-surface: rgba(20, 16, 30, 0.96);
+  --ui-surface-deep: rgba(12, 10, 22, 0.98);
+  --ui-accent: #f59e0b;
+  --ui-accent-bright: #fbbf24;
+  --ui-glow: #22d3ee;
+  --ui-glow-soft: rgba(34, 211, 238, 0.35);
+  --ui-border: rgba(245, 158, 11, 0.4);
+  --ui-border-cool: rgba(56, 189, 248, 0.28);
+  --ui-text: #ece8e3;
+  --ui-text-muted: #9b92a8;
+  --ui-text-strong: #ffffff;
+
+  --ui-overlay-scrim: rgba(4, 3, 8, 0.72);
+  --ui-shadow-deep: rgba(0, 0, 0, 0.85);
+  --ui-menu-outer-glow: rgba(245, 158, 11, 0.06);
+  --ui-menu-cyan-line: rgba(34, 211, 238, 0.06);
+
+  --ui-cat-side-border: rgba(56, 189, 248, 0.15);
+  --ui-title-underline: rgba(245, 158, 11, 0.2);
+  --ui-cat-hover-bg: rgba(245, 158, 11, 0.08);
+  --ui-cat-hover-text: #f5ead8;
+  --ui-cat-active-bg: rgba(245, 158, 11, 0.14);
+
+  --ui-subcat-label: #8a7d9a;
+  --ui-subcat-rule: rgba(245, 158, 11, 0.12);
+
+  --ui-card-bg: rgba(28, 24, 44, 0.82);
+  --ui-card-border: rgba(56, 189, 248, 0.12);
+  --ui-card-hover-bg: rgba(40, 32, 58, 0.92);
+  --ui-card-hover-border: rgba(251, 191, 36, 0.45);
+  --ui-card-text: #b8b0c4;
+
+  --ui-preview-bg: rgba(10, 8, 18, 0.65);
+  --ui-details-bg: rgba(16, 14, 28, 0.94);
+  --ui-details-border: rgba(245, 158, 11, 0.2);
+  --ui-detail-title: #ffffff;
+  --ui-detail-en: #667788;
+  --ui-detail-desc: #8899aa;
+  --ui-detail-hint: #556677;
+
+  --ui-pattern-item-border: rgba(34, 211, 238, 0.5);
+  --ui-pattern-badge-bg1: rgba(245, 158, 11, 0.92);
+  --ui-pattern-badge-bg2: rgba(217, 119, 6, 0.88);
+  --ui-pattern-badge-fg: #1a1020;
+
+  --ui-scrollbar-track: rgba(0, 0, 0, 0.2);
+  --ui-scrollbar-thumb: rgba(245, 158, 11, 0.35);
+  --ui-scrollbar-thumb-hover: rgba(251, 191, 36, 0.5);
+  --ui-scrollbar-thumb-cool: rgba(34, 211, 238, 0.28);
+
+  --ui-hud-top-grad-a: rgba(14, 12, 24, 0.88);
+  --ui-hud-top-grad-b: rgba(14, 12, 24, 0);
+  --ui-hud-chip-bg: rgba(28, 22, 42, 0.78);
+  --ui-hud-mode: #c9a87a;
+  --ui-hud-btn-bg: rgba(55, 40, 28, 0.55);
+  --ui-hud-btn-text: #f5e6d3;
+  --ui-hud-btn-hover-bg: rgba(80, 55, 30, 0.75);
+  --ui-hud-btn-hover-border: rgba(251, 191, 36, 0.75);
+
+  --ui-hud-action-bg: rgba(22, 18, 36, 0.9);
+  --ui-hud-action-text: #f0e8dc;
+  --ui-hud-action-hover-bg: rgba(38, 30, 52, 0.95);
+  --ui-hud-action-shadow: rgba(245, 158, 11, 0.22);
+
+  --ui-hud-admin-text: #ffcc88;
+  --ui-hud-admin-border: rgba(255, 180, 0, 0.4);
+  --ui-hud-admin-hover-bg: rgba(60, 40, 0, 0.9);
+  --ui-hud-admin-active-bg: rgba(80, 50, 0, 0.9);
+
+  --ui-hud-decon-text: #ffaaaa;
+  --ui-hud-decon-border: rgba(255, 100, 100, 0.45);
+  --ui-hud-decon-active-bg: rgba(90, 20, 25, 0.92);
+
+  --ui-hud-banner-bg-a: rgba(80, 20, 25, 0.92);
+  --ui-hud-banner-bg-b: rgba(50, 15, 20, 0.92);
+  --ui-hud-banner-text: #ffcccc;
+  --ui-hud-banner-muted: rgba(255, 200, 200, 0.85);
+  --ui-hud-banner-btn-bg: rgba(40, 10, 12, 0.9);
+  --ui-hud-banner-btn-text: #ffdddd;
+
+  --ui-hud-build-info-bg: rgba(22, 18, 38, 0.92);
+  --ui-hud-build-info-border: rgba(34, 211, 238, 0.45);
+  --ui-hud-build-info-glow: rgba(245, 158, 11, 0.08);
+  --ui-hud-hint: #888888;
+  --ui-hud-mode-badge-text: #0c4a6e;
+  --ui-hud-mode-badge-bg: rgba(56, 189, 248, 0.85);
+  --ui-hud-controls: rgba(180, 168, 200, 0.45);
+
+  --ui-admin-overlay: rgba(0, 0, 0, 0.65);
+  --ui-admin-panel-bg: rgba(10, 12, 26, 0.97);
+  --ui-admin-panel-border: rgba(255, 200, 50, 0.35);
+  --ui-admin-header-bg: rgba(40, 30, 5, 0.9);
+  --ui-admin-title: #ffcc44;
+  --ui-admin-hint-bg: rgba(0, 100, 180, 0.2);
+  --ui-admin-hint-border: rgba(0, 150, 255, 0.3);
+  --ui-admin-hint-text: #88ddff;
+  --ui-admin-close-border: rgba(255, 100, 80, 0.4);
+  --ui-admin-close-text: #ff8877;
+  --ui-admin-cat-bg: rgba(8, 10, 22, 0.95);
+  --ui-admin-cat-text: #8899aa;
+  --ui-admin-cat-hover-text: #ddcc88;
+  --ui-admin-part-bg: rgba(20, 24, 50, 0.8);
+  --ui-admin-part-text: #aabbcc;
+  --ui-admin-json-bg: rgba(5, 7, 15, 0.9);
+  --ui-admin-json-text: #a5e9f5;
+
+  --ui-decon-svg-shadow: rgba(255, 60, 60, 0.6);
+  --ui-decon-track: rgba(40, 20, 20, 0.85);
+  --ui-decon-fill: #ff5555;
+  --ui-decon-hint: #ffaaaa;
+
+  --ui-pattern-svg-shadow: rgba(80, 200, 255, 0.55);
+  --ui-pattern-track: rgba(20, 35, 45, 0.9);
+  --ui-pattern-arc: #6ec8ff;
+  --ui-pattern-hint: #b8e8ff;
+
+  --ui-deconstruct-frame: rgba(255, 90, 90, 0.35);
+  --ui-deconstruct-frame-mid: rgba(255, 120, 100, 0.55);
+}
+
+[data-theme="light"] {
+  --ui-bg-void: #e8e4dc;
+  --ui-surface: rgba(255, 253, 250, 0.97);
+  --ui-surface-deep: rgba(245, 241, 235, 0.98);
+  --ui-accent: #c2410c;
+  --ui-accent-bright: #ea580c;
+  --ui-glow: #0e7490;
+  --ui-glow-soft: rgba(14, 116, 144, 0.28);
+  --ui-border: rgba(194, 65, 12, 0.42);
+  --ui-border-cool: rgba(8, 145, 178, 0.38);
+  --ui-text: #1c1917;
+  --ui-text-muted: #57534e;
+  --ui-text-strong: #0c0a0a;
+
+  --ui-overlay-scrim: rgba(80, 72, 62, 0.4);
+  --ui-shadow-deep: rgba(0, 0, 0, 0.18);
+  --ui-menu-outer-glow: rgba(194, 65, 12, 0.12);
+  --ui-menu-cyan-line: rgba(8, 145, 178, 0.15);
+
+  --ui-cat-side-border: rgba(8, 145, 178, 0.22);
+  --ui-title-underline: rgba(194, 65, 12, 0.28);
+  --ui-cat-hover-bg: rgba(194, 65, 12, 0.1);
+  --ui-cat-hover-text: #292524;
+  --ui-cat-active-bg: rgba(194, 65, 12, 0.16);
+
+  --ui-subcat-label: #78716c;
+  --ui-subcat-rule: rgba(194, 65, 12, 0.2);
+
+  --ui-card-bg: rgba(255, 255, 255, 0.88);
+  --ui-card-border: rgba(8, 145, 178, 0.22);
+  --ui-card-hover-bg: rgba(255, 252, 248, 0.98);
+  --ui-card-hover-border: rgba(234, 88, 12, 0.55);
+  --ui-card-text: #44403c;
+
+  --ui-preview-bg: rgba(245, 240, 232, 0.95);
+  --ui-details-bg: rgba(250, 247, 242, 0.96);
+  --ui-details-border: rgba(194, 65, 12, 0.25);
+  --ui-detail-title: #1c1917;
+  --ui-detail-en: #57534e;
+  --ui-detail-desc: #57534e;
+  --ui-detail-hint: #78716c;
+
+  --ui-pattern-item-border: rgba(8, 145, 178, 0.45);
+  --ui-pattern-badge-bg1: rgba(251, 191, 36, 0.95);
+  --ui-pattern-badge-bg2: rgba(245, 158, 11, 0.92);
+  --ui-pattern-badge-fg: #1c1917;
+
+  --ui-scrollbar-track: rgba(0, 0, 0, 0.06);
+  --ui-scrollbar-thumb: rgba(194, 65, 12, 0.35);
+  --ui-scrollbar-thumb-hover: rgba(234, 88, 12, 0.5);
+  --ui-scrollbar-thumb-cool: rgba(8, 145, 178, 0.35);
+
+  --ui-hud-top-grad-a: rgba(255, 252, 248, 0.92);
+  --ui-hud-top-grad-b: rgba(255, 252, 248, 0);
+  --ui-hud-chip-bg: rgba(255, 255, 255, 0.85);
+  --ui-hud-mode: #57534e;
+  --ui-hud-btn-bg: rgba(255, 247, 237, 0.95);
+  --ui-hud-btn-text: #292524;
+  --ui-hud-btn-hover-bg: rgba(255, 237, 213, 0.98);
+  --ui-hud-btn-hover-border: rgba(234, 88, 12, 0.65);
+
+  --ui-hud-action-bg: rgba(255, 255, 255, 0.92);
+  --ui-hud-action-text: #1c1917;
+  --ui-hud-action-hover-bg: rgba(255, 250, 240, 0.98);
+  --ui-hud-action-shadow: rgba(194, 65, 12, 0.18);
+
+  --ui-hud-admin-text: #9a3412;
+  --ui-hud-admin-border: rgba(194, 65, 12, 0.45);
+  --ui-hud-admin-hover-bg: rgba(255, 237, 213, 0.95);
+  --ui-hud-admin-active-bg: rgba(254, 215, 170, 0.95);
+
+  --ui-hud-decon-text: #b91c1c;
+  --ui-hud-decon-border: rgba(220, 38, 38, 0.45);
+  --ui-hud-decon-active-bg: rgba(254, 226, 226, 0.95);
+
+  --ui-hud-banner-bg-a: rgba(254, 226, 226, 0.96);
+  --ui-hud-banner-bg-b: rgba(252, 211, 211, 0.96);
+  --ui-hud-banner-text: #7f1d1d;
+  --ui-hud-banner-muted: rgba(127, 29, 29, 0.85);
+  --ui-hud-banner-btn-bg: rgba(255, 255, 255, 0.9);
+  --ui-hud-banner-btn-text: #991b1b;
+
+  --ui-hud-build-info-bg: rgba(255, 255, 255, 0.94);
+  --ui-hud-build-info-border: rgba(8, 145, 178, 0.4);
+  --ui-hud-build-info-glow: rgba(194, 65, 12, 0.1);
+  --ui-hud-hint: #78716c;
+  --ui-hud-mode-badge-text: #f0f9ff;
+  --ui-hud-mode-badge-bg: rgba(8, 145, 178, 0.9);
+  --ui-hud-controls: rgba(87, 83, 78, 0.55);
+
+  --ui-admin-overlay: rgba(60, 55, 48, 0.45);
+  --ui-admin-panel-bg: rgba(255, 253, 250, 0.98);
+  --ui-admin-panel-border: rgba(194, 65, 12, 0.35);
+  --ui-admin-header-bg: rgba(255, 247, 237, 0.95);
+  --ui-admin-title: #9a3412;
+  --ui-admin-hint-bg: rgba(224, 242, 254, 0.85);
+  --ui-admin-hint-border: rgba(8, 145, 178, 0.35);
+  --ui-admin-hint-text: #0c4a6e;
+  --ui-admin-close-border: rgba(220, 38, 38, 0.4);
+  --ui-admin-close-text: #b91c1c;
+  --ui-admin-cat-bg: rgba(245, 241, 235, 0.98);
+  --ui-admin-cat-text: #57534e;
+  --ui-admin-cat-hover-text: #1c1917;
+  --ui-admin-part-bg: rgba(255, 255, 255, 0.92);
+  --ui-admin-part-text: #44403c;
+  --ui-admin-json-bg: rgba(250, 250, 249, 0.98);
+  --ui-admin-json-text: #0c4a6e;
+
+  --ui-decon-svg-shadow: rgba(220, 38, 38, 0.45);
+  --ui-decon-track: rgba(254, 226, 226, 0.95);
+  --ui-decon-fill: #dc2626;
+  --ui-decon-hint: #991b1b;
+
+  --ui-pattern-svg-shadow: rgba(8, 145, 178, 0.4);
+  --ui-pattern-track: rgba(224, 242, 254, 0.95);
+  --ui-pattern-arc: #0284c7;
+  --ui-pattern-hint: #0c4a6e;
+
+  --ui-deconstruct-frame: rgba(220, 38, 38, 0.35);
+  --ui-deconstruct-frame-mid: rgba(239, 68, 68, 0.5);
+}

@@ -131,6 +131,7 @@ export const HUD: FC<HUDProps> = ({
 
       {/* Controls hint (bottom right) */}
       <div className="hud-controls">
+        <div>` — тёмная / светлая тема</div>
         <div>WASD — перемещение камеры</div>
         <div>ПКМ / СКМ — вращение камеры</div>
         <div>Shift+ЛКМ — перемещение мышью</div>
