@@ -1,5 +1,5 @@
 // ============================================================
-// Смена темы UI: клавиша ` (Backquote), без Shift. Сохранение в LS.
+// Смена темы UI: Tab (без модификаторов вне полей ввода). Сохранение в LS.
 // ============================================================
 
 import { useEffect } from "react";
@@ -35,7 +35,8 @@ export function useThemeHotkey(): void {
 
     const onKey = (e: KeyboardEvent): void => {
       if (e.repeat) return;
-      if (e.code !== "Backquote" || e.shiftKey) return;
+      if (e.code !== "Tab" || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey)
+        return;
       const t = e.target;
       if (
         t instanceof HTMLElement &&

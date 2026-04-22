@@ -22,6 +22,7 @@ export const LOGISTICS_MENU_BUILDING_IDS = new Set<string>([
   "throughput_monitor",
   "pipe_mk1",
   "pipe_mk2",
+  "pipe_junction",
 ]);
 
 export function isLogisticsMenuBuildingId(id: string | null | undefined): boolean {
@@ -32,7 +33,8 @@ export function isLogisticsConveyorKitPath(partPath: string): boolean {
   return (
     partPath.includes("/Conveyor Kit/") ||
     partPath.includes("\\Conveyor Kit\\") ||
-    partPath.includes("/kits/models/splitter.glb")
+    partPath.includes("/kits/models/splitter.glb") ||
+    partPath.includes("/kits/models/connector.glb")
   );
 }
 

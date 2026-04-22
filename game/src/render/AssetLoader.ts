@@ -29,7 +29,7 @@ const MODEL_REGISTRY: Record<string, string> = {
   'conveyor_mk5': `${CONVEYOR_KIT_GLB_DIR}${CONVEYOR_TIER_GLBS.conveyor_mk5}`,
   'conveyor_mk6': `${CONVEYOR_KIT_GLB_DIR}${CONVEYOR_TIER_GLBS.conveyor_mk6}`,
   splitter: "/kits/models/splitter.glb",
-  'merger':         '/assets/models/conveyor/conveyorMerger.glb',
+  merger: "/kits/models/connector.glb",
 
   // City Kit Industrial mappings for key factory buildings
   'hub':                   '/kits/City Kit Industrial/Models/GLB format/building-a.glb',
@@ -58,11 +58,21 @@ const MODEL_REGISTRY: Record<string, string> = {
   'locomotive':     '/assets/models/train/locomotive.glb',
   'train_station':  '/assets/models/train/stationPlatform.glb',
 
-  // Space Station Kit
-  'pipe_mk1':       '/assets/models/station/pipeCorner.glb',
-  'pipe_mk2':       '/assets/models/station/pipeStraight.glb',
-  'storage_small':  '/assets/models/station/container.glb',
-  'storage_large':  '/assets/models/station/containerLarge.glb',
+  // Pipes (kits/models)
+  pipe_mk1:
+    "/kits/kenney_space-station-kit/Models/GLB format/pipe.glb",
+  pipe_mk2:
+    "/kits/kenney_space-station-kit/Models/GLB format/pipe.glb",
+  pipe_junction:
+    "/kits/kenney_space-station-kit/Models/GLB format/pipe-bend.glb",
+  storage_small: "/kits/City Kit Industrial/Models/GLB format/building-s.glb",
+  storage_large: "/kits/City Kit Industrial/Models/GLB format/building-i.glb",
+  fluid_buffer:
+    "/kits/kenney_space-station-kit/Models/GLB format/container-tall.glb",
+  fluid_buffer_large:
+    "/kits/City Kit Industrial/Models/GLB format/detail-tank.glb",
+  loading_module: "/kits/models/module-in.glb",
+  unloading_module: "/kits/models/module-out.glb",
 
   // Power poles (placeholder geometry)
   'power_pole_mk1': '/assets/models/station/computerScreen.glb',

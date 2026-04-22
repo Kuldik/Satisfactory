@@ -11,6 +11,9 @@ export const CHUNK_SIZE = 32;
 /** Chunk size in world units (meters) */
 export const CHUNK_WORLD_SIZE = CHUNK_SIZE * GRID_CELL_SIZE; // 64m
 
+/** Сторона квадрата земли и визуальной сетки (м), одна точка с `SceneManager` / `GridRenderer`. */
+export const GROUND_PLANE_EXTENT = 4000;
+
 /** Render distance in chunks */
 export const RENDER_DISTANCE = 5;
 

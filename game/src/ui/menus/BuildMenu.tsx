@@ -183,26 +183,31 @@ const ALL_BUILDINGS: BuildMenuItem[] = [
   { id: 'splitter', name: 'Splitter', nameRu: 'Разветвитель', category: BuildingCategory.Logistics, subcategory: 'Управление конвейерами',
     modelPath: '/kits/models/splitter.glb',
     description: 'Разделяет поток одной конвейерной ленты на 2 или 3 выхода. Предметы распределяются равномерно. 1 вход, до 3 выходов.' },
+  /* Позже: умный и программируемый разветвитель
   { id: 'smart_splitter', name: 'Smart Splitter', nameRu: 'Умный разветвитель', category: BuildingCategory.Logistics, subcategory: 'Управление конвейерами',
-    description: 'Разветвитель с фильтрацией: каждому выходу можно назначить один тип предмета. Поддерживает режимы Any, Overflow, None. Идеален для сортировки ресурсов.' },
+    description: '...' },
   { id: 'programmable_splitter', name: 'Programmable Splitter', nameRu: 'Программируемый разветвитель', category: BuildingCategory.Logistics, subcategory: 'Управление конвейерами',
-    description: 'Максимальная гибкость: каждому выходу можно назначить список типов предметов. Поддерживает Any/Overflow/None. Незаменим для мегафабрик и центральных хабов.' },
+    description: '...' },
+  */
   { id: 'merger', name: 'Merger', nameRu: 'Соединитель', category: BuildingCategory.Logistics, subcategory: 'Управление конвейерами',
+    modelPath: '/kits/models/connector.glb',
     description: 'Объединяет потоки 2-3 конвейерных лент в одну. До 3 входов, 1 выход. Предметы чередуются из каждого входа.' },
 
-  // — Трубопроводы —
+  // — Трубопроводы (орто 90°: прямые + колено; линия как у конвейера) —
   { id: 'pipe_mk1', name: 'Pipeline Mk.1', nameRu: 'Трубопровод Ур.1', category: BuildingCategory.Logistics, subcategory: 'Трубопроводы',
+    modelPath: '/kits/kenney_space-station-kit/Models/GLB format/pipe.glb',
     description: 'Базовый трубопровод для транспортировки жидкостей и газов. Пропускная способность: 300 м³/мин. Не требует электричества.' },
   { id: 'pipe_mk2', name: 'Pipeline Mk.2', nameRu: 'Трубопровод Ур.2', category: BuildingCategory.Logistics, subcategory: 'Трубопроводы',
+    modelPath: '/kits/kenney_space-station-kit/Models/GLB format/pipe.glb',
     description: 'Улучшенный трубопровод с двойной пропускной способностью. 600 м³/мин. Не требует электричества.' },
   { id: 'pipe_junction', name: 'Pipeline Junction Cross', nameRu: 'Пересечение труб', category: BuildingCategory.Logistics, subcategory: 'Трубопроводы',
+    modelPath: '/kits/kenney_space-station-kit/Models/GLB format/pipe-bend.glb',
     description: 'Крестообразное соединение, позволяющее объединить или разветвить несколько трубопроводов в одной точке.' },
-  { id: 'pump_mk1', name: 'Pipeline Pump Mk.1', nameRu: 'Насос Ур.1', category: BuildingCategory.Logistics, subcategory: 'Трубопроводы',
-    description: 'Устанавливается на трубу для увеличения подачи жидкости вверх. Подъём до 20 м. Направление потока можно изменить. Потребляет 4 МВт.' },
-  { id: 'pump_mk2', name: 'Pipeline Pump Mk.2', nameRu: 'Насос Ур.2', category: BuildingCategory.Logistics, subcategory: 'Трубопроводы',
-    description: 'Улучшенный насос. Подъём до 50 м. Направление потока можно изменить. Потребляет 4 МВт.' },
-  { id: 'valve', name: 'Pipeline Valve', nameRu: 'Клапан трубопровода', category: BuildingCategory.Logistics, subcategory: 'Трубопроводы',
-    description: 'Позволяет ограничивать скорость потока в трубопроводе. Полезен для балансировки распределения жидкостей между машинами.' },
+  /* Позже: насосы и клапан
+  { id: 'pump_mk1', ...
+  { id: 'pump_mk2', ...
+  { id: 'valve', ...
+  */
 
   // — Железнодорожное сообщение —
   { id: 'railroad_track', name: 'Railway', nameRu: 'Ж/д пути', category: BuildingCategory.Logistics, subcategory: 'Железнодорожное сообщение',
@@ -223,25 +228,31 @@ const ALL_BUILDINGS: BuildMenuItem[] = [
   // ============ ORGANIZATION ============
   // — Складирование предметов —
   { id: 'storage_small', name: 'Storage Container', nameRu: 'Складской контейнер', category: BuildingCategory.Organization, subcategory: 'Складирование предметов',
+    modelPath: '/kits/City Kit Industrial/Models/GLB format/building-s.glb',
     description: 'Хранит до 24 стаков предметов. 1 конвейерный вход и 1 выход. Отличный буфер между производственными цепочками.' },
   { id: 'storage_large', name: 'Industrial Storage Container', nameRu: 'Промышленный контейнер', category: BuildingCategory.Organization, subcategory: 'Складирование предметов',
+    modelPath: '/kits/City Kit Industrial/Models/GLB format/building-i.glb',
     description: 'Хранит до 48 стаков предметов. 2 конвейерных входа и 2 выхода. Удвоенная ёмкость для массового хранения.' },
 
   // — Хранение жидкостей —
   { id: 'fluid_buffer', name: 'Fluid Buffer', nameRu: 'Цистерна', category: BuildingCategory.Organization, subcategory: 'Хранение жидкостей',
+    modelPath: '/kits/kenney_space-station-kit/Models/GLB format/container-tall.glb',
     description: 'Буфер для хранения жидкостей и газов. Вместимость: 400 м³. Имеет трубные порты для входа и выхода.' },
   { id: 'fluid_buffer_large', name: 'Industrial Fluid Buffer', nameRu: 'Промышленная цистерна', category: BuildingCategory.Organization, subcategory: 'Хранение жидкостей',
+    modelPath: '/kits/City Kit Industrial/Models/GLB format/detail-tank.glb',
     description: 'Увеличенный буфер для жидкостей. Вместимость: 2400 м³. Для масштабных жидкостных сетей и резервного хранения.' },
 
   // — Модули склада —
   { id: 'loading_module', name: 'Loading Module', nameRu: 'Модуль загрузки', category: BuildingCategory.Organization, subcategory: 'Модули склада',
+    modelPath: '/kits/models/module-in.glb',
     description: 'Принимает предметы с конвейера и автоматически загружает их на бесконечный склад игрока. 1 конвейерный вход. Без ограничений по скорости.' },
   { id: 'unloading_module', name: 'Unloading Module', nameRu: 'Модуль выгрузки', category: BuildingCategory.Organization, subcategory: 'Модули склада',
+    modelPath: '/kits/models/module-out.glb',
     description: 'Выгружает выбранный тип предмета из бесконечного склада игрока на конвейер. 1 конвейерный выход. В модальном окне выбирается предмет из инвентаря.' },
 
-  // — Организация —
-  { id: 'sign', name: 'Sign', nameRu: 'Табличка', category: BuildingCategory.Organization, subcategory: 'Организация',
-    description: 'Информационная табличка с настраиваемым текстом, иконкой и цветом. Разные размеры: от 0.5×0.5 м до 16×8 м. Нажмите E для редактирования.' },
+  /* Позже: табличка
+  { id: 'sign', name: 'Sign', nameRu: 'Табличка', ...
+  */
 ];
 
 const CATEGORY_INFO: Record<BuildingCategory, { icon: string; nameRu: string }> = {

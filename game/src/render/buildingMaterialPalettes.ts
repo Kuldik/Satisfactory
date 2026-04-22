@@ -153,6 +153,21 @@ const SPLITTER_CYCLE: TintSpec[] = [
   { color: 0xbdc3c7, metalness: 0.28, roughness: 0.4 },
 ];
 
+/** Ур.1 — медь / латунь (читаемо на тёмной сцене, не «чёрный» корпус). */
+const PIPE_MK1_RULES: MeshTintRule[] = [];
+const PIPE_MK1_CYCLE: TintSpec[] = [
+  { color: 0xd4915c, metalness: 0.48, roughness: 0.4 },
+  { color: 0xb87333, metalness: 0.45, roughness: 0.42 },
+  { color: 0xe8b896, metalness: 0.38, roughness: 0.38 },
+  { color: 0xa65d28, metalness: 0.5, roughness: 0.45 },
+];
+
+/** Ур.2 — #BB8F63 */
+const PIPE_MK2_RULES: MeshTintRule[] = [];
+const PIPE_MK2_CYCLE: TintSpec[] = [
+  { color: 0xbb8f63, metalness: 0.28, roughness: 0.55 },
+];
+
 const PALETTES: Record<
   string,
   { rules: MeshTintRule[]; cycle: TintSpec[] }
@@ -165,6 +180,13 @@ const PALETTES: Record<
     rules: SPLITTER_RULES,
     cycle: SPLITTER_CYCLE,
   },
+  merger: {
+    rules: SPLITTER_RULES,
+    cycle: SPLITTER_CYCLE,
+  },
+  pipe_mk1: { rules: PIPE_MK1_RULES, cycle: PIPE_MK1_CYCLE },
+  pipe_mk2: { rules: PIPE_MK2_RULES, cycle: PIPE_MK2_CYCLE },
+  pipe_junction: { rules: PIPE_MK1_RULES, cycle: PIPE_MK1_CYCLE },
 };
 
 /**

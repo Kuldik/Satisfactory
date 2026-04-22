@@ -4,7 +4,7 @@
 
 export const UI_THEME_STORAGE_KEY = "satisfactory-ui-theme-v1";
 
-/** Событие после смены `data-theme`; слушает useGameEngine → SceneManager. */
+/** Событие после смены `data-theme` (Tab); слушает useGameEngine → SceneManager. */
 export const SCENE_THEME_EVENT = "satisfactory-scene-theme";
 
 export type SceneThemeMode = "dark" | "light";

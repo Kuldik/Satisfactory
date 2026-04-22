@@ -6,6 +6,7 @@
 
 import * as THREE from "three";
 import { isConveyorBeltMenuId } from "../../buildings/logistics/conveyorKitModels.ts";
+import { isPipeLineMenuId } from "../../buildings/logistics/pipeKitModels.ts";
 import type { BuilderMode } from "../../core/types.ts";
 
 /** Один сегмент ленты: центр pivot и поворот вокруг Y (как у placeSingleAt). */
@@ -33,6 +34,10 @@ export function getPlacementSegmentStep(
 ): number {
   if (isConveyorBeltMenuId(prefabMenuBuildingId)) {
     return Math.max(footprint.x, 0.1);
+  }
+  /** Труба может быть вытянута по X или Z в glb — шаг = длина сегмента в плоскости пола. */
+  if (isPipeLineMenuId(prefabMenuBuildingId)) {
+    return Math.max(Math.max(footprint.x, footprint.z), 0.1);
   }
   return Math.max(Math.max(footprint.x, footprint.z), 0.1);
 }

@@ -12,6 +12,10 @@ import { SaveManager } from './save/SaveManager.ts';
 import { getBuildingPattern } from '../buildings/BuildingPatterns.ts';
 import { getBuildingPrefab } from '../buildings/BuildingPrefabs.ts';
 import { isConveyorBeltMenuId } from '../buildings/logistics/conveyorKitModels.ts';
+import {
+  isPipeJunctionMenuId,
+  isPipeLineMenuId,
+} from '../buildings/logistics/pipeKitModels.ts';
 
 export class Engine {
   private sceneManager: SceneManager;
@@ -199,8 +203,10 @@ export class Engine {
       } else {
         this.sceneManager.clearBuilderGhost();
       }
-      if (isConveyorBeltMenuId(buildingId)) {
+      if (isConveyorBeltMenuId(buildingId) || isPipeLineMenuId(buildingId)) {
         this.sceneManager.setBuilderMode("default");
+      } else if (isPipeJunctionMenuId(buildingId)) {
+        this.sceneManager.setBuilderMode("single");
       }
     }
     this.notifyStateChange();

@@ -99,8 +99,9 @@ function App() {
       } finally {
         if (showLoad) setPatternGhostLoading(false);
       }
+      setBuilderMode(engineRef.current.getBuilderMode());
     },
-    [engineRef],
+    [engineRef, setBuilderMode],
   );
 
   const handleOpenAdminPanel = useCallback(() => setIsAdminOpen(true), []);
@@ -118,8 +119,9 @@ function App() {
       } finally {
         if (showLoad) setPatternGhostLoading(false);
       }
+      setBuilderMode(engineRef.current.getBuilderMode());
     },
-    [engineRef],
+    [engineRef, setBuilderMode],
   );
 
   const handleSelectBuilderPart = useCallback(

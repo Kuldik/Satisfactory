@@ -7,6 +7,7 @@ import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 import {
   CAMERA,
   GRID_CELL_SIZE,
+  GROUND_PLANE_EXTENT,
   ORE_COLORS,
   ORE_DEMO_MODEL_PATH,
 } from "../core/constants.ts";
@@ -33,6 +34,15 @@ import {
   isLogisticsMenuBuildingId,
 } from "../buildings/logistics/conveyorKitModels.ts";
 import {
+  isKenneySpaceStationPipeAssetPath,
+  isPipeLineMenuId,
+  isPipeJunctionMenuId,
+  PIPE_ELBOW_MODEL_PATH,
+  PIPE_LAY_FLAT_ROT_X,
+  PIPE_RUN_ROT_Y_OFFSET,
+  PIPE_STRAIGHT_MODEL_PATH,
+} from "../buildings/logistics/pipeKitModels.ts";
+import {
   DECONSTRUCT_HOLD_DEFAULT_MS,
   DECONSTRUCT_HOLD_LOGISTICS_MS,
 } from "../core/constants.ts";
@@ -50,6 +60,13 @@ import {
   computeConveyorPathSegments,
   getPlacementSegmentStep,
 } from "./builder/conveyorPathSegments.ts";
+import {
+  computePipeJunctionRotations,
+  computePipePathSegments,
+  computePipeStraightSegmentsOnly,
+  pipeCornerTrimForStep,
+  snapPipeGhostXZ,
+} from "./builder/pipePathSegments.ts";
 import { applyPrefabMaterialPalette } from "./buildingMaterialPalettes.ts";
 
 /**
@@ -96,6 +113,7 @@ export class SceneManager {
     position: THREE.Vector3;
     rotationY: number;
     compositeId: string;
+    lineKind: "conveyor" | "pipe";
   }> = [];
   /**
    * Belt rotationY at the current line start (after snap, auto-continue, or first click).
@@ -107,6 +125,14 @@ export class SceneManager {
   private conveyorTangentAtLineEnd: number | null = null;
   /** Default (L) mode: both legs shorter than min turn → red ghost, no place */
   private conveyorDefaultTooTight = false;
+  private pipeDefaultTooTight = false;
+  /**
+   * Труба в режиме default: leg — одна прямая до клика; junction — колено на углу, крутится за мышью.
+   */
+  private pipePlacementSubMode: "leg" | "junction" = "leg";
+  private readonly pipeJunctionAnchorWorld = new THREE.Vector3();
+  private pipeIncomingStraightRotY = 0;
+  private pipeJunctionOutgoingStraightRotY = 0;
   private builderCtrlHeld = false;
   private builderDeconstructMode = false;
   private deconstructHovered: THREE.Object3D | null = null;
@@ -257,7 +283,10 @@ export class SceneManager {
   }
 
   private setupGround(): void {
-    const groundGeo = new THREE.PlaneGeometry(4000, 4000);
+    const groundGeo = new THREE.PlaneGeometry(
+      GROUND_PLANE_EXTENT,
+      GROUND_PLANE_EXTENT,
+    );
     const groundMat = new THREE.MeshStandardMaterial({
       color: 0x2c2620,
       roughness: 0.92,
@@ -551,6 +580,11 @@ export class SceneManager {
       this.glbCache.set(partPath, original);
     }
 
+    if (isPipeLineMenuId(menuBuildingId)) {
+      await this.ensureCached(PIPE_ELBOW_MODEL_PATH);
+      this.pipePlacementSubMode = "leg";
+    }
+
     this.prefabPlacementScale = usesConveyorGalleryFitScale(
       menuBuildingId,
       partPath,
@@ -644,19 +678,28 @@ export class SceneManager {
     this.edgeAlignToPlaced(pos);
 
     const isConveyorGhost = isConveyorBeltMenuId(this.prefabMenuBuildingId);
+    const isPipeLineGhost = isPipeLineMenuId(this.prefabMenuBuildingId);
+    const isLineLogisticsGhost = isConveyorGhost || isPipeLineGhost;
 
     // Face-snap to nearby placed parts (overrides grid on both axes when close)
-    if (!this.builderCtrlHeld && !isConveyorGhost) this.faceSnapToPlaced(pos);
+    if (!this.builderCtrlHeld && !isLineLogisticsGhost) this.faceSnapToPlaced(pos);
 
     // After XZ is final: sit on floor or on top of any placed volume under footprint + vertical probe
-    if (!isConveyorGhost) {
+    if (!isLineLogisticsGhost) {
+      this.resolveVerticalSupport(pos);
+    } else if (isPipeLineGhost && !this.builderLineStart) {
+      /** Труба без якоря: как у обычных префабов — иначе призрак «тонет» под сетку. */
       this.resolveVerticalSupport(pos);
     }
 
     this.conveyorTangentAtLineEnd = null;
     if (isConveyorGhost) {
       const snapRadius = this.getSegmentStep() * 1.5;
-      const nearestEp = this.findNearestConveyorEndpoint(pos, snapRadius);
+      const nearestEp = this.findNearestConveyorEndpoint(
+        pos,
+        snapRadius,
+        "conveyor",
+      );
       if (nearestEp) {
         pos.copy(nearestEp.position);
         if (this.builderLineStart) {
@@ -667,6 +710,45 @@ export class SceneManager {
         if (nearestPort) {
           pos.copy(nearestPort.worldPos);
         }
+      }
+    } else if (isPipeLineGhost) {
+      const pipeStagedJunction =
+        this.builderMode === "default" &&
+        this.pipePlacementSubMode === "junction";
+      /**
+       * Угол колена от направления мыши: нельзя сначала магнитить к концам линий —
+       * иначе pos почти всегда у эндпоинта, вектор (corner→pos) не следует курсору
+       * и elbowRotY залипает в одном значении.
+       */
+      const cursorDirForElbow = pos.clone();
+      if (!pipeStagedJunction) {
+        const snapRadius = this.getSegmentStep() * 1.5;
+        const nearestEp = this.findNearestConveyorEndpoint(
+          pos,
+          snapRadius,
+          "pipe",
+        );
+        if (nearestEp) {
+          pos.copy(nearestEp.position);
+        } else {
+          const nearestPort = this.findNearestPort(pos, snapRadius);
+          if (nearestPort) {
+            pos.copy(nearestPort.worldPos);
+          }
+        }
+      }
+      if (pipeStagedJunction) {
+        const { elbowRotY, outgoingStraightRotY } = computePipeJunctionRotations(
+          this.pipeIncomingStraightRotY,
+          this.pipeJunctionAnchorWorld,
+          cursorDirForElbow,
+        );
+        this.builderGhostRotY = elbowRotY;
+        this.pipeJunctionOutgoingStraightRotY = outgoingStraightRotY;
+        pos.copy(this.pipeJunctionAnchorWorld);
+      } else if (this.builderLineStart) {
+        pos.copy(snapPipeGhostXZ(this.builderLineStart, pos));
+        pos.y = this.builderLineStart.y;
       }
     }
 
@@ -689,17 +771,44 @@ export class SceneManager {
       }
     }
     this.conveyorDefaultTooTight = conveyorTooTight;
+
+    let pipeTooTight = false;
+    if (
+      isPipeLineGhost &&
+      this.builderMode === "default" &&
+      this.pipePlacementSubMode === "leg" &&
+      this.builderLineStart
+    ) {
+      const s = this.builderLineStart;
+      const ddx = this.builderGhostCurrentPos.x - s.x;
+      const ddz = this.builderGhostCurrentPos.z - s.z;
+      const st = this.getSegmentStep();
+      const runLen = Math.max(Math.abs(ddx), Math.abs(ddz));
+      if (runLen > 0.04) {
+        pipeTooTight = runLen < st * 0.32;
+      }
+    }
+    this.pipeDefaultTooTight = pipeTooTight;
+
     this.builderGhostInvalid = isConveyorGhost
       ? conveyorTooTight
-      : this.computeGhostInvalid(this.builderGhostPivot);
+      : isPipeLineGhost
+        ? pipeTooTight
+        : this.computeGhostInvalid(this.builderGhostPivot);
     this.refreshGhostMaterial();
 
     const isMultiSegmentMode = this.builderMode !== "single";
+    const pipeJunctionPreviewBlocksLine =
+      isPipeLineGhost &&
+      this.builderMode === "default" &&
+      this.pipePlacementSubMode === "junction";
     const linePreviewActive =
       isMultiSegmentMode &&
       this.builderLineStart &&
+      !pipeJunctionPreviewBlocksLine &&
       (this.prefabPlacementScale === null ||
-        isConveyorBeltMenuId(this.prefabMenuBuildingId));
+        isConveyorBeltMenuId(this.prefabMenuBuildingId) ||
+        isPipeLineMenuId(this.prefabMenuBuildingId));
     if (linePreviewActive) {
       this.rebuildLinePreview(
         this.builderLineStart!,
@@ -736,26 +845,75 @@ export class SceneManager {
       this.prefabPlacementScale !== null &&
       isConveyorBeltMenuId(this.prefabMenuBuildingId);
 
-    const hasLineAnchor = isConveyorLine && this.builderLineStart !== null;
+    const isPipeLinePlacement =
+      this.builderMode !== "single" &&
+      this.prefabPlacementScale !== null &&
+      isPipeLineMenuId(this.prefabMenuBuildingId);
+
+    const isMenuLinePlacement = isConveyorLine || isPipeLinePlacement;
+
+    const hasLineAnchor =
+      isMenuLinePlacement &&
+      (this.builderLineStart !== null ||
+        (isPipeLinePlacement &&
+          this.builderMode === "default" &&
+          this.pipePlacementSubMode === "junction"));
+
+    const lineTooTight = isConveyorLine
+      ? this.conveyorDefaultTooTight
+      : isPipeLinePlacement
+        ? this.pipeDefaultTooTight
+        : false;
 
     if (
       !this.builderGhostPivot ||
       !this.builderCurrentPartPath ||
-      (this.builderGhostInvalid &&
-        (!hasLineAnchor || this.conveyorDefaultTooTight))
+      (this.builderGhostInvalid && (!hasLineAnchor || lineTooTight))
     )
       return false;
 
-    if (isConveyorLine) {
+    if (isMenuLinePlacement) {
+      if (isPipeLinePlacement && this.builderMode === "default") {
+        if (this.pipePlacementSubMode === "junction") {
+          return this.placePipeJunctionClick();
+        }
+        if (!this.builderLineStart) {
+          this.builderLineStart = this.builderGhostCurrentPos.clone();
+          const snapR = this.getSegmentStep() * 1.5;
+          this.findNearestConveyorEndpoint(
+            this.builderLineStart,
+            snapR,
+            "pipe",
+          );
+          this.conveyorTangentAtLineStart = null;
+          this.rebuildLinePreview(
+            this.builderLineStart,
+            this.builderGhostCurrentPos,
+          );
+          return false;
+        }
+        return this.placePipeStraightLegClick();
+      }
+
       if (!this.builderLineStart) {
         this.builderLineStart = this.builderGhostCurrentPos.clone();
         const snapR = this.getSegmentStep() * 1.5;
-        const epAtStart = this.findNearestConveyorEndpoint(
-          this.builderLineStart,
-          snapR,
-        );
-        this.conveyorTangentAtLineStart =
-          epAtStart != null ? epAtStart.rotationY : null;
+        if (isConveyorLine) {
+          const epAtStart = this.findNearestConveyorEndpoint(
+            this.builderLineStart,
+            snapR,
+            "conveyor",
+          );
+          this.conveyorTangentAtLineStart =
+            epAtStart != null ? epAtStart.rotationY : null;
+        } else {
+          this.findNearestConveyorEndpoint(
+            this.builderLineStart,
+            snapR,
+            "pipe",
+          );
+          this.conveyorTangentAtLineStart = null;
+        }
         this.rebuildLinePreview(
           this.builderLineStart,
           this.builderGhostCurrentPos,
@@ -766,11 +924,14 @@ export class SceneManager {
       const end = this.builderGhostCurrentPos.clone();
       this.builderLinePreviewGroup.clear();
       const segments = this.computePathSegments(start, end);
-      const conveyorPath = this.builderCurrentPartPath;
       const compositeId = this.newCompositeId();
       const segmentScale = this.prefabPlacementScale ?? this.builderScale;
       let placedAny = false;
       for (const seg of segments) {
+        const partPath =
+          "partPath" in seg && typeof seg.partPath === "string"
+            ? seg.partPath
+            : this.builderCurrentPartPath;
         placedAny =
           this.placeSingleAt(
             seg.position,
@@ -778,7 +939,7 @@ export class SceneManager {
             segmentScale,
             compositeId,
             this.prefabMenuBuildingId ?? undefined,
-            conveyorPath,
+            partPath,
           ) || placedAny;
       }
       if (placedAny) {
@@ -787,40 +948,80 @@ export class SceneManager {
         const firstSeg = segments[0];
         const lastSeg = segments[segments.length - 1];
         if (firstSeg) {
-          const dir = firstSeg.rotationY - this.conveyorRotOffset;
-          this.conveyorEndpoints.push({
-            position: new THREE.Vector3(
-              firstSeg.position.x - Math.sin(dir) * step,
-              firstSeg.position.y,
-              firstSeg.position.z - Math.cos(dir) * step,
-            ),
-            rotationY: firstSeg.rotationY,
-            compositeId,
-          });
+          if (isConveyorLine) {
+            const dir = firstSeg.rotationY - this.conveyorRotOffset;
+            this.conveyorEndpoints.push({
+              position: new THREE.Vector3(
+                firstSeg.position.x - Math.sin(dir) * step,
+                firstSeg.position.y,
+                firstSeg.position.z - Math.cos(dir) * step,
+              ),
+              rotationY: firstSeg.rotationY,
+              compositeId,
+              lineKind: "conveyor",
+            });
+          } else {
+            const dir = firstSeg.rotationY - PIPE_RUN_ROT_Y_OFFSET;
+            this.conveyorEndpoints.push({
+              position: new THREE.Vector3(
+                firstSeg.position.x - Math.sin(dir) * step,
+                firstSeg.position.y,
+                firstSeg.position.z - Math.cos(dir) * step,
+              ),
+              rotationY: firstSeg.rotationY,
+              compositeId,
+              lineKind: "pipe",
+            });
+          }
         }
         if (lastSeg && segments.length > 1) {
-          const dir = lastSeg.rotationY - this.conveyorRotOffset;
-          this.conveyorEndpoints.push({
-            position: new THREE.Vector3(
-              lastSeg.position.x + Math.sin(dir) * step,
-              lastSeg.position.y,
-              lastSeg.position.z + Math.cos(dir) * step,
-            ),
-            rotationY: lastSeg.rotationY,
-            compositeId,
-          });
+          if (isConveyorLine) {
+            const dir = lastSeg.rotationY - this.conveyorRotOffset;
+            this.conveyorEndpoints.push({
+              position: new THREE.Vector3(
+                lastSeg.position.x + Math.sin(dir) * step,
+                lastSeg.position.y,
+                lastSeg.position.z + Math.cos(dir) * step,
+              ),
+              rotationY: lastSeg.rotationY,
+              compositeId,
+              lineKind: "conveyor",
+            });
+          } else {
+            const dir = lastSeg.rotationY - PIPE_RUN_ROT_Y_OFFSET;
+            this.conveyorEndpoints.push({
+              position: new THREE.Vector3(
+                lastSeg.position.x + Math.sin(dir) * step,
+                lastSeg.position.y,
+                lastSeg.position.z + Math.cos(dir) * step,
+              ),
+              rotationY: lastSeg.rotationY,
+              compositeId,
+              lineKind: "pipe",
+            });
+          }
         }
       }
       const lastSeg = segments[segments.length - 1];
       if (lastSeg) {
         const step = this.getSegmentStep();
-        const dir = lastSeg.rotationY - this.conveyorRotOffset;
-        this.builderLineStart = new THREE.Vector3(
-          lastSeg.position.x + Math.sin(dir) * step,
-          lastSeg.position.y,
-          lastSeg.position.z + Math.cos(dir) * step,
-        );
-        this.conveyorTangentAtLineStart = lastSeg.rotationY;
+        if (isConveyorLine) {
+          const dir = lastSeg.rotationY - this.conveyorRotOffset;
+          this.builderLineStart = new THREE.Vector3(
+            lastSeg.position.x + Math.sin(dir) * step,
+            lastSeg.position.y,
+            lastSeg.position.z + Math.cos(dir) * step,
+          );
+          this.conveyorTangentAtLineStart = lastSeg.rotationY;
+        } else {
+          const dir = lastSeg.rotationY - PIPE_RUN_ROT_Y_OFFSET;
+          this.builderLineStart = new THREE.Vector3(
+            lastSeg.position.x + Math.sin(dir) * step,
+            lastSeg.position.y,
+            lastSeg.position.z + Math.cos(dir) * step,
+          );
+          this.conveyorTangentAtLineStart = null;
+        }
       } else {
         this.builderLineStart = end.clone();
         this.conveyorTangentAtLineStart = null;
@@ -885,21 +1086,34 @@ export class SceneManager {
     this.normalizeGhostModel();
   }
 
-  /** True when a conveyor line anchor is active and placement can continue. */
+  /** Якорь линии (конвейер или труба) — ПКМ отменяет только якорь, не весь режим. */
   hasActiveConveyorLine(): boolean {
+    const conv = isConveyorBeltMenuId(this.prefabMenuBuildingId);
+    const pipe = isPipeLineMenuId(this.prefabMenuBuildingId);
+    if (!conv && !pipe) return false;
+    if (this.builderLineStart !== null) return true;
     return (
-      this.builderLineStart !== null &&
-      isConveyorBeltMenuId(this.prefabMenuBuildingId)
+      pipe &&
+      this.builderMode === "default" &&
+      this.pipePlacementSubMode === "junction"
     );
   }
 
-  /** Cancel conveyor line anchor but keep the ghost active for fresh placement. */
+  /** Снять якорь линии, призрак остаётся. */
   cancelConveyorLine(): void {
+    const wasPipeJunction =
+      isPipeLineMenuId(this.prefabMenuBuildingId) &&
+      this.pipePlacementSubMode === "junction";
     this.builderLineStart = null;
     this.conveyorTangentAtLineStart = null;
     this.conveyorTangentAtLineEnd = null;
     this.conveyorDefaultTooTight = false;
+    this.pipeDefaultTooTight = false;
+    this.pipePlacementSubMode = "leg";
     this.builderLinePreviewGroup.clear();
+    if (wasPipeJunction && this.builderGhostPivot) {
+      this.restorePipeMenuStraightGhostModel();
+    }
   }
 
   /** Remove ghost without placing */
@@ -916,6 +1130,8 @@ export class SceneManager {
     this.conveyorTangentAtLineStart = null;
     this.conveyorTangentAtLineEnd = null;
     this.conveyorDefaultTooTight = false;
+    this.pipeDefaultTooTight = false;
+    this.pipePlacementSubMode = "leg";
     this.builderLinePreviewGroup.clear();
     this.builderGhostInvalid = false;
   }
@@ -1308,6 +1524,18 @@ export class SceneManager {
       origSize.y * s,
       origSize.z * s,
     );
+
+    if (
+      (isPipeLineMenuId(this.prefabMenuBuildingId) ||
+        isPipeJunctionMenuId(this.prefabMenuBuildingId)) &&
+      isKenneySpaceStationPipeAssetPath(this.builderCurrentPartPath)
+    ) {
+      this.applyKenneyPipeLayFlatToRoot(
+        this.builderGhostModelRoot,
+        this.builderCurrentPartPath,
+      );
+      this.refreshPipeGhostFootprintAfterLayFlat();
+    }
   }
 
   /** Ghost footprint rotated by current ghost rotation (X and Z may swap). */
@@ -1383,6 +1611,8 @@ export class SceneManager {
       -origBox.min.y * scale,
       -origCenter.z * scale,
     );
+
+    this.applyKenneyPipeLayFlatToRoot(placed, path);
 
     const pivot = new THREE.Group();
     pivot.add(placed);
@@ -1485,6 +1715,7 @@ export class SceneManager {
   private findNearestConveyorEndpoint(
     worldPos: THREE.Vector3,
     maxRadius: number,
+    lineKind: "conveyor" | "pipe",
   ): {
     position: THREE.Vector3;
     rotationY: number;
@@ -1493,6 +1724,7 @@ export class SceneManager {
     let best: (typeof this.conveyorEndpoints)[number] | null = null;
     let bestDist = maxRadius;
     for (const ep of this.conveyorEndpoints) {
+      if (ep.lineKind !== lineKind) continue;
       const dx = ep.position.x - worldPos.x;
       const dz = ep.position.z - worldPos.z;
       const dist = Math.hypot(dx, dz);
@@ -1607,7 +1839,172 @@ export class SceneManager {
 
   // ---- Сегменты линии: конвейер → conveyorPathSegments; ось → builderAxisLinePlacement ----
 
+  /** Kenney pipe / pipe-bend в файле «стоя» по Y — поворачиваем вдоль пола и садим на опору. */
+  private applyKenneyPipeLayFlatToRoot(
+    placed: THREE.Object3D,
+    partPath: string,
+  ): void {
+    if (!isKenneySpaceStationPipeAssetPath(partPath)) return;
+    placed.rotation.x = PIPE_LAY_FLAT_ROT_X;
+    const b = new THREE.Box3().setFromObject(placed);
+    placed.position.y -= b.min.y;
+  }
+
+  private refreshPipeGhostFootprintAfterLayFlat(): void {
+    if (!this.builderGhostModelRoot) return;
+    const b = new THREE.Box3().setFromObject(this.builderGhostModelRoot);
+    const sz = b.getSize(new THREE.Vector3());
+    this.builderGhostFootprint.set(sz.x, sz.y, sz.z);
+  }
+
+  private getPipeMenuStraightModelPath(): string {
+    const id = this.prefabMenuBuildingId;
+    if (!id) return PIPE_STRAIGHT_MODEL_PATH;
+    return getBuildingPrefab(id)?.modelPath ?? PIPE_STRAIGHT_MODEL_PATH;
+  }
+
+  /** Смена GLB у призрака трубы из меню (прямая ↔ колено), elbow уже в кэше после выбора трубы. */
+  private replacePipeMenuGhostModelRootFromPath(partPath: string): void {
+    if (!this.builderGhostPivot || !this.prefabMenuBuildingId) return;
+    const original = this.glbCache.get(partPath);
+    if (!original) return;
+    while (this.builderGhostPivot.children.length > 0) {
+      this.builderGhostPivot.remove(this.builderGhostPivot.children[0]!);
+    }
+    const ghost = original.clone(true);
+    ghost.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.material = this.ghostMaterialOk;
+        child.castShadow = false;
+        child.receiveShadow = false;
+      }
+    });
+    ghost.scale.setScalar(this.effectiveGhostScale());
+    this.builderGhostPivot.add(ghost);
+    this.builderGhostModelRoot = ghost;
+    this.builderCurrentPartPath = partPath;
+    this.normalizeGhostModel();
+    this.refreshGhostMaterial();
+  }
+
+  private restorePipeMenuStraightGhostModel(): void {
+    this.replacePipeMenuGhostModelRootFromPath(this.getPipeMenuStraightModelPath());
+  }
+
+  /** Второй клик в default: только прямые до угла, затем режим выбора колена. */
+  private placePipeStraightLegClick(): boolean {
+    const start = this.builderLineStart!.clone();
+    const end = this.builderGhostCurrentPos.clone();
+    this.builderLinePreviewGroup.clear();
+    if (this.pipeDefaultTooTight) return false;
+    const step = this.getSegmentStep();
+    const segments = computePipeStraightSegmentsOnly(start, end, step, true);
+    const compositeId = this.newCompositeId();
+    const segmentScale = this.prefabPlacementScale ?? this.builderScale;
+    let placedAny = false;
+    for (const seg of segments) {
+      const partPath =
+        "partPath" in seg && typeof seg.partPath === "string"
+          ? seg.partPath
+          : this.builderCurrentPartPath;
+      placedAny =
+        this.placeSingleAt(
+          seg.position,
+          seg.rotationY,
+          segmentScale,
+          compositeId,
+          this.prefabMenuBuildingId ?? undefined,
+          partPath,
+        ) || placedAny;
+    }
+    if (!placedAny) return false;
+
+    this.persistBuilderState();
+    const firstSeg = segments[0];
+    const lastSeg = segments[segments.length - 1];
+    if (firstSeg) {
+      const dir = firstSeg.rotationY - PIPE_RUN_ROT_Y_OFFSET;
+      this.conveyorEndpoints.push({
+        position: new THREE.Vector3(
+          firstSeg.position.x - Math.sin(dir) * step,
+          firstSeg.position.y,
+          firstSeg.position.z - Math.cos(dir) * step,
+        ),
+        rotationY: firstSeg.rotationY,
+        compositeId,
+        lineKind: "pipe",
+      });
+    }
+    if (lastSeg && segments.length > 1) {
+      const dir = lastSeg.rotationY - PIPE_RUN_ROT_Y_OFFSET;
+      this.conveyorEndpoints.push({
+        position: new THREE.Vector3(
+          lastSeg.position.x + Math.sin(dir) * step,
+          lastSeg.position.y,
+          lastSeg.position.z + Math.cos(dir) * step,
+        ),
+        rotationY: lastSeg.rotationY,
+        compositeId,
+        lineKind: "pipe",
+      });
+    }
+
+    const incomingRot = lastSeg?.rotationY ?? PIPE_RUN_ROT_Y_OFFSET;
+    this.pipeIncomingStraightRotY = incomingRot;
+    this.pipeJunctionAnchorWorld.set(end.x, start.y, end.z);
+    this.builderLineStart = null;
+    this.pipePlacementSubMode = "junction";
+    this.replacePipeMenuGhostModelRootFromPath(PIPE_ELBOW_MODEL_PATH);
+    this.updateBuilderGhostPosition(
+      this.builderPointerNDC.x,
+      this.builderPointerNDC.y,
+    );
+    return true;
+  }
+
+  /** Третий клик: колено, якорь следующей прямой — от выхода колена. */
+  private placePipeJunctionClick(): boolean {
+    const compositeId = this.newCompositeId();
+    const segmentScale = this.prefabPlacementScale ?? this.builderScale;
+    const placed = this.placeSingleAt(
+      this.pipeJunctionAnchorWorld,
+      this.builderGhostRotY,
+      segmentScale,
+      compositeId,
+      this.prefabMenuBuildingId ?? undefined,
+      PIPE_ELBOW_MODEL_PATH,
+    );
+    if (!placed) return false;
+    this.persistBuilderState();
+    const step = this.getSegmentStep();
+    const trim = pipeCornerTrimForStep(step);
+    const outDir = this.pipeJunctionOutgoingStraightRotY - PIPE_RUN_ROT_Y_OFFSET;
+    const outUx = Math.sin(outDir);
+    const outUz = Math.cos(outDir);
+    this.builderLineStart = new THREE.Vector3(
+      this.pipeJunctionAnchorWorld.x + outUx * trim,
+      this.pipeJunctionAnchorWorld.y,
+      this.pipeJunctionAnchorWorld.z + outUz * trim,
+    );
+    this.pipePlacementSubMode = "leg";
+    this.conveyorTangentAtLineStart = null;
+    this.restorePipeMenuStraightGhostModel();
+    this.updateBuilderGhostPosition(
+      this.builderPointerNDC.x,
+      this.builderPointerNDC.y,
+    );
+    return true;
+  }
+
   private getSegmentStep(): number {
+    const pipeMenu =
+      isPipeLineMenuId(this.prefabMenuBuildingId) ||
+      isPipeJunctionMenuId(this.prefabMenuBuildingId);
+    if (pipeMenu && this.builderGhostModelRoot) {
+      const b = new THREE.Box3().setFromObject(this.builderGhostModelRoot);
+      const sz = b.getSize(new THREE.Vector3());
+      return Math.max(Math.max(sz.x, sz.z), 0.12);
+    }
     return getPlacementSegmentStep(
       this.builderGhostFootprint,
       this.prefabMenuBuildingId,
@@ -1617,7 +2014,10 @@ export class SceneManager {
   private computePathSegments(
     start: THREE.Vector3,
     end: THREE.Vector3,
-  ): Array<{ position: THREE.Vector3; rotationY: number }> {
+  ): Array<{ position: THREE.Vector3; rotationY: number; partPath?: string }> {
+    if (isPipeLineMenuId(this.prefabMenuBuildingId)) {
+      return computePipePathSegments(start, end, this.getSegmentStep());
+    }
     if (!isConveyorBeltMenuId(this.prefabMenuBuildingId)) {
       return computeAxisAlignedPathSegments(
         start,
@@ -1636,6 +2036,39 @@ export class SceneManager {
     });
   }
 
+  /** Превью сегмента линии из кэша GLB (прямая / колено трубы). */
+  private makeLinePreviewPivotForPath(
+    partPath: string,
+    worldPos: THREE.Vector3,
+    rotY: number,
+    scale: number,
+  ): THREE.Group | null {
+    const original = this.glbCache.get(partPath);
+    if (!original) return null;
+    const placed = original.clone(true);
+    placed.scale.setScalar(scale);
+    placed.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.material = this.ghostMaterialOk;
+        child.castShadow = false;
+        child.receiveShadow = false;
+      }
+    });
+    const origBox = new THREE.Box3().setFromObject(original);
+    const origCenter = origBox.getCenter(new THREE.Vector3());
+    placed.position.set(
+      -origCenter.x * scale,
+      -origBox.min.y * scale,
+      -origCenter.z * scale,
+    );
+    this.applyKenneyPipeLayFlatToRoot(placed, partPath);
+    const pivot = new THREE.Group();
+    pivot.add(placed);
+    pivot.position.copy(worldPos);
+    pivot.rotation.y = rotY;
+    return pivot;
+  }
+
   private rebuildLinePreview(start: THREE.Vector3, end: THREE.Vector3): void {
     this.builderLinePreviewGroup.clear();
     if (!this.builderGhostModelRoot || !this.builderCurrentPartPath) return;
@@ -1644,6 +2077,11 @@ export class SceneManager {
       this.builderMode !== "single" &&
       this.prefabPlacementScale !== null &&
       isConveyorBeltMenuId(this.prefabMenuBuildingId);
+
+    const isPipeMultiSegment =
+      this.builderMode !== "single" &&
+      this.prefabPlacementScale !== null &&
+      isPipeLineMenuId(this.prefabMenuBuildingId);
 
     if (isConveyorMultiSegment) {
       const segments = this.computePathSegments(start, end);
@@ -1654,6 +2092,25 @@ export class SceneManager {
         pivot.position.copy(seg.position);
         pivot.rotation.y = seg.rotationY;
         this.builderLinePreviewGroup.add(pivot);
+      }
+    } else if (isPipeMultiSegment) {
+      const segments =
+        this.builderMode === "default"
+          ? computePipeStraightSegmentsOnly(
+              start,
+              end,
+              this.getSegmentStep(),
+              true,
+            )
+          : this.computePathSegments(start, end);
+      const scale = this.prefabPlacementScale ?? this.builderScale;
+      for (const seg of segments) {
+        const p =
+          "partPath" in seg && typeof seg.partPath === "string"
+            ? seg.partPath
+            : this.builderCurrentPartPath;
+        const pivot = this.makeLinePreviewPivotForPath(p, seg.position, seg.rotationY, scale);
+        if (pivot) this.builderLinePreviewGroup.add(pivot);
       }
     } else {
       const positions = getAxisLinePlacementPositions(
@@ -1717,7 +2174,6 @@ export class SceneManager {
   private persistBuilderState(): void {
     const payload = {
       scale: this.builderScale,
-      mode: this.builderMode,
       parts: this.builderPlaced,
     };
     try {
@@ -1756,12 +2212,6 @@ export class SceneManager {
           0.2,
           SceneManager.BUILDER_SCALE_MAX,
         );
-      }
-      const validModes: BuilderMode[] = ["single", "default", "curve"];
-      let mode = parsed.mode as string | undefined;
-      if (mode === "straight") mode = "default";
-      if (mode && validModes.includes(mode as BuilderMode)) {
-        this.builderMode = mode as BuilderMode;
       }
       const parts = parsed.parts ?? [];
       const elevatorPath = getBuildingPrefab("space_elevator")?.modelPath;

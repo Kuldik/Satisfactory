@@ -7,9 +7,15 @@ import {
   CONVEYOR_KIT_GLB_DIR,
   CONVEYOR_TIER_GLBS,
 } from "./logistics/conveyorKitModels.ts";
+import {
+  PIPE_ELBOW_MODEL_PATH,
+  PIPE_STRAIGHT_MODEL_PATH,
+} from "./logistics/pipeKitModels.ts";
 
 const CITY = "/kits/City Kit Industrial/Models/GLB format";
 const COMMERCIAL = "/kits/kenney_city-kit-commercial_2.1/Models/GLB format";
+const SPACE_KIT = "/kits/kenney_space-station-kit/Models/GLB format";
+const KITS_MODELS = "/kits/models";
 /** Для реестра; реальный масштаб лент/стоек — подгонка по GLB до 6 m (conveyorFitScale + SceneManager). */
 const CONVEYOR_PLACEHOLDER_SCALE = 1;
 
@@ -82,6 +88,21 @@ const RAW: Record<string, BuildingPrefabDef> = {
     modelPath: "/kits/models/splitter.glb",
     scale: CONVEYOR_PLACEHOLDER_SCALE,
   },
+  merger: {
+    modelPath: "/kits/models/connector.glb",
+    scale: CONVEYOR_PLACEHOLDER_SCALE,
+  },
+  pipe_mk1: { modelPath: PIPE_STRAIGHT_MODEL_PATH, scale: 18 },
+  pipe_mk2: { modelPath: PIPE_STRAIGHT_MODEL_PATH, scale: 20 },
+  /** Пока тот же лёгкий угол Kenney вместо кастомного креста. */
+  pipe_junction: { modelPath: PIPE_ELBOW_MODEL_PATH, scale: 18 },
+  storage_small: { modelPath: `${CITY}/building-s.glb`, scale: 16 },
+  storage_large: { modelPath: `${CITY}/building-i.glb`, scale: 18 },
+  /** Высокий контейнер как цистерна (×10 к glb — в 2 раза крупнее прежних ×5). */
+  fluid_buffer: { modelPath: `${SPACE_KIT}/container-tall.glb`, scale: 10 },
+  fluid_buffer_large: { modelPath: `${CITY}/detail-tank.glb`, scale: 25 },
+  loading_module: { modelPath: `${KITS_MODELS}/module-in.glb`, scale: 8 },
+  unloading_module: { modelPath: `${KITS_MODELS}/module-out.glb`, scale: 8 },
 };
 
 export function getBuildingPrefab(

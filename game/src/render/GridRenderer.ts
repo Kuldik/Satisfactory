@@ -3,7 +3,11 @@
 // ============================================================
 
 import * as THREE from "three";
-import { GRID_CELL_SIZE, CHUNK_SIZE } from "../core/constants.ts";
+import {
+  CHUNK_SIZE,
+  GRID_CELL_SIZE,
+  GROUND_PLANE_EXTENT,
+} from "../core/constants.ts";
 
 export type GridVisualTheme = "dark" | "light";
 
@@ -39,8 +43,7 @@ export class GridRenderer {
       }
     }
 
-    const gridExtent = CHUNK_SIZE * GRID_CELL_SIZE * 3;
-    const halfExtent = gridExtent / 2;
+    const halfExtent = GROUND_PLANE_EXTENT / 2;
     const step = GRID_CELL_SIZE;
 
     const vertices: number[] = [];
