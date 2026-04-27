@@ -9,7 +9,7 @@ import {
 } from "./logistics/conveyorKitModels.ts";
 import {
   PIPE_ELBOW_MODEL_PATH,
-  PIPE_STRAIGHT_MODEL_PATH,
+  PIPE_PROCEDURAL_STRAIGHT_PATH,
 } from "./logistics/pipeKitModels.ts";
 
 const CITY = "/kits/City Kit Industrial/Models/GLB format";
@@ -92,8 +92,8 @@ const RAW: Record<string, BuildingPrefabDef> = {
     modelPath: "/kits/models/connector.glb",
     scale: CONVEYOR_PLACEHOLDER_SCALE,
   },
-  pipe_mk1: { modelPath: PIPE_STRAIGHT_MODEL_PATH, scale: 18 },
-  pipe_mk2: { modelPath: PIPE_STRAIGHT_MODEL_PATH, scale: 20 },
+  pipe_mk1: { modelPath: PIPE_PROCEDURAL_STRAIGHT_PATH, scale: 18 },
+  pipe_mk2: { modelPath: PIPE_PROCEDURAL_STRAIGHT_PATH, scale: 20 },
   /** Пока тот же лёгкий угол Kenney вместо кастомного креста. */
   pipe_junction: { modelPath: PIPE_ELBOW_MODEL_PATH, scale: 18 },
   storage_small: { modelPath: `${CITY}/building-s.glb`, scale: 16 },

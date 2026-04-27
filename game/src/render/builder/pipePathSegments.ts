@@ -4,15 +4,18 @@
 
 import * as THREE from "three";
 import {
-  PIPE_ELBOW_MODEL_PATH,
+  PIPE_PROCEDURAL_ELBOW_PATH,
+  PIPE_PROCEDURAL_STRAIGHT_PATH,
   PIPE_RUN_ROT_Y_OFFSET,
-  PIPE_STRAIGHT_MODEL_PATH,
 } from "../../buildings/logistics/pipeKitModels.ts";
 
 export type PipePathSegment = {
   position: THREE.Vector3;
   rotationY: number;
   partPath: string;
+  /** Только колено: rotationY входящей прямой (с PIPE_RUN_ROT_Y_OFFSET). */
+  elbowIncomingRotY?: number;
+  elbowTurn?: 1 | -1;
 };
 
 /** Привязка конца линии к ортогонали относительно якоря (манхэттен). */
@@ -30,10 +33,14 @@ export function snapPipeGhostXZ(
   return new THREE.Vector3(lineStart.x, y, raw.z);
 }
 
-/**
- * L по полу: Kenney `pipe.glb` + `pipe-bend.glb` (space-station-kit).
- * Угол: небольшой `cornerTrim`, чтобы прямые почти доходили до колена без дыры.
- */
+/** Отступ прямых от вершины угла (~половина шага сетки), чтобы торец упирался в колено без щели. */
+export function pipeCornerTrimForFullCorner(step: number, legLen: number): number {
+  const tol = 0.06;
+  const want = Math.max(step * 0.5 - 0.08, tol * 0.5);
+  if (legLen < tol) return 0;
+  return Math.min(want, legLen * 0.48);
+}
+
 export function computePipePathSegments(
   start: THREE.Vector3,
   end: THREE.Vector3,
@@ -44,14 +51,12 @@ export function computePipePathSegments(
   const dx = end.x - start.x;
   const dz = end.z - start.z;
   const tol = 0.06;
-  /** Меньше зазор у угла — прямые заходят ближе к колену, без «дыры». */
-  const cornerTrim = Math.max(step * 0.12, tol * 0.5);
 
   if (Math.hypot(dx, dz) < tol) {
     result.push({
       position: new THREE.Vector3(start.x, y, start.z),
       rotationY: Math.atan2(dx, dz) + PIPE_RUN_ROT_Y_OFFSET,
-      partPath: PIPE_STRAIGHT_MODEL_PATH,
+      partPath: PIPE_PROCEDURAL_STRAIGHT_PATH,
     });
     return result;
   }
@@ -101,14 +106,17 @@ export function computePipePathSegments(
       result.push({
         position: new THREE.Vector3(from.x + ux * t, y, from.z + uz * t),
         rotationY: rotY,
-        partPath: PIPE_STRAIGHT_MODEL_PATH,
+        partPath: PIPE_PROCEDURAL_STRAIGHT_PATH,
       });
     }
   }
 
+  const cornerTrim1 = needsElbow ? pipeCornerTrimForFullCorner(step, len1) : 0;
+  const cornerTrim2 = needsElbow ? pipeCornerTrimForFullCorner(step, len2) : 0;
+
   if (len1 >= tol) {
     const dir1 = leg1.clone();
-    const run1 = needsElbow ? Math.max(0, len1 - cornerTrim) : len1;
+    const run1 = needsElbow ? Math.max(0, len1 - cornerTrim1) : len1;
     pushStraightRun(start, dir1, run1);
   }
 
@@ -117,22 +125,25 @@ export function computePipePathSegments(
     const dir2u = leg2.clone().normalize();
     const cross = dir1u.x * dir2u.z - dir1u.z * dir2u.x;
     const leg1Rot = Math.atan2(dir1u.x, dir1u.z);
-    const turn = cross >= 0 ? 1 : -1;
+    const turn: 1 | -1 = cross >= 0 ? 1 : -1;
     const elbowRot = leg1Rot + turn * (Math.PI / 2) + PIPE_RUN_ROT_Y_OFFSET;
+    const incomingStraightRotY = leg1Rot + PIPE_RUN_ROT_Y_OFFSET;
     result.push({
       position: corner.clone(),
       rotationY: elbowRot,
-      partPath: PIPE_ELBOW_MODEL_PATH,
+      partPath: PIPE_PROCEDURAL_ELBOW_PATH,
+      elbowIncomingRotY: incomingStraightRotY,
+      elbowTurn: turn,
     });
   }
 
   if (len2 >= tol) {
     const dir2 = leg2.clone();
-    const run2 = needsElbow ? Math.max(0, len2 - cornerTrim) : len2;
+    const run2 = needsElbow ? Math.max(0, len2 - cornerTrim2) : len2;
     const from2 = needsElbow
       ? corner
           .clone()
-          .add(dir2.clone().normalize().multiplyScalar(cornerTrim))
+          .add(dir2.clone().normalize().multiplyScalar(cornerTrim2))
       : corner.clone();
     pushStraightRun(from2, dir2, run2);
   }
@@ -157,7 +168,10 @@ export function computePipeStraightSegmentsOnly(
   const leg = new THREE.Vector3(end.x - start.x, 0, end.z - start.z);
   const runLenFull = leg.length();
   const tol = 0.06;
-  const cornerTrim = Math.max(step * 0.12, tol * 0.5);
+  const smallTrim = Math.max(step * 0.12, tol * 0.5);
+  const trimForElbow = pipeCornerTrimForFullCorner(step, runLenFull);
+  const cornerTrim =
+    trimRunForUpcomingElbow && runLenFull > tol ? trimForElbow : smallTrim;
   const runLen =
     trimRunForUpcomingElbow && runLenFull > tol
       ? Math.max(0, runLenFull - cornerTrim)
@@ -166,7 +180,7 @@ export function computePipeStraightSegmentsOnly(
     result.push({
       position: new THREE.Vector3(start.x, y, start.z),
       rotationY: Math.atan2(leg.x, leg.z) + PIPE_RUN_ROT_Y_OFFSET,
-      partPath: PIPE_STRAIGHT_MODEL_PATH,
+      partPath: PIPE_PROCEDURAL_STRAIGHT_PATH,
     });
     return result;
   }
@@ -192,36 +206,36 @@ export function computePipeStraightSegmentsOnly(
     result.push({
       position: new THREE.Vector3(start.x + ux * t, y, start.z + uz * t),
       rotationY: rotY,
-      partPath: PIPE_STRAIGHT_MODEL_PATH,
+      partPath: PIPE_PROCEDURAL_STRAIGHT_PATH,
     });
   }
   return result;
 }
 
-/** Тот же cornerTrim, что у полного L — для старта следующей прямой после колена. */
+/** Минимальный зазор вдоль исходящего плеча после колена (как `from2` в полном L). */
 export function pipeCornerTrimForStep(step: number): number {
   const tol = 0.06;
   return Math.max(step * 0.12, tol * 0.5);
 }
 
-/** Поворот колена и следующей прямой относительно курсора (90°). */
+/** Поворот колена и следующей прямой относительно курсора (90°). `turn`: +1 / −1 от cross(incoming, mouse). */
 export function computePipeJunctionRotations(
   incomingStraightRotY: number,
   corner: THREE.Vector3,
   cursor: THREE.Vector3,
-): { elbowRotY: number; outgoingStraightRotY: number } {
+): { elbowRotY: number; outgoingStraightRotY: number; turn: 1 | -1 } {
   const off = PIPE_RUN_ROT_Y_OFFSET;
   const inX = Math.sin(incomingStraightRotY - off);
   const inZ = Math.cos(incomingStraightRotY - off);
   const mx = cursor.x - corner.x;
   const mz = cursor.z - corner.z;
   const cross = inX * mz - inZ * mx;
-  const turn =
+  const turn: 1 | -1 =
     Math.hypot(mx, mz) < 1e-5 ? 1 : cross >= 0 ? 1 : -1;
   const leg1Rot = Math.atan2(inX, inZ);
   const elbowRotY = leg1Rot + turn * (Math.PI / 2) + off;
   const outX = -turn * inZ;
   const outZ = turn * inX;
   const outgoingStraightRotY = Math.atan2(outX, outZ) + off;
-  return { elbowRotY, outgoingStraightRotY };
+  return { elbowRotY, outgoingStraightRotY, turn };
 }

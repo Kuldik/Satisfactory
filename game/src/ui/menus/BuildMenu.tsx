@@ -6,6 +6,10 @@ import { useState, type FC } from 'react';
 import { BuildingCategory } from '../../core/types.ts';
 import { hasPattern } from '../../buildings/BuildingPatterns.ts';
 import { hasPrefabBuilding } from '../../buildings/BuildingPrefabs.ts';
+import {
+  PIPE_ELBOW_MODEL_PATH,
+  PIPE_PROCEDURAL_STRAIGHT_PATH,
+} from '../../buildings/logistics/pipeKitModels.ts';
 import './BuildMenu.css';
 
 interface BuildMenuItem {
@@ -193,15 +197,15 @@ const ALL_BUILDINGS: BuildMenuItem[] = [
     modelPath: '/kits/models/connector.glb',
     description: 'Объединяет потоки 2-3 конвейерных лент в одну. До 3 входов, 1 выход. Предметы чередуются из каждого входа.' },
 
-  // — Трубопроводы (орто 90°: прямые + колено; линия как у конвейера) —
+  // — Трубопроводы (орто 90°: процедурная труба + дуга; линия как у конвейера) —
   { id: 'pipe_mk1', name: 'Pipeline Mk.1', nameRu: 'Трубопровод Ур.1', category: BuildingCategory.Logistics, subcategory: 'Трубопроводы',
-    modelPath: '/kits/kenney_space-station-kit/Models/GLB format/pipe.glb',
+    modelPath: PIPE_PROCEDURAL_STRAIGHT_PATH,
     description: 'Базовый трубопровод для транспортировки жидкостей и газов. Пропускная способность: 300 м³/мин. Не требует электричества.' },
   { id: 'pipe_mk2', name: 'Pipeline Mk.2', nameRu: 'Трубопровод Ур.2', category: BuildingCategory.Logistics, subcategory: 'Трубопроводы',
-    modelPath: '/kits/kenney_space-station-kit/Models/GLB format/pipe.glb',
+    modelPath: PIPE_PROCEDURAL_STRAIGHT_PATH,
     description: 'Улучшенный трубопровод с двойной пропускной способностью. 600 м³/мин. Не требует электричества.' },
   { id: 'pipe_junction', name: 'Pipeline Junction Cross', nameRu: 'Пересечение труб', category: BuildingCategory.Logistics, subcategory: 'Трубопроводы',
-    modelPath: '/kits/kenney_space-station-kit/Models/GLB format/pipe-bend.glb',
+    modelPath: PIPE_ELBOW_MODEL_PATH,
     description: 'Крестообразное соединение, позволяющее объединить или разветвить несколько трубопроводов в одной точке.' },
   /* Позже: насосы и клапан
   { id: 'pump_mk1', ...

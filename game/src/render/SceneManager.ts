@@ -11,6 +11,12 @@ import {
   ORE_COLORS,
   ORE_DEMO_MODEL_PATH,
 } from "../core/constants.ts";
+import {
+  createProceduralElbowPipeObject,
+  createProceduralStraightPipeObject,
+  offsetProceduralPipeRootToSitOnFloor,
+  proceduralPipeTubeRadiusWorld,
+} from "../buildings/logistics/proceduralPipeGeometry.ts";
 import type { BuilderMode } from "../core/types.ts";
 import { CONVEYOR_PLACEMENT_MODES } from "../core/types.ts";
 import type { ConveyorPlacementMode } from "../core/types.ts";
@@ -35,12 +41,16 @@ import {
 } from "../buildings/logistics/conveyorKitModels.ts";
 import {
   isKenneySpaceStationPipeAssetPath,
+  isKenneySpaceStationPipeBendPath,
+  isKenneySpaceStationPipeStraightPath,
   isPipeLineMenuId,
   isPipeJunctionMenuId,
-  PIPE_ELBOW_MODEL_PATH,
+  isProceduralPipePartPath,
+  PIPE_BEND_LAY_FLAT_EXTRA_ROT_Z,
   PIPE_LAY_FLAT_ROT_X,
+  PIPE_PROCEDURAL_ELBOW_PATH,
+  PIPE_PROCEDURAL_STRAIGHT_PATH,
   PIPE_RUN_ROT_Y_OFFSET,
-  PIPE_STRAIGHT_MODEL_PATH,
 } from "../buildings/logistics/pipeKitModels.ts";
 import {
   DECONSTRUCT_HOLD_DEFAULT_MS,
@@ -68,6 +78,15 @@ import {
   snapPipeGhostXZ,
 } from "./builder/pipePathSegments.ts";
 import { applyPrefabMaterialPalette } from "./buildingMaterialPalettes.ts";
+
+/** Сегменты линии для превью/пакетной постановки (конвейер, труба, ось). */
+type BuilderPathPlanSegment = {
+  position: THREE.Vector3;
+  rotationY: number;
+  partPath?: string;
+  elbowIncomingRotY?: number;
+  elbowTurn?: 1 | -1;
+};
 
 /**
  * SceneManager — жизненный цикл сцены, камера, сетка, демо-ресурсы.
@@ -130,9 +149,12 @@ export class SceneManager {
    * Труба в режиме default: leg — одна прямая до клика; junction — колено на углу, крутится за мышью.
    */
   private pipePlacementSubMode: "leg" | "junction" = "leg";
-  private readonly pipeJunctionAnchorWorld = new THREE.Vector3();
+  /** Угол L на полу (второй клик) — та же точка, что `corner` для колена в `computePipePathSegments`. */
+  private readonly pipeJunctionManhattanCornerWorld = new THREE.Vector3();
   private pipeIncomingStraightRotY = 0;
   private pipeJunctionOutgoingStraightRotY = 0;
+  /** Знак последнего колена (для постановки процедурного elbow). */
+  private pipeJunctionLastTurn: 1 | -1 = 1;
   private builderCtrlHeld = false;
   private builderDeconstructMode = false;
   private deconstructHovered: THREE.Object3D | null = null;
@@ -160,6 +182,10 @@ export class SceneManager {
     compositeId?: string;
     /** Постановка из меню строительства — при загрузке сейва scale берётся из реестра префабов */
     menuBuildingId?: string;
+    /** Процедурная труба: длина сегмента и данные колена. */
+    segmentStep?: number;
+    elbowIncomingRotY?: number;
+    elbowTurn?: 1 | -1;
   }> = [];
   private readonly builderPlacedGroup = new THREE.Group();
   private readonly builderLinePreviewGroup = new THREE.Group();
@@ -572,6 +598,34 @@ export class SceneManager {
     this.prefabMenuBuildingId = menuBuildingId;
     this.builderGhostRotY = 0;
     this.builderCurrentPartPath = partPath;
+    this.conveyorRotOffset = isConveyorBeltMenuId(menuBuildingId)
+      ? -Math.PI / 2
+      : 0;
+
+    if (isPipeLineMenuId(menuBuildingId) && isProceduralPipePartPath(partPath)) {
+      this.pipePlacementSubMode = "leg";
+      this.pipeJunctionLastTurn = 1;
+      this.prefabPlacementScale = scale;
+      const pivot = new THREE.Group();
+      pivot.name = "prefab-menu-ghost";
+      const step = GRID_CELL_SIZE;
+      const r = proceduralPipeTubeRadiusWorld(
+        menuBuildingId,
+        this.effectiveGhostScale(),
+      );
+      const ghost = createProceduralStraightPipeObject(step, r);
+      pivot.add(ghost);
+      this.scene.add(pivot);
+      this.builderGhostPivot = pivot;
+      this.builderGhostModelRoot = ghost;
+      this.normalizeGhostModel();
+      this.applyProceduralPipeGhostMaterials();
+      this.updateBuilderGhostPosition(
+        this.builderPointerNDC.x,
+        this.builderPointerNDC.y,
+      );
+      return;
+    }
 
     let original = this.glbCache.get(partPath);
     if (!original) {
@@ -580,21 +634,12 @@ export class SceneManager {
       this.glbCache.set(partPath, original);
     }
 
-    if (isPipeLineMenuId(menuBuildingId)) {
-      await this.ensureCached(PIPE_ELBOW_MODEL_PATH);
-      this.pipePlacementSubMode = "leg";
-    }
-
     this.prefabPlacementScale = usesConveyorGalleryFitScale(
       menuBuildingId,
       partPath,
     )
       ? scaleToFitMaxExtent(original)
       : scale;
-
-    this.conveyorRotOffset = isConveyorBeltMenuId(menuBuildingId)
-      ? -Math.PI / 2
-      : 0;
 
     const ghost = original.clone(true);
     ghost.traverse((child) => {
@@ -675,7 +720,10 @@ export class SceneManager {
     if (!pos) return;
 
     // Ctrl-held edge alignment: snap to the same line as a nearby building edge
-    this.edgeAlignToPlaced(pos);
+    /** Трубы — только сетка + свои снапы; иначе рельсы/края уводят призрак и превью «в сторону». */
+    if (!isPipeLineMenuId(this.prefabMenuBuildingId)) {
+      this.edgeAlignToPlaced(pos);
+    }
 
     const isConveyorGhost = isConveyorBeltMenuId(this.prefabMenuBuildingId);
     const isPipeLineGhost = isPipeLineMenuId(this.prefabMenuBuildingId);
@@ -716,45 +764,93 @@ export class SceneManager {
         this.builderMode === "default" &&
         this.pipePlacementSubMode === "junction";
       /**
-       * Угол колена от направления мыши: нельзя сначала магнитить к концам линий —
-       * иначе pos почти всегда у эндпоинта, вектор (corner→pos) не следует курсору
-       * и elbowRotY залипает в одном значении.
+       * Угол колена от направления мыши: без привязки к сетке — иначе вектор от угла
+       * к pos часто остаётся по одну сторону линии трассы, cross не меняет знак.
+       * Для первого плеча pos по-прежнему с сеткой.
        */
-      const cursorDirForElbow = pos.clone();
+      const cursorRaw = this.getFloorPositionUnderMouseRaw(
+        ndcX,
+        ndcY,
+        this._visibleFloor,
+      );
+      const cursorDirForElbow =
+        pipeStagedJunction && cursorRaw
+          ? cursorRaw
+          : pos.clone();
       if (!pipeStagedJunction) {
-        const snapRadius = this.getSegmentStep() * 1.5;
-        const nearestEp = this.findNearestConveyorEndpoint(
-          pos,
-          snapRadius,
-          "pipe",
-        );
-        if (nearestEp) {
-          pos.copy(nearestEp.position);
+        const step = this.getSegmentStep();
+        if (this.builderLineStart) {
+          /** Сначала L от якоря, затем «магнит» к концам труб / портам — иначе Manhattan затирает endpoint. */
+          pos.copy(snapPipeGhostXZ(this.builderLineStart, pos));
+          pos.y = this.builderLineStart.y;
+          const s = this.builderLineStart;
+          const ddx = pos.x - s.x;
+          const ddz = pos.z - s.z;
+          if (Math.hypot(ddx, ddz) > 1e-4) {
+            this.builderGhostRotY =
+              Math.atan2(ddx, ddz) + PIPE_RUN_ROT_Y_OFFSET;
+          }
+          const snapRadius = step * 4;
+          const nearestEp = this.findNearestConveyorEndpoint(
+            pos,
+            snapRadius,
+            "pipe",
+          );
+          if (nearestEp) {
+            pos.copy(nearestEp.position);
+            this.builderGhostRotY = nearestEp.rotationY;
+          } else {
+            const nearestPort = this.findNearestPort(pos, snapRadius);
+            if (nearestPort) {
+              pos.copy(nearestPort.worldPos);
+              this.builderGhostRotY = nearestPort.worldDir;
+            }
+          }
         } else {
-          const nearestPort = this.findNearestPort(pos, snapRadius);
-          if (nearestPort) {
-            pos.copy(nearestPort.worldPos);
+          const snapRadius = step * 2.5;
+          const nearestEp = this.findNearestConveyorEndpoint(
+            pos,
+            snapRadius,
+            "pipe",
+          );
+          if (nearestEp) {
+            pos.copy(nearestEp.position);
+            this.builderGhostRotY = nearestEp.rotationY;
+          } else {
+            const nearestPort = this.findNearestPort(pos, snapRadius);
+            if (nearestPort) {
+              pos.copy(nearestPort.worldPos);
+              this.builderGhostRotY = nearestPort.worldDir;
+            }
           }
         }
       }
       if (pipeStagedJunction) {
-        const { elbowRotY, outgoingStraightRotY } = computePipeJunctionRotations(
-          this.pipeIncomingStraightRotY,
-          this.pipeJunctionAnchorWorld,
-          cursorDirForElbow,
-        );
+        const { elbowRotY, outgoingStraightRotY, turn } =
+          computePipeJunctionRotations(
+            this.pipeIncomingStraightRotY,
+            this.pipeJunctionManhattanCornerWorld,
+            cursorDirForElbow,
+          );
+        this.pipeJunctionLastTurn = turn;
         this.builderGhostRotY = elbowRotY;
         this.pipeJunctionOutgoingStraightRotY = outgoingStraightRotY;
-        pos.copy(this.pipeJunctionAnchorWorld);
-      } else if (this.builderLineStart) {
-        pos.copy(snapPipeGhostXZ(this.builderLineStart, pos));
-        pos.y = this.builderLineStart.y;
+        pos.copy(this.pipeJunctionManhattanCornerWorld);
       }
     }
 
     this.builderGhostCurrentPos.copy(pos);
     this.builderGhostPivot.position.copy(pos);
     this.builderGhostPivot.rotation.y = this.builderGhostRotY;
+    if (
+      this.builderGhostModelRoot &&
+      isKenneySpaceStationPipeAssetPath(this.builderCurrentPartPath)
+    ) {
+      this.builderGhostModelRoot.rotation.y = 0;
+      if (isKenneySpaceStationPipeStraightPath(this.builderCurrentPartPath)) {
+        this.builderGhostModelRoot.rotation.z = 0;
+      }
+    }
 
     let conveyorTooTight = false;
     if (
@@ -879,12 +975,17 @@ export class SceneManager {
         }
         if (!this.builderLineStart) {
           this.builderLineStart = this.builderGhostCurrentPos.clone();
-          const snapR = this.getSegmentStep() * 1.5;
-          this.findNearestConveyorEndpoint(
+          const snapR = this.getSegmentStep() * 3;
+          const ep0 = this.findNearestConveyorEndpoint(
             this.builderLineStart,
             snapR,
             "pipe",
           );
+          if (ep0) this.builderLineStart.copy(ep0.position);
+          else {
+            const port0 = this.findNearestPort(this.builderLineStart, snapR);
+            if (port0) this.builderLineStart.copy(port0.worldPos);
+          }
           this.conveyorTangentAtLineStart = null;
           this.rebuildLinePreview(
             this.builderLineStart,
@@ -897,7 +998,7 @@ export class SceneManager {
 
       if (!this.builderLineStart) {
         this.builderLineStart = this.builderGhostCurrentPos.clone();
-        const snapR = this.getSegmentStep() * 1.5;
+        const snapR = this.getSegmentStep() * (isPipeLinePlacement ? 3 : 1.5);
         if (isConveyorLine) {
           const epAtStart = this.findNearestConveyorEndpoint(
             this.builderLineStart,
@@ -907,11 +1008,16 @@ export class SceneManager {
           this.conveyorTangentAtLineStart =
             epAtStart != null ? epAtStart.rotationY : null;
         } else {
-          this.findNearestConveyorEndpoint(
+          const ep0 = this.findNearestConveyorEndpoint(
             this.builderLineStart,
             snapR,
             "pipe",
           );
+          if (ep0) this.builderLineStart.copy(ep0.position);
+          else {
+            const port0 = this.findNearestPort(this.builderLineStart, snapR);
+            if (port0) this.builderLineStart.copy(port0.worldPos);
+          }
           this.conveyorTangentAtLineStart = null;
         }
         this.rebuildLinePreview(
@@ -926,12 +1032,28 @@ export class SceneManager {
       const segments = this.computePathSegments(start, end);
       const compositeId = this.newCompositeId();
       const segmentScale = this.prefabPlacementScale ?? this.builderScale;
+      const stepSeg = this.getSegmentStep();
       let placedAny = false;
       for (const seg of segments) {
         const partPath =
           "partPath" in seg && typeof seg.partPath === "string"
             ? seg.partPath
             : this.builderCurrentPartPath;
+        const pipeSeg =
+          isPipeLineMenuId(this.prefabMenuBuildingId) &&
+          isProceduralPipePartPath(partPath)
+            ? {
+                segmentStep: stepSeg,
+                ...(partPath === PIPE_PROCEDURAL_ELBOW_PATH &&
+                seg.elbowIncomingRotY !== undefined &&
+                seg.elbowTurn !== undefined
+                  ? {
+                      elbowIncomingRotY: seg.elbowIncomingRotY,
+                      elbowTurn: seg.elbowTurn,
+                    }
+                  : {}),
+              }
+            : undefined;
         placedAny =
           this.placeSingleAt(
             seg.position,
@@ -940,6 +1062,7 @@ export class SceneManager {
             compositeId,
             this.prefabMenuBuildingId ?? undefined,
             partPath,
+            pipeSeg,
           ) || placedAny;
       }
       if (placedAny) {
@@ -974,7 +1097,7 @@ export class SceneManager {
             });
           }
         }
-        if (lastSeg && segments.length > 1) {
+        if (lastSeg) {
           if (isConveyorLine) {
             const dir = lastSeg.rotationY - this.conveyorRotOffset;
             this.conveyorEndpoints.push({
@@ -1110,6 +1233,8 @@ export class SceneManager {
     this.conveyorDefaultTooTight = false;
     this.pipeDefaultTooTight = false;
     this.pipePlacementSubMode = "leg";
+    this.pipeJunctionLastTurn = 1;
+    this.pipeJunctionManhattanCornerWorld.set(0, 0, 0);
     this.builderLinePreviewGroup.clear();
     if (wasPipeJunction && this.builderGhostPivot) {
       this.restorePipeMenuStraightGhostModel();
@@ -1132,6 +1257,8 @@ export class SceneManager {
     this.conveyorDefaultTooTight = false;
     this.pipeDefaultTooTight = false;
     this.pipePlacementSubMode = "leg";
+    this.pipeJunctionLastTurn = 1;
+    this.pipeJunctionManhattanCornerWorld.set(0, 0, 0);
     this.builderLinePreviewGroup.clear();
     this.builderGhostInvalid = false;
   }
@@ -1338,6 +1465,7 @@ export class SceneManager {
     if (!rec) return false;
     if (isLogisticsMenuBuildingId(rec.menuBuildingId)) return true;
     if (isLogisticsConveyorKitPath(rec.partPath)) return true;
+    if (isProceduralPipePartPath(rec.partPath)) return true;
     return false;
   }
 
@@ -1484,13 +1612,46 @@ export class SceneManager {
   }
 
   private async ensureCached(partPath: string): Promise<void> {
+    if (isProceduralPipePartPath(partPath)) return;
     if (this.glbCache.has(partPath)) return;
     const gltf = await this.loadGLB(this.buildingKitLoader, partPath);
     this.glbCache.set(partPath, gltf.scene);
   }
 
   private applyGhostScale(): void {
-    if (!this.builderGhostModelRoot) return;
+    if (!this.builderGhostModelRoot || !this.builderGhostPivot) return;
+    if (
+      isPipeLineMenuId(this.prefabMenuBuildingId) &&
+      isProceduralPipePartPath(this.builderCurrentPartPath)
+    ) {
+      const menuId = this.prefabMenuBuildingId!;
+      const step =
+        this.builderCurrentPartPath === PIPE_PROCEDURAL_STRAIGHT_PATH
+          ? GRID_CELL_SIZE
+          : this.getSegmentStep();
+      const r = proceduralPipeTubeRadiusWorld(
+        menuId,
+        this.effectiveGhostScale(),
+      );
+      while (this.builderGhostPivot.children.length > 0) {
+        const c = this.builderGhostPivot.children[0]!;
+        this.builderGhostPivot.remove(c);
+      }
+      const ghost =
+        this.builderCurrentPartPath === PIPE_PROCEDURAL_STRAIGHT_PATH
+          ? createProceduralStraightPipeObject(step, r)
+          : createProceduralElbowPipeObject(
+              this.pipeIncomingStraightRotY,
+              this.pipeJunctionLastTurn,
+              step,
+              r,
+            );
+      this.builderGhostPivot.add(ghost);
+      this.builderGhostModelRoot = ghost;
+      this.normalizeGhostModel();
+      this.applyProceduralPipeGhostMaterials();
+      return;
+    }
     this.builderGhostModelRoot.scale.setScalar(this.effectiveGhostScale());
     this.normalizeGhostModel();
   }
@@ -1504,6 +1665,20 @@ export class SceneManager {
       !this.builderCurrentPartPath
     )
       return;
+
+    if (isProceduralPipePartPath(this.builderCurrentPartPath)) {
+      const g = this.builderGhostModelRoot;
+      offsetProceduralPipeRootToSitOnFloor(g, this.builderCurrentPartPath);
+      const box = new THREE.Box3().setFromObject(g);
+      const sz = box.getSize(new THREE.Vector3());
+      /** Логический отпечаток на сетке — не диаметр трубы, иначе ломается face/edge snap. */
+      this.builderGhostFootprint.set(
+        GRID_CELL_SIZE,
+        Math.max(sz.y, 0.2),
+        GRID_CELL_SIZE,
+      );
+      return;
+    }
 
     const original = this.glbCache.get(this.builderCurrentPartPath);
     if (!original) return;
@@ -1549,8 +1724,29 @@ export class SceneManager {
     );
   }
 
+  private applyProceduralPipeGhostMaterials(): void {
+    if (!this.builderGhostModelRoot) return;
+    if (!isProceduralPipePartPath(this.builderCurrentPartPath)) return;
+    const src = this.builderGhostInvalid
+      ? this.ghostMaterialInvalid
+      : this.ghostMaterialOk;
+    this.builderGhostModelRoot.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        const m = src.clone();
+        m.side = THREE.DoubleSide;
+        child.material = m;
+        child.castShadow = false;
+        child.receiveShadow = false;
+      }
+    });
+  }
+
   private refreshGhostMaterial(): void {
     if (!this.builderGhostModelRoot) return;
+    if (isProceduralPipePartPath(this.builderCurrentPartPath)) {
+      this.applyProceduralPipeGhostMaterials();
+      return;
+    }
     const material = this.builderGhostInvalid
       ? this.ghostMaterialInvalid
       : this.ghostMaterialOk;
@@ -1576,16 +1772,89 @@ export class SceneManager {
     menuBuildingId?: string,
     /** Иначе берётся builderCurrentPartPath (линия конвейера + стойка). */
     sourcePath?: string,
+    pipeSeg?: {
+      segmentStep: number;
+      elbowIncomingRotY?: number;
+      elbowTurn?: 1 | -1;
+    },
   ): boolean {
     const path = sourcePath ?? this.builderCurrentPartPath;
     if (!path) return false;
-    const original = this.glbCache.get(path);
-    if (!original) return false;
 
     const rotY =
       typeof forcedRotY === "number" ? forcedRotY : this.builderGhostRotY;
     const baseScale =
       typeof forcedScale === "number" ? forcedScale : this.builderScale;
+
+    if (isProceduralPipePartPath(path)) {
+      const scale = baseScale;
+      const stepLen = pipeSeg?.segmentStep ?? GRID_CELL_SIZE;
+      const tubeR = proceduralPipeTubeRadiusWorld(menuBuildingId, scale);
+      let placed: THREE.Group;
+      if (path === PIPE_PROCEDURAL_STRAIGHT_PATH) {
+        placed = createProceduralStraightPipeObject(stepLen, tubeR);
+      } else {
+        if (
+          pipeSeg?.elbowIncomingRotY === undefined ||
+          pipeSeg?.elbowTurn === undefined
+        ) {
+          return false;
+        }
+        placed = createProceduralElbowPipeObject(
+          pipeSeg.elbowIncomingRotY,
+          pipeSeg.elbowTurn,
+          stepLen,
+          tubeR,
+        );
+      }
+      placed.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      if (menuBuildingId) {
+        applyPrefabMaterialPalette(menuBuildingId, placed);
+      }
+      const pivot = new THREE.Group();
+      pivot.add(placed);
+      offsetProceduralPipeRootToSitOnFloor(placed, path);
+      pivot.position.copy(worldPos);
+      pivot.rotation.y = path === PIPE_PROCEDURAL_ELBOW_PATH ? 0 : rotY;
+
+      const record: (typeof this.builderPlaced)[number] = {
+        partPath: path,
+        x: pivot.position.x,
+        y: pivot.position.y,
+        z: pivot.position.z,
+        rotY: pivot.rotation.y,
+        scale,
+        segmentStep: stepLen,
+      };
+      if (path === PIPE_PROCEDURAL_ELBOW_PATH && pipeSeg) {
+        record.elbowIncomingRotY = pipeSeg.elbowIncomingRotY;
+        record.elbowTurn = pipeSeg.elbowTurn;
+      }
+      if (compositeId) {
+        record.compositeId = compositeId;
+        pivot.userData.compositeId = compositeId;
+      }
+      if (menuBuildingId) {
+        record.menuBuildingId = menuBuildingId;
+        pivot.userData.menuBuildingId = menuBuildingId;
+      }
+      pivot.userData.builderRecord = record;
+      this.builderPlacedGroup.add(pivot);
+      this.builderPlaced.push(record);
+      if (menuBuildingId) {
+        this.attachBuildingPorts(pivot, menuBuildingId, scale, rotY);
+      }
+      return true;
+    }
+
+    const original = this.glbCache.get(path);
+    if (!original) return false;
+
     const scale = usesConveyorGalleryFitScale(menuBuildingId, path)
       ? scaleToFitMaxExtent(original)
       : baseScale;
@@ -1846,6 +2115,12 @@ export class SceneManager {
   ): void {
     if (!isKenneySpaceStationPipeAssetPath(partPath)) return;
     placed.rotation.x = PIPE_LAY_FLAT_ROT_X;
+    placed.rotation.y = 0;
+    if (isKenneySpaceStationPipeBendPath(partPath)) {
+      placed.rotation.z = PIPE_BEND_LAY_FLAT_EXTRA_ROT_Z;
+    } else {
+      placed.rotation.z = 0;
+    }
     const b = new THREE.Box3().setFromObject(placed);
     placed.position.y -= b.min.y;
   }
@@ -1859,18 +2134,55 @@ export class SceneManager {
 
   private getPipeMenuStraightModelPath(): string {
     const id = this.prefabMenuBuildingId;
-    if (!id) return PIPE_STRAIGHT_MODEL_PATH;
-    return getBuildingPrefab(id)?.modelPath ?? PIPE_STRAIGHT_MODEL_PATH;
+    if (!id) return PIPE_PROCEDURAL_STRAIGHT_PATH;
+    return getBuildingPrefab(id)?.modelPath ?? PIPE_PROCEDURAL_STRAIGHT_PATH;
   }
 
-  /** Смена GLB у призрака трубы из меню (прямая ↔ колено), elbow уже в кэше после выбора трубы. */
+  /** Смена модели призрака трубы из меню (прямая ↔ колено). */
   private replacePipeMenuGhostModelRootFromPath(partPath: string): void {
     if (!this.builderGhostPivot || !this.prefabMenuBuildingId) return;
-    const original = this.glbCache.get(partPath);
-    if (!original) return;
     while (this.builderGhostPivot.children.length > 0) {
       this.builderGhostPivot.remove(this.builderGhostPivot.children[0]!);
     }
+    if (partPath === PIPE_PROCEDURAL_ELBOW_PATH) {
+      const step = this.getSegmentStep();
+      const r = proceduralPipeTubeRadiusWorld(
+        this.prefabMenuBuildingId,
+        this.effectiveGhostScale(),
+      );
+      const ghost = createProceduralElbowPipeObject(
+        this.pipeIncomingStraightRotY,
+        this.pipeJunctionLastTurn,
+        step,
+        r,
+      );
+      this.builderGhostPivot.add(ghost);
+      this.builderGhostModelRoot = ghost;
+      this.builderCurrentPartPath = partPath;
+      this.normalizeGhostModel();
+      this.applyProceduralPipeGhostMaterials();
+      return;
+    }
+    if (
+      isProceduralPipePartPath(partPath) &&
+      partPath === PIPE_PROCEDURAL_STRAIGHT_PATH &&
+      this.prefabMenuBuildingId
+    ) {
+      const step = GRID_CELL_SIZE;
+      const r = proceduralPipeTubeRadiusWorld(
+        this.prefabMenuBuildingId,
+        this.effectiveGhostScale(),
+      );
+      const ghost = createProceduralStraightPipeObject(step, r);
+      this.builderGhostPivot.add(ghost);
+      this.builderGhostModelRoot = ghost;
+      this.builderCurrentPartPath = partPath;
+      this.normalizeGhostModel();
+      this.applyProceduralPipeGhostMaterials();
+      return;
+    }
+    const original = this.glbCache.get(partPath);
+    if (!original) return;
     const ghost = original.clone(true);
     ghost.traverse((child) => {
       if (child instanceof THREE.Mesh) {
@@ -1915,6 +2227,9 @@ export class SceneManager {
           compositeId,
           this.prefabMenuBuildingId ?? undefined,
           partPath,
+          isProceduralPipePartPath(partPath)
+            ? { segmentStep: step }
+            : undefined,
         ) || placedAny;
     }
     if (!placedAny) return false;
@@ -1935,7 +2250,7 @@ export class SceneManager {
         lineKind: "pipe",
       });
     }
-    if (lastSeg && segments.length > 1) {
+    if (lastSeg) {
       const dir = lastSeg.rotationY - PIPE_RUN_ROT_Y_OFFSET;
       this.conveyorEndpoints.push({
         position: new THREE.Vector3(
@@ -1951,10 +2266,10 @@ export class SceneManager {
 
     const incomingRot = lastSeg?.rotationY ?? PIPE_RUN_ROT_Y_OFFSET;
     this.pipeIncomingStraightRotY = incomingRot;
-    this.pipeJunctionAnchorWorld.set(end.x, start.y, end.z);
+    this.pipeJunctionManhattanCornerWorld.set(end.x, start.y, end.z);
     this.builderLineStart = null;
     this.pipePlacementSubMode = "junction";
-    this.replacePipeMenuGhostModelRootFromPath(PIPE_ELBOW_MODEL_PATH);
+    this.replacePipeMenuGhostModelRootFromPath(PIPE_PROCEDURAL_ELBOW_PATH);
     this.updateBuilderGhostPosition(
       this.builderPointerNDC.x,
       this.builderPointerNDC.y,
@@ -1966,25 +2281,32 @@ export class SceneManager {
   private placePipeJunctionClick(): boolean {
     const compositeId = this.newCompositeId();
     const segmentScale = this.prefabPlacementScale ?? this.builderScale;
+    const step = this.getSegmentStep();
+    const worldPos = this.pipeJunctionManhattanCornerWorld.clone();
     const placed = this.placeSingleAt(
-      this.pipeJunctionAnchorWorld,
+      worldPos,
       this.builderGhostRotY,
       segmentScale,
       compositeId,
       this.prefabMenuBuildingId ?? undefined,
-      PIPE_ELBOW_MODEL_PATH,
+      PIPE_PROCEDURAL_ELBOW_PATH,
+      {
+        segmentStep: step,
+        elbowIncomingRotY: this.pipeIncomingStraightRotY,
+        elbowTurn: this.pipeJunctionLastTurn,
+      },
     );
     if (!placed) return false;
     this.persistBuilderState();
-    const step = this.getSegmentStep();
     const trim = pipeCornerTrimForStep(step);
     const outDir = this.pipeJunctionOutgoingStraightRotY - PIPE_RUN_ROT_Y_OFFSET;
     const outUx = Math.sin(outDir);
     const outUz = Math.cos(outDir);
+    // Как `from2` в `computePipePathSegments`: первый центр второго плеча от угла L.
     this.builderLineStart = new THREE.Vector3(
-      this.pipeJunctionAnchorWorld.x + outUx * trim,
-      this.pipeJunctionAnchorWorld.y,
-      this.pipeJunctionAnchorWorld.z + outUz * trim,
+      this.pipeJunctionManhattanCornerWorld.x + outUx * trim,
+      this.pipeJunctionManhattanCornerWorld.y,
+      this.pipeJunctionManhattanCornerWorld.z + outUz * trim,
     );
     this.pipePlacementSubMode = "leg";
     this.conveyorTangentAtLineStart = null;
@@ -2001,6 +2323,11 @@ export class SceneManager {
       isPipeLineMenuId(this.prefabMenuBuildingId) ||
       isPipeJunctionMenuId(this.prefabMenuBuildingId);
     if (pipeMenu && this.builderGhostModelRoot) {
+      // Procedural tubes can be visually thickened for debugging; bbox max(x,z)
+      // would then follow tube diameter and break grid step — keep logical segment length.
+      if (isProceduralPipePartPath(this.builderCurrentPartPath)) {
+        return GRID_CELL_SIZE;
+      }
       const b = new THREE.Box3().setFromObject(this.builderGhostModelRoot);
       const sz = b.getSize(new THREE.Vector3());
       return Math.max(Math.max(sz.x, sz.z), 0.12);
@@ -2014,7 +2341,7 @@ export class SceneManager {
   private computePathSegments(
     start: THREE.Vector3,
     end: THREE.Vector3,
-  ): Array<{ position: THREE.Vector3; rotationY: number; partPath?: string }> {
+  ): BuilderPathPlanSegment[] {
     if (isPipeLineMenuId(this.prefabMenuBuildingId)) {
       return computePipePathSegments(start, end, this.getSegmentStep());
     }
@@ -2036,13 +2363,54 @@ export class SceneManager {
     });
   }
 
-  /** Превью сегмента линии из кэша GLB (прямая / колено трубы). */
+  /** Превью сегмента линии (GLB или процедурная труба). */
   private makeLinePreviewPivotForPath(
     partPath: string,
     worldPos: THREE.Vector3,
     rotY: number,
     scale: number,
+    seg?: BuilderPathPlanSegment,
   ): THREE.Group | null {
+    if (isProceduralPipePartPath(partPath)) {
+      const step = this.getSegmentStep();
+      const r = proceduralPipeTubeRadiusWorld(
+        this.prefabMenuBuildingId ?? undefined,
+        scale,
+      );
+      let placed: THREE.Group;
+      if (partPath === PIPE_PROCEDURAL_STRAIGHT_PATH) {
+        placed = createProceduralStraightPipeObject(step, r);
+      } else {
+        if (
+          seg?.elbowIncomingRotY === undefined ||
+          seg?.elbowTurn === undefined
+        ) {
+          return null;
+        }
+        placed = createProceduralElbowPipeObject(
+          seg.elbowIncomingRotY,
+          seg.elbowTurn,
+          step,
+          r,
+        );
+      }
+      placed.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          const m = this.ghostMaterialOk.clone();
+          m.side = THREE.DoubleSide;
+          child.material = m;
+          child.castShadow = false;
+          child.receiveShadow = false;
+        }
+      });
+      offsetProceduralPipeRootToSitOnFloor(placed, partPath);
+      const pivot = new THREE.Group();
+      pivot.add(placed);
+      pivot.position.copy(worldPos);
+      pivot.rotation.y =
+        partPath === PIPE_PROCEDURAL_ELBOW_PATH ? 0 : rotY;
+      return pivot;
+    }
     const original = this.glbCache.get(partPath);
     if (!original) return null;
     const placed = original.clone(true);
@@ -2094,7 +2462,7 @@ export class SceneManager {
         this.builderLinePreviewGroup.add(pivot);
       }
     } else if (isPipeMultiSegment) {
-      const segments =
+      let segments =
         this.builderMode === "default"
           ? computePipeStraightSegmentsOnly(
               start,
@@ -2103,13 +2471,30 @@ export class SceneManager {
               true,
             )
           : this.computePathSegments(start, end);
+      /** Иначе последний сегмент превью совпадает с основным призраком — двойное кольцо / сдвиг. */
+      if (this.builderMode === "default") {
+        const last = segments[segments.length - 1];
+        if (
+          last &&
+          Math.hypot(last.position.x - end.x, last.position.z - end.z) <
+            this.getSegmentStep() * 0.06
+        ) {
+          segments = segments.slice(0, -1);
+        }
+      }
       const scale = this.prefabPlacementScale ?? this.builderScale;
       for (const seg of segments) {
         const p =
           "partPath" in seg && typeof seg.partPath === "string"
             ? seg.partPath
             : this.builderCurrentPartPath;
-        const pivot = this.makeLinePreviewPivotForPath(p, seg.position, seg.rotationY, scale);
+        const pivot = this.makeLinePreviewPivotForPath(
+          p,
+          seg.position,
+          seg.rotationY,
+          scale,
+          seg,
+        );
         if (pivot) this.builderLinePreviewGroup.add(pivot);
       }
     } else {
@@ -2204,6 +2589,9 @@ export class SceneManager {
           scale?: number;
           compositeId?: string;
           menuBuildingId?: string;
+          segmentStep?: number;
+          elbowIncomingRotY?: number;
+          elbowTurn?: 1 | -1;
         }>;
       };
       if (typeof parsed.scale === "number") {
@@ -2235,12 +2623,24 @@ export class SceneManager {
           const def = getBuildingPrefab(menuId);
           if (def) scaleForPart = def.scale;
         }
+        const pipeSeg = isProceduralPipePartPath(part.partPath)
+          ? {
+              segmentStep:
+                typeof part.segmentStep === "number"
+                  ? part.segmentStep
+                  : GRID_CELL_SIZE,
+              elbowIncomingRotY: part.elbowIncomingRotY,
+              elbowTurn: part.elbowTurn,
+            }
+          : undefined;
         this.placeSingleAt(
           new THREE.Vector3(part.x, part.y, part.z),
           part.rotY,
           scaleForPart,
           typeof part.compositeId === "string" ? part.compositeId : undefined,
           menuId,
+          part.partPath,
+          pipeSeg,
         );
       }
       this.builderCurrentPartPath = "";
@@ -2506,24 +2906,28 @@ export class SceneManager {
     mouseY: number,
     floor: number,
   ): THREE.Vector3 | null {
+    const p = this.getFloorPositionUnderMouseRaw(mouseX, mouseY, floor);
+    if (!p) return null;
+    p.x = Math.round(p.x / GRID_CELL_SIZE) * GRID_CELL_SIZE;
+    p.z = Math.round(p.z / GRID_CELL_SIZE) * GRID_CELL_SIZE;
+    return p;
+  }
+
+  /** Пересечение луча с полом без привязки к сетке (для выбора стороны колена по мыши). */
+  getFloorPositionUnderMouseRaw(
+    mouseX: number,
+    mouseY: number,
+    floor: number,
+  ): THREE.Vector3 | null {
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2(mouseX, mouseY);
     raycaster.setFromCamera(mouse, this.camera);
-
-    // Intersect with floor plane at given Y level
     const planeY = floor * GRID_CELL_SIZE;
     const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -planeY);
     const intersection = new THREE.Vector3();
     const hit = raycaster.ray.intersectPlane(plane, intersection);
     if (!hit) return null;
-
-    // Snap to grid intersections (crosses), not inside cells.
-    intersection.x =
-      Math.round(intersection.x / GRID_CELL_SIZE) * GRID_CELL_SIZE;
-    intersection.z =
-      Math.round(intersection.z / GRID_CELL_SIZE) * GRID_CELL_SIZE;
     intersection.y = planeY;
-
     return intersection;
   }
 

@@ -9,6 +9,7 @@ type TintSpec = {
   color: number;
   metalness?: number;
   roughness?: number;
+  side?: THREE.Side;
 };
 
 /** Сначала проверяется имя меша (регистронезависимо), иначе — цвет из цикла. */
@@ -19,13 +20,16 @@ function cloneAndTintMaterial(
   spec: TintSpec,
 ): THREE.Material {
   const next = mat.clone();
-  if (
-    next instanceof THREE.MeshStandardMaterial ||
-    next instanceof THREE.MeshPhysicalMaterial
-  ) {
+  if (next instanceof THREE.MeshStandardMaterial) {
     next.color.set(spec.color);
     if (spec.metalness !== undefined) next.metalness = spec.metalness;
     if (spec.roughness !== undefined) next.roughness = spec.roughness;
+    if (spec.side !== undefined) next.side = spec.side;
+  } else if (next instanceof THREE.MeshPhysicalMaterial) {
+    next.color.set(spec.color);
+    if (spec.metalness !== undefined) next.metalness = spec.metalness;
+    if (spec.roughness !== undefined) next.roughness = spec.roughness;
+    if (spec.side !== undefined) next.side = spec.side;
   } else if (
     next instanceof THREE.MeshLambertMaterial ||
     next instanceof THREE.MeshPhongMaterial
@@ -153,20 +157,23 @@ const SPLITTER_CYCLE: TintSpec[] = [
   { color: 0xbdc3c7, metalness: 0.28, roughness: 0.4 },
 ];
 
-/** Ур.1 — медь / латунь (читаемо на тёмной сцене, не «чёрный» корпус). */
-const PIPE_MK1_RULES: MeshTintRule[] = [];
-const PIPE_MK1_CYCLE: TintSpec[] = [
-  { color: 0xd4915c, metalness: 0.48, roughness: 0.4 },
-  { color: 0xb87333, metalness: 0.45, roughness: 0.42 },
-  { color: 0xe8b896, metalness: 0.38, roughness: 0.38 },
-  { color: 0xa65d28, metalness: 0.5, roughness: 0.45 },
-];
+const PIPE_BODY_SPEC: TintSpec = {
+  color: 0xe0ac53,
+  metalness: 0.42,
+  roughness: 0.44,
+  side: THREE.DoubleSide,
+};
 
-/** Ур.2 — #BB8F63 */
-const PIPE_MK2_RULES: MeshTintRule[] = [];
-const PIPE_MK2_CYCLE: TintSpec[] = [
-  { color: 0xbb8f63, metalness: 0.28, roughness: 0.55 },
+/** Ур.1 / Ур.2 — процедурная труба `pipe_body`, цвет как в ТЗ. */
+const PIPE_MK1_RULES: MeshTintRule[] = [
+  { nameMatch: /^pipe_body$/i, ...PIPE_BODY_SPEC },
 ];
+const PIPE_MK1_CYCLE: TintSpec[] = [PIPE_BODY_SPEC];
+
+const PIPE_MK2_RULES: MeshTintRule[] = [
+  { nameMatch: /^pipe_body$/i, ...PIPE_BODY_SPEC },
+];
+const PIPE_MK2_CYCLE: TintSpec[] = [PIPE_BODY_SPEC];
 
 const PALETTES: Record<
   string,
