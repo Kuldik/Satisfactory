@@ -237,8 +237,16 @@ export class Engine {
     await this.sceneManager.setBuilderGhost(partPath);
   }
 
-  updateBuilderGhost(ndcX: number, ndcY: number): void {
-    this.sceneManager.updateBuilderGhostPosition(ndcX, ndcY);
+  updateBuilderGhost(
+    ndcX: number,
+    ndcY: number,
+    altDeconstructHeld = false,
+  ): void {
+    this.sceneManager.updateBuilderGhostPosition(
+      ndcX,
+      ndcY,
+      altDeconstructHeld,
+    );
   }
 
   placeBuilderPart(): boolean {
@@ -317,6 +325,18 @@ export class Engine {
     return this.sceneManager.removeDeconstructHoveredStandalone();
   }
 
+  getDeconstructMultiSelectionCount(): number {
+    return this.sceneManager.getDeconstructMultiSelectionCount();
+  }
+
+  isDeconstructHoveredInMultiSelection(): boolean {
+    return this.sceneManager.isDeconstructHoveredInMultiSelection();
+  }
+
+  removeDeconstructMultiSelection(): boolean {
+    return this.sceneManager.removeDeconstructMultiSelection();
+  }
+
   getDeconstructCompositeHoldScreenPosition(): {
     left: number;
     top: number;
@@ -330,7 +350,10 @@ export class Engine {
 
   /** After toggling deconstruct without moving the mouse, refresh hover highlight. */
   refreshDeconstructHoverFromPointer(): void {
-    this.sceneManager.refreshDeconstructHoverFromPointer();
+    const altHeld =
+      this.inputManager.isKeyDown("AltLeft") ||
+      this.inputManager.isKeyDown("AltRight");
+    this.sceneManager.refreshDeconstructHoverFromPointer(altHeld);
   }
 
   getBuilderPlacedCount(): number {

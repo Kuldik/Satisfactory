@@ -71,12 +71,15 @@ import {
   getPlacementSegmentStep,
 } from "./builder/conveyorPathSegments.ts";
 import {
+  assignPipeStraightChordMeters,
   computePipeJunctionRotations,
   computePipePathSegments,
   computePipeStraightSegmentsOnly,
+  mapConveyorSegmentsToPipeStraights,
   pipeCornerTrimForStep,
   snapPipeGhostXZ,
 } from "./builder/pipePathSegments.ts";
+import type { PipePathSegment } from "./builder/pipePathSegments.ts";
 import { applyPrefabMaterialPalette } from "./buildingMaterialPalettes.ts";
 
 /** Сегменты линии для превью/пакетной постановки (конвейер, труба, ось). */
@@ -84,6 +87,22 @@ type BuilderPathPlanSegment = {
   position: THREE.Vector3;
   rotationY: number;
   partPath?: string;
+  elbowIncomingRotY?: number;
+  elbowTurn?: 1 | -1;
+  straightChordMeters?: number;
+};
+
+type BuilderPlacedPartRecord = {
+  partPath: string;
+  x: number;
+  y: number;
+  z: number;
+  rotY: number;
+  scale: number;
+  compositeId?: string;
+  menuBuildingId?: string;
+  segmentStep?: number;
+  straightChordMeters?: number;
   elbowIncomingRotY?: number;
   elbowTurn?: 1 | -1;
 };
@@ -163,6 +182,10 @@ export class SceneManager {
     THREE.Mesh,
     THREE.Material | THREE.Material[]
   >();
+  /** Alt + hover: несколько pivot-ов для сноса удержанием ЛКМ. */
+  private readonly deconstructMultiRoots = new Set<THREE.Object3D>();
+  /** Обычный hover: все сегменты одной линии ленты или вся сборка с одним compositeId. */
+  private deconstructRunHighlightRoots: THREE.Object3D[] = [];
   private readonly deconstructMaterial = new THREE.MeshStandardMaterial({
     color: 0xff4444,
     emissive: new THREE.Color(0x550000),
@@ -171,22 +194,7 @@ export class SceneManager {
     opacity: 0.6,
     depthWrite: false,
   });
-  private builderPlaced: Array<{
-    partPath: string;
-    x: number;
-    y: number;
-    z: number;
-    rotY: number;
-    scale: number;
-    /** Один id на сборку (паттерн из меню, импорт, экспорт с группой) — снос удержанием ЛКМ целиком */
-    compositeId?: string;
-    /** Постановка из меню строительства — при загрузке сейва scale берётся из реестра префабов */
-    menuBuildingId?: string;
-    /** Процедурная труба: длина сегмента и данные колена. */
-    segmentStep?: number;
-    elbowIncomingRotY?: number;
-    elbowTurn?: 1 | -1;
-  }> = [];
+  private builderPlaced: BuilderPlacedPartRecord[] = [];
   private readonly builderPlacedGroup = new THREE.Group();
   private readonly builderLinePreviewGroup = new THREE.Group();
   private readonly glbCache = new Map<string, THREE.Group>();
@@ -703,11 +711,15 @@ export class SceneManager {
   }
 
   /** Move ghost to ground intersection under NDC mouse coords */
-  updateBuilderGhostPosition(ndcX: number, ndcY: number): void {
+  updateBuilderGhostPosition(
+    ndcX: number,
+    ndcY: number,
+    altDeconstructHeld = false,
+  ): void {
     this.builderPointerNDC.set(ndcX, ndcY);
     this.builderHasPointer = true;
     if (this.builderDeconstructMode && this.prefabPlacementScale === null) {
-      this.updateDeconstructHover(ndcX, ndcY);
+      this.updateDeconstructHover(ndcX, ndcY, altDeconstructHeld);
       return;
     }
 
@@ -886,10 +898,38 @@ export class SceneManager {
     }
     this.pipeDefaultTooTight = pipeTooTight;
 
+    let pipeBodyOverlap = false;
+    if (
+      isPipeLineGhost &&
+      this.pipePlacementSubMode === "leg" &&
+      isProceduralPipePartPath(this.builderCurrentPartPath) &&
+      this.builderCurrentPartPath === PIPE_PROCEDURAL_STRAIGHT_PATH &&
+      this.builderLineStart
+    ) {
+      const st = this.getSegmentStep();
+      const previewSegs = this.getPipeLinePreviewSegmentsWithChords(
+        this.builderLineStart,
+        pos,
+      );
+      for (const s of previewSegs) {
+        if (s.partPath !== PIPE_PROCEDURAL_STRAIGHT_PATH) continue;
+        const chord = s.straightChordMeters ?? st;
+        if (
+          this.proceduralStraightPipeWouldCollideBody(
+            s.position,
+            s.rotationY,
+            chord,
+          )
+        ) {
+          pipeBodyOverlap = true;
+          break;
+        }
+      }
+    }
     this.builderGhostInvalid = isConveyorGhost
       ? conveyorTooTight
       : isPipeLineGhost
-        ? pipeTooTight
+        ? pipeTooTight || pipeBodyOverlap
         : this.computeGhostInvalid(this.builderGhostPivot);
     this.refreshGhostMaterial();
 
@@ -913,6 +953,7 @@ export class SceneManager {
     } else {
       this.builderLinePreviewGroup.clear();
     }
+
   }
 
   /** Place the ghost part permanently and record it */
@@ -964,7 +1005,8 @@ export class SceneManager {
     if (
       !this.builderGhostPivot ||
       !this.builderCurrentPartPath ||
-      (this.builderGhostInvalid && (!hasLineAnchor || lineTooTight))
+      (this.builderGhostInvalid &&
+        (!hasLineAnchor || lineTooTight || isPipeLinePlacement))
     )
       return false;
 
@@ -1033,6 +1075,32 @@ export class SceneManager {
       const compositeId = this.newCompositeId();
       const segmentScale = this.prefabPlacementScale ?? this.builderScale;
       const stepSeg = this.getSegmentStep();
+      if (
+        isPipeLineMenuId(this.prefabMenuBuildingId) &&
+        this.builderMode !== "default"
+      ) {
+        assignPipeStraightChordMeters(segments as PipePathSegment[], end, stepSeg);
+        for (const seg of segments) {
+          const pp =
+            "partPath" in seg && typeof seg.partPath === "string"
+              ? seg.partPath
+              : this.builderCurrentPartPath;
+          if (pp !== PIPE_PROCEDURAL_STRAIGHT_PATH) continue;
+          const chord =
+            typeof seg.straightChordMeters === "number"
+              ? seg.straightChordMeters
+              : stepSeg;
+          if (
+            this.proceduralStraightPipeWouldCollideBody(
+              seg.position,
+              seg.rotationY,
+              chord,
+            )
+          ) {
+            return false;
+          }
+        }
+      }
       let placedAny = false;
       for (const seg of segments) {
         const partPath =
@@ -1044,6 +1112,10 @@ export class SceneManager {
           isProceduralPipePartPath(partPath)
             ? {
                 segmentStep: stepSeg,
+                ...(partPath === PIPE_PROCEDURAL_STRAIGHT_PATH &&
+                typeof seg.straightChordMeters === "number"
+                  ? { straightChordMeters: seg.straightChordMeters }
+                  : {}),
                 ...(partPath === PIPE_PROCEDURAL_ELBOW_PATH &&
                 seg.elbowIncomingRotY !== undefined &&
                 seg.elbowTurn !== undefined
@@ -1395,6 +1467,25 @@ export class SceneManager {
     this.builderMode = mode;
     this.builderLineStart = null;
     this.builderLinePreviewGroup.clear();
+    this.conveyorTangentAtLineStart = null;
+    this.conveyorTangentAtLineEnd = null;
+    this.conveyorDefaultTooTight = false;
+    this.pipeDefaultTooTight = false;
+    this.pipePlacementSubMode = "leg";
+    this.pipeJunctionManhattanCornerWorld.set(0, 0, 0);
+    if (
+      isPipeLineMenuId(this.prefabMenuBuildingId) &&
+      this.builderGhostPivot &&
+      this.builderCurrentPartPath === PIPE_PROCEDURAL_ELBOW_PATH
+    ) {
+      this.restorePipeMenuStraightGhostModel();
+    }
+    if (this.builderGhostPivot && this.builderHasPointer) {
+      this.updateBuilderGhostPosition(
+        this.builderPointerNDC.x,
+        this.builderPointerNDC.y,
+      );
+    }
   }
 
   cycleBuilderMode(): BuilderMode {
@@ -1432,11 +1523,12 @@ export class SceneManager {
   }
 
   /** Re-run hover pick after toggling deconstruct (pointer may not have moved). */
-  refreshDeconstructHoverFromPointer(): void {
+  refreshDeconstructHoverFromPointer(altHeld = false): void {
     if (!this.builderDeconstructMode || !this.builderHasPointer) return;
     this.updateDeconstructHover(
       this.builderPointerNDC.x,
       this.builderPointerNDC.y,
+      altHeld,
     );
   }
 
@@ -1460,7 +1552,7 @@ export class SceneManager {
     const h = this.deconstructHovered;
     if (!h || h.userData?.compositeId) return false;
     const rec = h.userData?.builderRecord as
-      | (typeof this.builderPlaced)[number]
+      | BuilderPlacedPartRecord
       | undefined;
     if (!rec) return false;
     if (isLogisticsMenuBuildingId(rec.menuBuildingId)) return true;
@@ -1471,6 +1563,15 @@ export class SceneManager {
 
   /** Длительность удержания для текущего hover (логистика 0.2 с, остальное 2 с). */
   getDeconstructHoldMsForCurrentHover(): number {
+    if (this.deconstructMultiRoots.size > 0) {
+      for (const root of this.deconstructMultiRoots) {
+        const cid = root.userData?.compositeId;
+        if (typeof cid === "string" && !this.isCompositeLogisticsOnly(cid)) {
+          return DECONSTRUCT_HOLD_DEFAULT_MS;
+        }
+      }
+      return DECONSTRUCT_HOLD_LOGISTICS_MS;
+    }
     const cid = this.getDeconstructHoverCompositeId();
     if (cid) {
       return this.isCompositeLogisticsOnly(cid)
@@ -1491,20 +1592,66 @@ export class SceneManager {
     return parts.every((p) => {
       if (isLogisticsMenuBuildingId(p.menuBuildingId)) return true;
       if (isLogisticsConveyorKitPath(p.partPath)) return true;
+      if (isProceduralPipePartPath(p.partPath)) return true;
       return false;
     });
   }
 
   removeDeconstructHoveredStandalone(): boolean {
-    if (
-      !this.deconstructHovered ||
-      this.deconstructHovered.userData?.compositeId
-    )
-      return false;
-    this.builderPlacedGroup.remove(this.deconstructHovered);
-    this.builderPlaced = this.builderPlaced.filter(
-      (p) => p !== this.deconstructHovered?.userData.builderRecord,
-    );
+    if (!this.deconstructHovered) return false;
+    if (this.deconstructHovered.userData?.compositeId) return false;
+    const targets =
+      this.deconstructRunHighlightRoots.length > 0
+        ? [...this.deconstructRunHighlightRoots]
+        : [this.deconstructHovered];
+    let removed = false;
+    for (const h of targets) {
+      if (h.userData?.compositeId) continue;
+      const rec = h.userData?.builderRecord as BuilderPlacedPartRecord | undefined;
+      if (!rec) continue;
+      this.builderPlacedGroup.remove(h);
+      this.removePortsForBuilding(h as THREE.Group);
+      this.builderPlaced = this.builderPlaced.filter((p) => p !== rec);
+      removed = true;
+    }
+    if (!removed) return false;
+    this.clearDeconstructHover();
+    this.persistBuilderState();
+    return true;
+  }
+
+  getDeconstructMultiSelectionCount(): number {
+    return this.deconstructMultiRoots.size;
+  }
+
+  isDeconstructHoveredInMultiSelection(): boolean {
+    const h = this.deconstructHovered;
+    return !!h && this.deconstructMultiRoots.has(h);
+  }
+
+  /** Снос всех объектов, подсвеченных через Alt+hover (сборки по compositeId дедуплицируются). */
+  removeDeconstructMultiSelection(): boolean {
+    if (this.deconstructMultiRoots.size === 0) return false;
+    const compositeIds = new Set<string>();
+    const singleRoots: THREE.Object3D[] = [];
+    for (const root of this.deconstructMultiRoots) {
+      const cid = root.userData?.compositeId;
+      if (typeof cid === "string") compositeIds.add(cid);
+      else singleRoots.push(root);
+    }
+    for (const cid of compositeIds) {
+      this.removeCompositeBuilding(cid);
+    }
+    for (const root of singleRoots) {
+      this.builderPlacedGroup.remove(root);
+      this.removePortsForBuilding(root as THREE.Group);
+      const rec = root.userData?.builderRecord as
+        | BuilderPlacedPartRecord
+        | undefined;
+      if (rec) {
+        this.builderPlaced = this.builderPlaced.filter((p) => p !== rec);
+      }
+    }
     this.clearDeconstructHover();
     this.persistBuilderState();
     return true;
@@ -1517,16 +1664,39 @@ export class SceneManager {
     left: number;
     top: number;
   } | null {
+    const multi = this.deconstructMultiRoots.size > 0;
     const hovered = this.deconstructHovered;
-    if (!hovered) return null;
+    const run =
+      !multi && this.deconstructRunHighlightRoots.length > 0
+        ? this.deconstructRunHighlightRoots
+        : null;
+    const pivotForRing =
+      multi && hovered && this.deconstructMultiRoots.has(hovered)
+        ? hovered
+        : multi
+          ? [...this.deconstructMultiRoots][0]!
+          : hovered;
+    if (!pivotForRing && (!run || run.length === 0)) return null;
     if (
+      !multi &&
       !this.getDeconstructHoverCompositeId() &&
       !this.isDeconstructStandaloneLogisticsHover()
     ) {
       return null;
     }
     const c = new THREE.Vector3();
-    hovered.getWorldPosition(c);
+    if (run && run.length > 0 && !multi) {
+      for (const r of run) {
+        const p = new THREE.Vector3();
+        r.getWorldPosition(p);
+        c.add(p);
+      }
+      c.multiplyScalar(1 / run.length);
+    } else if (pivotForRing) {
+      pivotForRing.getWorldPosition(c);
+    } else {
+      return null;
+    }
     c.project(this.camera);
     const rect = this.renderer.domElement.getBoundingClientRect();
     const left = (c.x * 0.5 + 0.5) * rect.width + rect.left;
@@ -1547,7 +1717,7 @@ export class SceneManager {
       this.builderPlacedGroup.remove(c);
       this.removePortsForBuilding(c as THREE.Group);
       const rec = c.userData.builderRecord as
-        | (typeof this.builderPlaced)[number]
+        | BuilderPlacedPartRecord
         | undefined;
       if (rec) {
         this.builderPlaced = this.builderPlaced.filter((p) => p !== rec);
@@ -1776,6 +1946,7 @@ export class SceneManager {
       segmentStep: number;
       elbowIncomingRotY?: number;
       elbowTurn?: 1 | -1;
+      straightChordMeters?: number;
     },
   ): boolean {
     const path = sourcePath ?? this.builderCurrentPartPath;
@@ -1789,10 +1960,15 @@ export class SceneManager {
     if (isProceduralPipePartPath(path)) {
       const scale = baseScale;
       const stepLen = pipeSeg?.segmentStep ?? GRID_CELL_SIZE;
+      const chordLen =
+        path === PIPE_PROCEDURAL_STRAIGHT_PATH &&
+        typeof pipeSeg?.straightChordMeters === "number"
+          ? pipeSeg.straightChordMeters
+          : stepLen;
       const tubeR = proceduralPipeTubeRadiusWorld(menuBuildingId, scale);
       let placed: THREE.Group;
       if (path === PIPE_PROCEDURAL_STRAIGHT_PATH) {
-        placed = createProceduralStraightPipeObject(stepLen, tubeR);
+        placed = createProceduralStraightPipeObject(chordLen, tubeR);
       } else {
         if (
           pipeSeg?.elbowIncomingRotY === undefined ||
@@ -1822,7 +1998,19 @@ export class SceneManager {
       pivot.position.copy(worldPos);
       pivot.rotation.y = path === PIPE_PROCEDURAL_ELBOW_PATH ? 0 : rotY;
 
-      const record: (typeof this.builderPlaced)[number] = {
+      if (path === PIPE_PROCEDURAL_STRAIGHT_PATH) {
+        if (
+          this.proceduralStraightPipeWouldCollideBody(
+            worldPos,
+            rotY,
+            chordLen,
+          )
+        ) {
+          return false;
+        }
+      }
+
+      const record: BuilderPlacedPartRecord = {
         partPath: path,
         x: pivot.position.x,
         y: pivot.position.y,
@@ -1831,6 +2019,9 @@ export class SceneManager {
         scale,
         segmentStep: stepLen,
       };
+      if (path === PIPE_PROCEDURAL_STRAIGHT_PATH) {
+        record.straightChordMeters = chordLen;
+      }
       if (path === PIPE_PROCEDURAL_ELBOW_PATH && pipeSeg) {
         record.elbowIncomingRotY = pipeSeg.elbowIncomingRotY;
         record.elbowTurn = pipeSeg.elbowTurn;
@@ -1846,6 +2037,13 @@ export class SceneManager {
       pivot.userData.builderRecord = record;
       this.builderPlacedGroup.add(pivot);
       this.builderPlaced.push(record);
+      if (path === PIPE_PROCEDURAL_STRAIGHT_PATH) {
+        this.consumePipeEndpointsForStraightSegment(
+          pivot.position,
+          rotY,
+          chordLen,
+        );
+      }
       if (menuBuildingId) {
         this.attachBuildingPorts(pivot, menuBuildingId, scale, rotY);
       }
@@ -1888,7 +2086,7 @@ export class SceneManager {
     pivot.position.copy(worldPos);
     pivot.rotation.y = rotY;
 
-    const record: (typeof this.builderPlaced)[number] = {
+    const record: BuilderPlacedPartRecord = {
       partPath: path,
       x: pivot.position.x,
       y: pivot.position.y,
@@ -2048,6 +2246,259 @@ export class SceneManager {
       }
     }
     for (const p of portPivots) this.builderPlacedGroup.remove(p);
+  }
+
+  private consumePipeEndpointsNear(pos: THREE.Vector3, radiusXZ: number): void {
+    const r2 = radiusXZ * radiusXZ;
+    for (let i = this.conveyorEndpoints.length - 1; i >= 0; i--) {
+      const ep = this.conveyorEndpoints[i]!;
+      if (ep.lineKind !== "pipe") continue;
+      const dx = ep.position.x - pos.x;
+      const dz = ep.position.z - pos.z;
+      if (dx * dx + dz * dz < r2) this.conveyorEndpoints.splice(i, 1);
+    }
+  }
+
+  private consumePipeEndpointsForStraightSegment(
+    center: THREE.Vector3,
+    rotY: number,
+    stepLen: number,
+  ): void {
+    const dir = rotY - PIPE_RUN_ROT_Y_OFFSET;
+    const hx = Math.sin(dir) * (stepLen * 0.5);
+    const hz = Math.cos(dir) * (stepLen * 0.5);
+    const eps = stepLen * 0.22;
+    this.consumePipeEndpointsNear(
+      new THREE.Vector3(center.x - hx, center.y, center.z - hz),
+      eps,
+    );
+    this.consumePipeEndpointsNear(
+      new THREE.Vector3(center.x + hx, center.y, center.z + hz),
+      eps,
+    );
+  }
+
+  /** Сегменты превью линии трубы (как в rebuildLinePreview) с заполненными хордами. */
+  private getPipeLinePreviewSegmentsWithChords(
+    start: THREE.Vector3,
+    end: THREE.Vector3,
+  ): PipePathSegment[] {
+    const step = this.getSegmentStep();
+    const segments: PipePathSegment[] =
+      this.builderMode === "default"
+        ? computePipeStraightSegmentsOnly(start, end, step, true)
+        : (this.computePathSegments(start, end) as PipePathSegment[]);
+    if (this.builderMode !== "default") {
+      assignPipeStraightChordMeters(segments, end, step);
+    } else {
+      for (const s of segments) delete s.straightChordMeters;
+    }
+    return segments;
+  }
+
+  private clearDeconstructRunHighlights(): void {
+    for (const r of this.deconstructRunHighlightRoots) {
+      if (!this.deconstructMultiRoots.has(r)) {
+        this.restoreDeconstructHighlight(r);
+      }
+    }
+    this.deconstructRunHighlightRoots = [];
+  }
+
+  private isConveyorBeltRunSeed(root: THREE.Object3D): boolean {
+    const rec = root.userData?.builderRecord as
+      | BuilderPlacedPartRecord
+      | undefined;
+    if (!rec) return false;
+    if (!isConveyorBeltMenuId(rec.menuBuildingId)) return false;
+    if (!isLogisticsConveyorKitPath(rec.partPath)) return false;
+    const pl = rec.partPath.toLowerCase();
+    if (pl.includes("splitter") || pl.includes("merger")) return false;
+    return true;
+  }
+
+  /** Цепочка ленты по сетке (один tier), без compositeId. */
+  private collectConnectedConveyorBeltRoots(seed: THREE.Object3D): THREE.Object3D[] {
+    if (!this.isConveyorBeltRunSeed(seed)) return [seed];
+    const step = GRID_CELL_SIZE;
+    const posTol = step * 0.22;
+    const alongTol = step * 0.34;
+    const visited = new Set<THREE.Object3D>();
+    const out: THREE.Object3D[] = [];
+    const stack: THREE.Object3D[] = [seed];
+
+    while (stack.length > 0) {
+      const cur = stack.pop()!;
+      if (visited.has(cur)) continue;
+      visited.add(cur);
+      out.push(cur);
+
+      const recA = cur.userData.builderRecord as BuilderPlacedPartRecord;
+      const ra = recA.rotY - this.conveyorRotOffset;
+      const uax = Math.sin(ra);
+      const uaz = Math.cos(ra);
+      const ax = cur.position.x;
+      const az = cur.position.z;
+
+      for (const child of this.builderPlacedGroup.children) {
+        if (visited.has(child)) continue;
+        if (!this.isConveyorBeltRunSeed(child)) continue;
+        const recB = child.userData.builderRecord as BuilderPlacedPartRecord;
+        if (recB.menuBuildingId !== recA.menuBuildingId) continue;
+        const rb = recB.rotY - this.conveyorRotOffset;
+        const dAng = Math.abs(rb - ra);
+        if (dAng > 0.11 && Math.abs(dAng - Math.PI * 2) > 0.11) continue;
+
+        const bx = child.position.x;
+        const bz = child.position.z;
+        const ddx = bx - ax;
+        const ddz = bz - az;
+        const along = ddx * uax + ddz * uaz;
+        const perp = Math.abs(ddx * uaz - ddz * uax);
+        if (perp > posTol) continue;
+        const ad = Math.abs(along);
+        if (ad < 0.035) continue;
+        if (Math.abs(ad - step) < alongTol) {
+          stack.push(child);
+        }
+      }
+    }
+    return out;
+  }
+
+  private isProceduralPipeStraightSeed(root: THREE.Object3D): boolean {
+    const rec = root.userData?.builderRecord as
+      | BuilderPlacedPartRecord
+      | undefined;
+    return !!rec && rec.partPath === PIPE_PROCEDURAL_STRAIGHT_PATH;
+  }
+
+  /** Цепочка процедурных прямых одного tier’а без compositeId (стык торец-в-торец). */
+  private collectConnectedProceduralPipeRoots(seed: THREE.Object3D): THREE.Object3D[] {
+    if (!this.isProceduralPipeStraightSeed(seed)) return [seed];
+    const step = GRID_CELL_SIZE;
+    const alongTol = step * 0.38;
+    const perpTol = step * 0.26;
+    const visited = new Set<THREE.Object3D>();
+    const out: THREE.Object3D[] = [];
+    const stack: THREE.Object3D[] = [seed];
+
+    while (stack.length > 0) {
+      const cur = stack.pop()!;
+      if (visited.has(cur)) continue;
+      visited.add(cur);
+      out.push(cur);
+
+      const recA = cur.userData.builderRecord as BuilderPlacedPartRecord;
+      const ra = recA.rotY - PIPE_RUN_ROT_Y_OFFSET;
+      const uax = Math.sin(ra);
+      const uaz = Math.cos(ra);
+      const lenA = recA.straightChordMeters ?? recA.segmentStep ?? step;
+      const ax = cur.position.x;
+      const az = cur.position.z;
+
+      for (const child of this.builderPlacedGroup.children) {
+        if (visited.has(child)) continue;
+        const recB = child.userData?.builderRecord as
+          | BuilderPlacedPartRecord
+          | undefined;
+        if (!recB || recB.partPath !== PIPE_PROCEDURAL_STRAIGHT_PATH) continue;
+        if (recB.menuBuildingId !== recA.menuBuildingId) continue;
+        const rb = recB.rotY - PIPE_RUN_ROT_Y_OFFSET;
+        const dAng = Math.abs(rb - ra);
+        if (dAng > 0.1 && Math.abs(dAng - Math.PI * 2) > 0.1) continue;
+
+        const lenB = recB.straightChordMeters ?? recB.segmentStep ?? step;
+        const need = lenA * 0.5 + lenB * 0.5;
+        const bx = child.position.x;
+        const bz = child.position.z;
+        const ddx = bx - ax;
+        const ddz = bz - az;
+        const along = ddx * uax + ddz * uaz;
+        const perp = Math.abs(ddx * uaz - ddz * uax);
+        if (perp > perpTol) continue;
+        if (Math.abs(Math.abs(along) - need) < alongTol) {
+          stack.push(child);
+        }
+      }
+    }
+    return out;
+  }
+
+  /** Сборка по compositeId, цепочка ленты или цепочка процедурных прямых труб. */
+  private computeDeconstructRunRoots(root: THREE.Object3D | null): THREE.Object3D[] {
+    if (!root) return [];
+    const cid = root.userData?.compositeId;
+    if (typeof cid === "string" && cid.length > 0) {
+      const grp: THREE.Object3D[] = [];
+      for (const c of this.builderPlacedGroup.children) {
+        if (c.userData?.compositeId === cid) grp.push(c);
+      }
+      return grp.length > 0 ? grp : [root];
+    }
+    if (this.isConveyorBeltRunSeed(root)) {
+      return this.collectConnectedConveyorBeltRoots(root);
+    }
+    if (this.isProceduralPipeStraightSeed(root)) {
+      return this.collectConnectedProceduralPipeRoots(root);
+    }
+    return [root];
+  }
+
+  /** Параллельные прямые: пересечение по длине оси + поперечный зазор с учётом радиуса. */
+  private proceduralStraightPipeWouldCollideBody(
+    worldPos: THREE.Vector3,
+    rotY: number,
+    chordLen: number,
+  ): boolean {
+    const ux = Math.sin(rotY - PIPE_RUN_ROT_Y_OFFSET);
+    const uz = Math.cos(rotY - PIPE_RUN_ROT_Y_OFFSET);
+    const halfNew = chordLen * 0.5;
+    const scaleNew = this.prefabPlacementScale ?? this.builderScale;
+    const radialNew =
+      proceduralPipeTubeRadiusWorld(
+        this.prefabMenuBuildingId ?? undefined,
+        scaleNew,
+      ) *
+        2.12 +
+        GRID_CELL_SIZE * 0.05;
+
+    for (const child of this.builderPlacedGroup.children) {
+      const rec = child.userData?.builderRecord as
+        | BuilderPlacedPartRecord
+        | undefined;
+      if (!rec || rec.partPath !== PIPE_PROCEDURAL_STRAIGHT_PATH) continue;
+      const ox = child.position.x;
+      const oz = child.position.z;
+      const dx = worldPos.x - ox;
+      const dz = worldPos.z - oz;
+      if (dx * dx + dz * dz < 1e-10) return true;
+      const oRot = rec.rotY;
+      const oux = Math.sin(oRot - PIPE_RUN_ROT_Y_OFFSET);
+      const ouz = Math.cos(oRot - PIPE_RUN_ROT_Y_OFFSET);
+      const parallel = Math.abs(ux * oux + uz * ouz) > 0.92;
+      if (!parallel) continue;
+
+      const along = dx * ux + dz * uz;
+      const perp = Math.abs(dx * uz - dz * ux);
+
+      const oLen =
+        rec.straightChordMeters ?? rec.segmentStep ?? GRID_CELL_SIZE;
+      const halfOld = oLen * 0.5;
+      const radialOld =
+        proceduralPipeTubeRadiusWorld(
+          rec.menuBuildingId ?? undefined,
+          rec.scale,
+        ) * 2.12 +
+        GRID_CELL_SIZE * 0.05;
+      const radialTol = Math.max(radialNew, radialOld) + GRID_CELL_SIZE * 0.02;
+      if (perp > radialTol) continue;
+
+      const axisSep = Math.abs(along);
+      const minGap = halfNew + halfOld - GRID_CELL_SIZE * 0.035;
+      if (axisSep < minGap) return true;
+    }
+    return false;
   }
 
   private computeGhostInvalid(candidatePivot: THREE.Group): boolean {
@@ -2210,7 +2661,29 @@ export class SceneManager {
     this.builderLinePreviewGroup.clear();
     if (this.pipeDefaultTooTight) return false;
     const step = this.getSegmentStep();
+    const y = start.y;
+    const dx = end.x - start.x;
+    const dz = end.z - start.z;
+    const tol = 0.06;
+    const cornerForJunction =
+      Math.hypot(dx, dz) < tol
+        ? end.clone()
+        : Math.abs(dx) >= Math.abs(dz)
+          ? new THREE.Vector3(end.x, y, start.z)
+          : new THREE.Vector3(start.x, y, end.z);
     const segments = computePipeStraightSegmentsOnly(start, end, step, true);
+    for (const seg of segments) {
+      if (seg.partPath !== PIPE_PROCEDURAL_STRAIGHT_PATH) continue;
+      if (
+        this.proceduralStraightPipeWouldCollideBody(
+          seg.position,
+          seg.rotationY,
+          step,
+        )
+      ) {
+        return false;
+      }
+    }
     const compositeId = this.newCompositeId();
     const segmentScale = this.prefabPlacementScale ?? this.builderScale;
     let placedAny = false;
@@ -2233,6 +2706,8 @@ export class SceneManager {
         ) || placedAny;
     }
     if (!placedAny) return false;
+
+    this.consumePipeEndpointsNear(start, step * 0.22);
 
     this.persistBuilderState();
     const firstSeg = segments[0];
@@ -2266,7 +2741,7 @@ export class SceneManager {
 
     const incomingRot = lastSeg?.rotationY ?? PIPE_RUN_ROT_Y_OFFSET;
     this.pipeIncomingStraightRotY = incomingRot;
-    this.pipeJunctionManhattanCornerWorld.set(end.x, start.y, end.z);
+    this.pipeJunctionManhattanCornerWorld.copy(cornerForJunction);
     this.builderLineStart = null;
     this.pipePlacementSubMode = "junction";
     this.replacePipeMenuGhostModelRootFromPath(PIPE_PROCEDURAL_ELBOW_PATH);
@@ -2297,6 +2772,7 @@ export class SceneManager {
       },
     );
     if (!placed) return false;
+    this.consumePipeEndpointsNear(worldPos, step * 0.26);
     this.persistBuilderState();
     const trim = pipeCornerTrimForStep(step);
     const outDir = this.pipeJunctionOutgoingStraightRotY - PIPE_RUN_ROT_Y_OFFSET;
@@ -2343,7 +2819,21 @@ export class SceneManager {
     end: THREE.Vector3,
   ): BuilderPathPlanSegment[] {
     if (isPipeLineMenuId(this.prefabMenuBuildingId)) {
-      return computePipePathSegments(start, end, this.getSegmentStep());
+      const step = this.getSegmentStep();
+      if (this.builderMode === "default") {
+        return computePipePathSegments(start, end, step);
+      }
+      return mapConveyorSegmentsToPipeStraights(
+        computeConveyorPathSegments(start, end, {
+          builderMode: this.builderMode,
+          step,
+          conveyorRotOffset: this.conveyorRotOffset,
+          tangentStart: this.conveyorTangentAtLineStart,
+          tangentEnd: this.conveyorTangentAtLineEnd,
+          ghostRotY: this.builderGhostRotY,
+        }),
+        this.conveyorRotOffset,
+      );
     }
     if (!isConveyorBeltMenuId(this.prefabMenuBuildingId)) {
       return computeAxisAlignedPathSegments(
@@ -2379,7 +2869,11 @@ export class SceneManager {
       );
       let placed: THREE.Group;
       if (partPath === PIPE_PROCEDURAL_STRAIGHT_PATH) {
-        placed = createProceduralStraightPipeObject(step, r);
+        const chord =
+          typeof seg?.straightChordMeters === "number"
+            ? seg.straightChordMeters
+            : step;
+        placed = createProceduralStraightPipeObject(chord, r);
       } else {
         if (
           seg?.elbowIncomingRotY === undefined ||
@@ -2404,6 +2898,7 @@ export class SceneManager {
         }
       });
       offsetProceduralPipeRootToSitOnFloor(placed, partPath);
+      placed.scale.setScalar(1);
       const pivot = new THREE.Group();
       pivot.add(placed);
       pivot.position.copy(worldPos);
@@ -2462,26 +2957,7 @@ export class SceneManager {
         this.builderLinePreviewGroup.add(pivot);
       }
     } else if (isPipeMultiSegment) {
-      let segments =
-        this.builderMode === "default"
-          ? computePipeStraightSegmentsOnly(
-              start,
-              end,
-              this.getSegmentStep(),
-              true,
-            )
-          : this.computePathSegments(start, end);
-      /** Иначе последний сегмент превью совпадает с основным призраком — двойное кольцо / сдвиг. */
-      if (this.builderMode === "default") {
-        const last = segments[segments.length - 1];
-        if (
-          last &&
-          Math.hypot(last.position.x - end.x, last.position.z - end.z) <
-            this.getSegmentStep() * 0.06
-        ) {
-          segments = segments.slice(0, -1);
-        }
-      }
+      const segments = this.getPipeLinePreviewSegmentsWithChords(start, end);
       const scale = this.prefabPlacementScale ?? this.builderScale;
       for (const seg of segments) {
         const p =
@@ -2515,36 +2991,94 @@ export class SceneManager {
     }
   }
 
-  private updateDeconstructHover(ndcX: number, ndcY: number): void {
+  private updateDeconstructHover(
+    ndcX: number,
+    ndcY: number,
+    altHeld: boolean,
+  ): void {
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera);
     const hits = raycaster.intersectObjects(
       this.builderPlacedGroup.children,
       true,
     );
-    const hovered = hits[0]?.object
+    const root = hits[0]?.object
       ? this.findPlacedRoot(hits[0].object)
       : null;
-    if (hovered === this.deconstructHovered) return;
-    this.clearDeconstructHover();
-    if (!hovered) return;
-    this.deconstructHovered = hovered;
-    hovered.traverse((child) => {
+
+    if (altHeld) {
+      if (root) {
+        const run = this.computeDeconstructRunRoots(root);
+        for (const r of run) {
+          if (!this.deconstructMultiRoots.has(r)) {
+            this.deconstructMultiRoots.add(r);
+            this.applyDeconstructHighlight(r);
+          }
+        }
+        this.deconstructHovered = root;
+      }
+      return;
+    }
+
+    if (
+      root &&
+      this.deconstructMultiRoots.size > 0 &&
+      !this.deconstructMultiRoots.has(root)
+    ) {
+      this.clearDeconstructMultiSelection();
+    }
+    if (root === this.deconstructHovered) return;
+    this.clearDeconstructRunHighlights();
+    this.deconstructHovered = root;
+    if (!root) return;
+    const run = this.computeDeconstructRunRoots(root);
+    this.deconstructRunHighlightRoots = run;
+    for (const r of run) {
+      if (!this.deconstructMultiRoots.has(r)) {
+        this.applyDeconstructHighlight(r);
+      }
+    }
+  }
+
+  private clearDeconstructHover(): void {
+    this.clearDeconstructRunHighlights();
+    this.deconstructHoveredMaterials.forEach((material, mesh) => {
+      mesh.material = material;
+    });
+    this.deconstructHoveredMaterials.clear();
+    this.deconstructHovered = null;
+    this.deconstructMultiRoots.clear();
+  }
+
+  private clearDeconstructMultiSelection(): void {
+    for (const r of [...this.deconstructMultiRoots]) {
+      this.restoreDeconstructHighlight(r);
+    }
+    this.deconstructMultiRoots.clear();
+  }
+
+  private applyDeconstructHighlight(root: THREE.Object3D): void {
+    root.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
+      if (!this.deconstructHoveredMaterials.has(child)) {
+        this.deconstructHoveredMaterials.set(child, child.material);
+      }
       const prev = child.material;
-      this.deconstructHoveredMaterials.set(child, prev);
       child.material = Array.isArray(prev)
         ? prev.map(() => this.deconstructMaterial)
         : this.deconstructMaterial;
     });
   }
 
-  private clearDeconstructHover(): void {
-    this.deconstructHoveredMaterials.forEach((material, mesh) => {
-      mesh.material = material;
+  private restoreDeconstructHighlight(root: THREE.Object3D): void {
+    root.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return;
+      const orig = this.deconstructHoveredMaterials.get(child);
+      if (orig !== undefined) {
+        child.material = orig;
+        this.deconstructHoveredMaterials.delete(child);
+      }
     });
-    this.deconstructHoveredMaterials.clear();
-    this.deconstructHovered = null;
   }
 
   private findPlacedRoot(object: THREE.Object3D): THREE.Object3D | null {
@@ -2590,6 +3124,7 @@ export class SceneManager {
           compositeId?: string;
           menuBuildingId?: string;
           segmentStep?: number;
+          straightChordMeters?: number;
           elbowIncomingRotY?: number;
           elbowTurn?: 1 | -1;
         }>;
@@ -2629,6 +3164,10 @@ export class SceneManager {
                 typeof part.segmentStep === "number"
                   ? part.segmentStep
                   : GRID_CELL_SIZE,
+              ...(part.partPath === PIPE_PROCEDURAL_STRAIGHT_PATH &&
+              typeof part.straightChordMeters === "number"
+                ? { straightChordMeters: part.straightChordMeters }
+                : {}),
               elbowIncomingRotY: part.elbowIncomingRotY,
               elbowTurn: part.elbowTurn,
             }
@@ -2857,12 +3396,10 @@ export class SceneManager {
       this.builderHasPointer &&
       !this.builderDeconstructMode
     ) {
+      this.builderGhostPivot.position.copy(this.builderGhostCurrentPos);
       if (this.builderGhostInvalid) {
-        const shake = Math.sin(performance.now() * 0.05) * 0.08;
-        this.builderGhostPivot.position.x =
-          this.builderGhostCurrentPos.x + shake;
-      } else {
-        this.builderGhostPivot.position.x = this.builderGhostCurrentPos.x;
+        this.builderGhostPivot.position.x +=
+          Math.sin(performance.now() * 0.05) * 0.08;
       }
     }
 

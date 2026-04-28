@@ -6,10 +6,7 @@ import { useState, type FC } from 'react';
 import { BuildingCategory } from '../../core/types.ts';
 import { hasPattern } from '../../buildings/BuildingPatterns.ts';
 import { hasPrefabBuilding } from '../../buildings/BuildingPrefabs.ts';
-import {
-  PIPE_ELBOW_MODEL_PATH,
-  PIPE_PROCEDURAL_STRAIGHT_PATH,
-} from '../../buildings/logistics/pipeKitModels.ts';
+import { PIPE_PROCEDURAL_STRAIGHT_PATH } from '../../buildings/logistics/pipeKitModels.ts';
 import './BuildMenu.css';
 
 interface BuildMenuItem {
@@ -204,9 +201,6 @@ const ALL_BUILDINGS: BuildMenuItem[] = [
   { id: 'pipe_mk2', name: 'Pipeline Mk.2', nameRu: 'Трубопровод Ур.2', category: BuildingCategory.Logistics, subcategory: 'Трубопроводы',
     modelPath: PIPE_PROCEDURAL_STRAIGHT_PATH,
     description: 'Улучшенный трубопровод с двойной пропускной способностью. 600 м³/мин. Не требует электричества.' },
-  { id: 'pipe_junction', name: 'Pipeline Junction Cross', nameRu: 'Пересечение труб', category: BuildingCategory.Logistics, subcategory: 'Трубопроводы',
-    modelPath: PIPE_ELBOW_MODEL_PATH,
-    description: 'Крестообразное соединение, позволяющее объединить или разветвить несколько трубопроводов в одной точке.' },
   /* Позже: насосы и клапан
   { id: 'pump_mk1', ...
   { id: 'pump_mk2', ...

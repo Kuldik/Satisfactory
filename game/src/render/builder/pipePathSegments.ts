@@ -8,6 +8,7 @@ import {
   PIPE_PROCEDURAL_STRAIGHT_PATH,
   PIPE_RUN_ROT_Y_OFFSET,
 } from "../../buildings/logistics/pipeKitModels.ts";
+import type { ConveyorPathSegment } from "./conveyorPathSegments.ts";
 
 export type PipePathSegment = {
   position: THREE.Vector3;
@@ -16,7 +17,54 @@ export type PipePathSegment = {
   /** Только колено: rotationY входящей прямой (с PIPE_RUN_ROT_Y_OFFSET). */
   elbowIncomingRotY?: number;
   elbowTurn?: 1 | -1;
+  /**
+   * Длина процедурной прямой (м) по фактической хорде до следующего узла или до pathEnd;
+   * иначе берётся `step` при постановке.
+   */
+  straightChordMeters?: number;
 };
+
+const STRAIGHT_CHORD_OVERLAP = 1.018;
+
+/**
+ * Заполняет `straightChordMeters` для каждого прямого сегмента: стык в стык с соседом
+ * и корректная длина до колена (пивот колена в углу — не укорачивать до расстояния «центр–угол»).
+ */
+export function assignPipeStraightChordMeters(
+  segments: PipePathSegment[],
+  pathEnd: THREE.Vector3,
+  step: number,
+): void {
+  const minL = Math.max(0.1, step * 0.12);
+  for (let i = 0; i < segments.length; i++) {
+    const s = segments[i]!;
+    if (s.partPath !== PIPE_PROCEDURAL_STRAIGHT_PATH) {
+      delete s.straightChordMeters;
+      continue;
+    }
+    const next = segments[i + 1];
+    if (next) {
+      if (next.partPath === PIPE_PROCEDURAL_ELBOW_PATH) {
+        /** Лёгкое перекрытие с дугой колена. */
+        s.straightChordMeters = step * 1.018;
+      } else {
+        const d = s.position.distanceTo(next.position);
+        s.straightChordMeters = Math.max(minL, d * STRAIGHT_CHORD_OVERLAP);
+      }
+      continue;
+    }
+    const e = s.position.distanceTo(pathEnd);
+    /** Хвост к углу / к курсору: одна клетка или короткий одиночный прогон. */
+    if (e < step * 0.52) {
+      s.straightChordMeters = step;
+    } else {
+      s.straightChordMeters = Math.max(
+        minL,
+        Math.min(step * 8, 2 * e * STRAIGHT_CHORD_OVERLAP),
+      );
+    }
+  }
+}
 
 /** Привязка конца линии к ортогонали относительно якоря (манхэттен). */
 export function snapPipeGhostXZ(
@@ -36,7 +84,7 @@ export function snapPipeGhostXZ(
 /** Отступ прямых от вершины угла (~половина шага сетки), чтобы торец упирался в колено без щели. */
 export function pipeCornerTrimForFullCorner(step: number, legLen: number): number {
   const tol = 0.06;
-  const want = Math.max(step * 0.5 - 0.08, tol * 0.5);
+  const want = Math.max(step * 0.5 - 0.03, tol * 0.5);
   if (legLen < tol) return 0;
   return Math.min(want, legLen * 0.48);
 }
@@ -149,6 +197,19 @@ export function computePipePathSegments(
   }
 
   return result;
+}
+
+/** Траектория как у конвейера → только прямые процедурные сегменты трубы (смещение поворота как у ленты). */
+export function mapConveyorSegmentsToPipeStraights(
+  segments: ConveyorPathSegment[],
+  conveyorRotOffset: number,
+): PipePathSegment[] {
+  const off = PIPE_RUN_ROT_Y_OFFSET;
+  return segments.map((s) => ({
+    position: s.position.clone(),
+    rotationY: s.rotationY - conveyorRotOffset + off,
+    partPath: PIPE_PROCEDURAL_STRAIGHT_PATH,
+  }));
 }
 
 /**

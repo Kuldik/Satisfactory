@@ -164,7 +164,7 @@ const PIPE_BODY_SPEC: TintSpec = {
   side: THREE.DoubleSide,
 };
 
-/** Ур.1 / Ур.2 — процедурная труба `pipe_body`, цвет как в ТЗ. */
+/** Ур.1 / Ур.2 — процедурная труба `pipe_body`. */
 const PIPE_MK1_RULES: MeshTintRule[] = [
   { nameMatch: /^pipe_body$/i, ...PIPE_BODY_SPEC },
 ];

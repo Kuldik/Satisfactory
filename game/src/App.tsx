@@ -218,7 +218,11 @@ function App() {
         isBuilderActive ||
         engineRef.current.isPrefabPlacementActive()
       ) {
-        engineRef.current.updateBuilderGhost(ndcX, ndcY);
+        engineRef.current.updateBuilderGhost(
+          ndcX,
+          ndcY,
+          isDeconstructMode && e.altKey,
+        );
       }
     },
     [engineRef, isBuilderActive, isDeconstructMode],

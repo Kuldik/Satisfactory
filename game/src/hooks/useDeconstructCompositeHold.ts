@@ -93,14 +93,21 @@ export function useDeconstructCompositeHold(
 
       const cid = eng.getDeconstructHoverCompositeId();
       const standaloneLogistics = eng.isDeconstructStandaloneLogisticsHover();
-      if (!cid && !standaloneLogistics) {
+      const multiCount = eng.getDeconstructMultiSelectionCount();
+      const inMultiHover = eng.isDeconstructHoveredInMultiSelection();
+      if (!cid && !standaloneLogistics && !(multiCount > 0 && inMultiHover)) {
         startedRef.current = false;
         return;
       }
 
       startedRef.current = true;
-      targetIdRef.current = cid ?? "__standalone_logistics__";
-      standaloneRef.current = !cid && standaloneLogistics;
+      if (multiCount > 0 && inMultiHover) {
+        targetIdRef.current = "__multi_deconstruct__";
+        standaloneRef.current = true;
+      } else {
+        targetIdRef.current = cid ?? "__standalone_logistics__";
+        standaloneRef.current = !cid && standaloneLogistics;
+      }
       startRef.current = performance.now();
       holdMsRef.current = eng.getDeconstructHoldMsForCurrentHover();
       overlayRef.current?.show();
@@ -113,7 +120,15 @@ export function useDeconstructCompositeHold(
           return;
         }
 
-        if (tid !== "__standalone_logistics__") {
+        if (tid === "__multi_deconstruct__") {
+          if (
+            engine.getDeconstructMultiSelectionCount() === 0 ||
+            !engine.isDeconstructHoveredInMultiSelection()
+          ) {
+            cancelHold();
+            return;
+          }
+        } else if (tid !== "__standalone_logistics__") {
           if (engine.getDeconstructHoverCompositeId() !== tid) {
             cancelHold();
             return;
@@ -145,7 +160,9 @@ export function useDeconstructCompositeHold(
           rafRef.current = 0;
           startedRef.current = false;
           overlayRef.current?.hide();
-          if (tid !== "__standalone_logistics__") {
+          if (tid === "__multi_deconstruct__") {
+            engine.removeDeconstructMultiSelection();
+          } else if (tid !== "__standalone_logistics__") {
             engine.removeCompositeBuilding(tid);
           } else {
             engine.removeDeconstructHoveredStandalone();

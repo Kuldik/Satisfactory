@@ -12,7 +12,7 @@ import {
 
 export { isProceduralPipePartPath };
 
-/** Множитель радиуса (20× — отладка/наглядность; вернуть к `1` для финального вида). */
+/** Множитель радиуса (крупный вид сегментов на сетке). */
 export const PROCEDURAL_PIPE_VISUAL_RADIUS_MULT = 20;
 
 /** Радиус «трубы» в метрах мира с учётом масштаба меню (как раньше ×18 / ×20). */
@@ -65,17 +65,18 @@ function disposeMeshHierarchy(root: THREE.Object3D): void {
   });
 }
 
-/** Прямой участок: ось вдоль локального +Z, длина `segmentStep`, pivot в центре. */
+/** Прямой участок: ось вдоль локального +Z, длина `segmentLengthMeters`, pivot в центре. */
 export function createProceduralStraightPipeObject(
-  segmentStep: number,
+  segmentLengthMeters: number,
   tubeRadius: number,
 ): THREE.Group {
-  const half = Math.max(segmentStep * 0.5, 0.08);
+  const len = Math.max(segmentLengthMeters, 0.1);
+  const half = Math.max(len * 0.5, 0.08);
   const curve = new THREE.LineCurve3(
     new THREE.Vector3(0, 0, -half),
     new THREE.Vector3(0, 0, half),
   );
-  const tubular = Math.max(2, Math.ceil(8 * (segmentStep / 2)));
+  const tubular = Math.max(2, Math.ceil(8 * (len / 2)));
   const geo = new THREE.TubeGeometry(
     curve,
     tubular,
@@ -105,12 +106,13 @@ export function createProceduralElbowPipeObject(
   const outVec = new THREE.Vector3(-turn * inZ, 0, turn * inX);
   const R = proceduralPipeArcRadius(segmentStep);
   const corner = new THREE.Vector3(0, 0, 0);
+  /** Чуть длиннее по касательным — меньше щель к прямым сегментам длины `segmentStep`. */
   const pts = [
-    corner.clone().sub(inVec.clone().multiplyScalar(R * 1.15)),
-    corner.clone().sub(inVec.clone().multiplyScalar(R * 0.38)),
+    corner.clone().sub(inVec.clone().multiplyScalar(R * 1.26)),
+    corner.clone().sub(inVec.clone().multiplyScalar(R * 0.42)),
     corner.clone(),
-    corner.clone().add(outVec.clone().multiplyScalar(R * 0.38)),
-    corner.clone().add(outVec.clone().multiplyScalar(R * 1.15)),
+    corner.clone().add(outVec.clone().multiplyScalar(R * 0.42)),
+    corner.clone().add(outVec.clone().multiplyScalar(R * 1.26)),
   ];
   const curve = new THREE.CatmullRomCurve3(pts, false, "catmullrom", 0.35);
   const geo = new THREE.TubeGeometry(curve, 24, tubeRadius, 16, false);
