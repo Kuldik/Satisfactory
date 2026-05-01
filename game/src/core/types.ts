@@ -233,18 +233,22 @@ export interface SavedEntity {
 
 // ---- Builder placement modes ----
 
-export type ConveyorPlacementMode = "default" | "curve";
+export type ConveyorPlacementMode = "default" | "chord" | "curve" | "free";
 export type BuilderMode = "single" | ConveyorPlacementMode;
 
 export const CONVEYOR_PLACEMENT_MODES: ConveyorPlacementMode[] = [
   "default",
+  "chord",
   "curve",
+  "free",
 ];
 
 export const BUILDER_MODE_LABELS: Record<BuilderMode, string> = {
   single: "Обычный",
-  default: "По умолчанию",
+  default: "L-угол (сетка)",
+  chord: "Прямая линия",
   curve: "Кривая",
+  free: "Свободная кривая",
 };
 
 // ---- Game State ----

@@ -356,9 +356,21 @@ export const AdminPanel: FC<AdminPanelProps> = ({
               </button>
               <button
                 className="admin-btn"
+                onClick={() => onSetBuilderMode("chord")}
+              >
+                Прямая
+              </button>
+              <button
+                className="admin-btn"
                 onClick={() => onSetBuilderMode("curve")}
               >
                 Кривая
+              </button>
+              <button
+                className="admin-btn"
+                onClick={() => onSetBuilderMode("free")}
+              >
+                Свободная кривая
               </button>
             </div>
             <button className="admin-btn" onClick={onToggleDeconstructMode}>

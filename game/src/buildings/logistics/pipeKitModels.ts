@@ -13,6 +13,7 @@ export const PIPE_ELBOW_MODEL_PATH = `${SPACE_GLB}/pipe-bend.glb`;
 /** Сегменты линии трубопровода mk1/mk2 — без Kenney GLB. */
 export const PIPE_PROCEDURAL_STRAIGHT_PATH = "procedural:pipe-straight";
 export const PIPE_PROCEDURAL_ELBOW_PATH = "procedural:pipe-elbow";
+export const PIPE_PROCEDURAL_FREE_CURVE_PATH = "procedural:pipe-free-curve";
 
 /** После `PIPE_LAY_FLAT_ROT_X` ось трассы Kenney совпадает с rotationY без сдвига как у ленты. */
 export const PIPE_RUN_ROT_Y_OFFSET = 0;
@@ -52,7 +53,8 @@ export function isKenneySpaceStationPipeAssetPath(partPath: string): boolean {
 export function isProceduralPipePartPath(partPath: string): boolean {
   return (
     partPath === PIPE_PROCEDURAL_STRAIGHT_PATH ||
-    partPath === PIPE_PROCEDURAL_ELBOW_PATH
+    partPath === PIPE_PROCEDURAL_ELBOW_PATH ||
+    partPath === PIPE_PROCEDURAL_FREE_CURVE_PATH
   );
 }
 

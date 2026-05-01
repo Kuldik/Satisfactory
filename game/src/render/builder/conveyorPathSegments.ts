@@ -15,9 +15,15 @@ export type ConveyorPathSegment = {
   rotationY: number;
 };
 
+/** Минимальное смещение от оси, чтобы путь считался «по двум осям» (L) vs прямой в плоскости. */
+const CONVEYOR_AXIS_LEAN_EPS = 0.03;
+/** Считаем, что идём «прямо вдоль» якоря (без L/Безье), если косинус > этого. */
+const CONVEYOR_TANGENT_ALIGN_MIN = 0.92;
+const CONVEYOR_DUAL_TANGENT_STRAIGHT_MIN = 0.96;
+
 /** Входные данные, которые SceneManager собирает из состояния призрака и режима. */
 export type ConveyorPathComputeInput = {
-  /** Для конвейера ожидается "default" | "curve". */
+  /** Для конвейера: "default" | "chord" | "curve". */
   builderMode: BuilderMode;
   step: number;
   conveyorRotOffset: number;
@@ -52,12 +58,16 @@ export function computeConveyorPathSegments(
   input: ConveyorPathComputeInput,
 ): ConveyorPathSegment[] {
   switch (input.builderMode) {
+    case "chord":
+      return getChordStraightConveyorPath(start, end, input);
     case "default":
       if (input.tangentStart !== null && input.tangentEnd !== null) {
         return getBiTangentCubicPath(start, end, input);
       }
       return getLShapedPath(start, end, input);
     case "curve":
+      return getCurvePath(start, end, input);
+    case "free":
       return getCurvePath(start, end, input);
     default:
       return [
@@ -67,6 +77,42 @@ export function computeConveyorPathSegments(
         },
       ];
   }
+}
+
+/**
+ * Сегменты вдоль хорды start→end: одна ориентация, без L и дуг.
+ * Нужен для «диагоналей» и продолжения вдоль якоря без ложного 90°.
+ */
+function getChordStraightConveyorPath(
+  start: THREE.Vector3,
+  end: THREE.Vector3,
+  input: ConveyorPathComputeInput,
+): ConveyorPathSegment[] {
+  const dx = end.x - start.x;
+  const dz = end.z - start.z;
+  const dist = Math.hypot(dx, dz);
+  const step = input.step;
+  if (dist < 0.01) {
+    return [{ position: start.clone(), rotationY: input.ghostRotY }];
+  }
+  const offset = input.conveyorRotOffset;
+  const rotY = Math.atan2(dx, dz) + offset;
+  const result: ConveyorPathSegment[] = [];
+  const count = Math.max(1, Math.round(dist / step));
+  for (let i = 0; i <= count; i++) {
+    const t = (i / count) * dist;
+    const ux = dx / dist;
+    const uz = dz / dist;
+    result.push({
+      position: new THREE.Vector3(
+        start.x + ux * t,
+        start.y,
+        start.z + uz * t,
+      ),
+      rotationY: rotY,
+    });
+  }
+  return result;
 }
 
 function getBiTangentCubicPath(
@@ -91,6 +137,13 @@ function getBiTangentCubicPath(
   const outDir = re - offset;
   const vin = new THREE.Vector3(Math.sin(incDir), 0, Math.cos(incDir));
   const vout = new THREE.Vector3(Math.sin(outDir), 0, Math.cos(outDir));
+  const chordN = new THREE.Vector3(dx / dist, 0, dz / dist);
+  if (
+    chordN.x * vin.x + chordN.z * vin.z > CONVEYOR_DUAL_TANGENT_STRAIGHT_MIN &&
+    chordN.x * vout.x + chordN.z * vout.z > CONVEYOR_DUAL_TANGENT_STRAIGHT_MIN
+  ) {
+    return getChordStraightConveyorPath(start, end, input);
+  }
   const L1 = Math.min(step * 2.5, dist * 0.4);
   const L2 = Math.min(step * 2.5, dist * 0.4);
   const p0 = new THREE.Vector3(start.x, start.y, start.z);
@@ -118,6 +171,25 @@ function getLShapedPath(
   const absDx = Math.abs(dx);
   const absDz = Math.abs(dz);
   const incoming = input.tangentStart;
+  const dist = Math.hypot(dx, dz);
+
+  if (incoming !== null && dist > 0.01) {
+    const incDir = incoming - offset;
+    const uix = Math.sin(incDir);
+    const uiz = Math.cos(incDir);
+    const chx = dx / dist;
+    const chz = dz / dist;
+    if (chx * uix + chz * uiz > CONVEYOR_TANGENT_ALIGN_MIN) {
+      return getChordStraightConveyorPath(start, end, input);
+    }
+  }
+  if (
+    absDx > CONVEYOR_AXIS_LEAN_EPS &&
+    absDz > CONVEYOR_AXIS_LEAN_EPS &&
+    Math.min(absDx, absDz) / Math.max(absDx, absDz) > 0.35
+  ) {
+    return getChordStraightConveyorPath(start, end, input);
+  }
 
   let firstAlongX: boolean;
   let corner: THREE.Vector3;

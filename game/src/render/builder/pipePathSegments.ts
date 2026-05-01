@@ -8,6 +8,7 @@ import {
   PIPE_PROCEDURAL_STRAIGHT_PATH,
   PIPE_RUN_ROT_Y_OFFSET,
 } from "../../buildings/logistics/pipeKitModels.ts";
+import { proceduralPipeArcRadius } from "../../buildings/logistics/proceduralPipeGeometry.ts";
 import type { ConveyorPathSegment } from "./conveyorPathSegments.ts";
 
 export type PipePathSegment = {
@@ -25,10 +26,131 @@ export type PipePathSegment = {
 };
 
 const STRAIGHT_CHORD_OVERLAP = 1.018;
+const DEFAULT_STRAIGHT_CHORD_FACTOR = STRAIGHT_CHORD_OVERLAP;
+
+/**
+ * Узел L от start к end: есть ли угол с двумя плечами (нужен коленный пивот).
+ * Совпадает с логикой `computePipePathSegments` / второго клика по ноге.
+ */
+export function pipeLShapeInfoFromLineEnd(
+  start: THREE.Vector3,
+  end: THREE.Vector3,
+  tol = 0.06,
+  preferAxisFlip = false,
+): { corner: THREE.Vector3; needsElbow: boolean; len1: number; len2: number } {
+  const y = start.y;
+  const dx = end.x - start.x;
+  const dz = end.z - start.z;
+  if (Math.hypot(dx, dz) < tol) {
+    return { corner: end.clone(), needsElbow: false, len1: 0, len2: 0 };
+  }
+  const naturalAlongX = Math.abs(dx) >= Math.abs(dz);
+  const firstAlongX = preferAxisFlip ? !naturalAlongX : naturalAlongX;
+  const corner = firstAlongX
+    ? new THREE.Vector3(end.x, y, start.z)
+    : new THREE.Vector3(start.x, y, end.z);
+  const leg1 = new THREE.Vector3(corner.x - start.x, 0, corner.z - start.z);
+  const leg2 = new THREE.Vector3(end.x - corner.x, 0, end.z - corner.z);
+  const len1 = leg1.length();
+  const len2 = leg2.length();
+  return {
+    corner,
+    needsElbow: len1 >= tol && len2 >= tol,
+    len1,
+    len2,
+  };
+}
+
+/**
+ * Сегменты **первой** ноги (как `computePipeStraightSegmentsOnly` + `trim`) + хорды
+ * в соответствии с постановкой второго клика: «фиктивное» колено только при полном L.
+ */
+export function buildPipeFirstLegForPreviewAndPlace(
+  start: THREE.Vector3,
+  end: THREE.Vector3,
+  step: number,
+  preferAxisFlip = false,
+  startBackTrim = 0,
+): PipePathSegment[] {
+  const { needsElbow, corner } = pipeLShapeInfoFromLineEnd(
+    start,
+    end,
+    0.06,
+    preferAxisFlip,
+  );
+  /**
+   * Когда оси L переключены через flip, первая нога идёт start->corner
+   * по альтернативной оси, а не вдоль доминирующего dx/dz.
+   */
+  const firstLegEnd = needsElbow ? corner : end;
+  const result = computePipeStraightSegmentsOnly(
+    start,
+    firstLegEnd,
+    step,
+    needsElbow,
+    startBackTrim,
+  );
+  for (const s of result) {
+    if (s.partPath === PIPE_PROCEDURAL_STRAIGHT_PATH) {
+      s.straightChordMeters = step * DEFAULT_STRAIGHT_CHORD_FACTOR;
+    }
+  }
+  /**
+   * Последняя прямая в полном L: торец должен сесть точно на вход дуги
+   * (corner - R * incomingDir). Иначе виден провал (gap) или «вдавленность»
+   * прямой в колено.
+   */
+  if (needsElbow) {
+    fitLastSegmentChordToArcEntry(result, corner, step);
+  }
+  return result;
+}
+
+/**
+ * Подгоняет хорду последнего прямого сегмента так, чтобы его передний торец
+ * совпал с торцом четверть-круга колена. R = `proceduralPipeArcRadius(step)`.
+ */
+function fitLastSegmentChordToArcEntry(
+  segments: PipePathSegment[],
+  corner: THREE.Vector3,
+  step: number,
+): void {
+  let lastStraight: PipePathSegment | null = null;
+  for (let i = segments.length - 1; i >= 0; i--) {
+    const s = segments[i]!;
+    if (s.partPath === PIPE_PROCEDURAL_STRAIGHT_PATH) {
+      lastStraight = s;
+      break;
+    }
+  }
+  if (!lastStraight) return;
+  const off = PIPE_RUN_ROT_Y_OFFSET;
+  const fx = Math.sin(lastStraight.rotationY - off);
+  const fz = Math.cos(lastStraight.rotationY - off);
+  const dx = corner.x - lastStraight.position.x;
+  const dz = corner.z - lastStraight.position.z;
+  const D = dx * fx + dz * fz;
+  const R = proceduralPipeArcRadius(step);
+  const chord = Math.max(step * 0.18, 2 * (D - R));
+  lastStraight.straightChordMeters = chord;
+}
+
+export function assignDefaultPipeStraightChordMeters(
+  segments: PipePathSegment[],
+  step: number,
+): void {
+  for (const s of segments) {
+    if (s.partPath === PIPE_PROCEDURAL_STRAIGHT_PATH) {
+      s.straightChordMeters = step * DEFAULT_STRAIGHT_CHORD_FACTOR;
+    } else {
+      delete s.straightChordMeters;
+    }
+  }
+}
 
 /**
  * Заполняет `straightChordMeters` для каждого прямого сегмента: стык в стык с соседом
- * и корректная длина до колена (пивот колена в углу — не укорачивать до расстояния «центр–угол»).
+ * и корректная длина до колена (пивот колена в углу — длина от центра прямой до пивота).
  */
 export function assignPipeStraightChordMeters(
   segments: PipePathSegment[],
@@ -36,6 +158,8 @@ export function assignPipeStraightChordMeters(
   step: number,
 ): void {
   const minL = Math.max(0.1, step * 0.12);
+  const off = PIPE_RUN_ROT_Y_OFFSET;
+  const R = proceduralPipeArcRadius(step);
   for (let i = 0; i < segments.length; i++) {
     const s = segments[i]!;
     if (s.partPath !== PIPE_PROCEDURAL_STRAIGHT_PATH) {
@@ -45,8 +169,17 @@ export function assignPipeStraightChordMeters(
     const next = segments[i + 1];
     if (next) {
       if (next.partPath === PIPE_PROCEDURAL_ELBOW_PATH) {
-        /** Лёгкое перекрытие с дугой колена. */
-        s.straightChordMeters = step * 1.018;
+        /**
+         * Стык прямой с коленом: передний торец прямой ровно на входе дуги
+         * (corner - R * incomingDir). Без этого либо щель, либо колено
+         * выглядит «вдавленным» в трубу.
+         */
+        const fx = Math.sin(s.rotationY - off);
+        const fz = Math.cos(s.rotationY - off);
+        const dx = next.position.x - s.position.x;
+        const dz = next.position.z - s.position.z;
+        const D = dx * fx + dz * fz;
+        s.straightChordMeters = Math.max(minL, 2 * (D - R));
       } else {
         const d = s.position.distanceTo(next.position);
         s.straightChordMeters = Math.max(minL, d * STRAIGHT_CHORD_OVERLAP);
@@ -81,10 +214,15 @@ export function snapPipeGhostXZ(
   return new THREE.Vector3(lineStart.x, y, raw.z);
 }
 
-/** Отступ прямых от вершины угла (~половина шага сетки), чтобы торец упирался в колено без щели. */
+/**
+ * Отступ от вершины угла, при котором последний прямой сегмент имеет
+ * центр в R + chord/2 от corner. Для chord ≈ step и R = step*0.5 → trim = step.
+ * Это гарантирует, что центр прямой НЕ попадает на торец дуги (chord не уходит в 0).
+ */
 export function pipeCornerTrimForFullCorner(step: number, legLen: number): number {
   const tol = 0.06;
-  const want = Math.max(step * 0.5 - 0.03, tol * 0.5);
+  const R = proceduralPipeArcRadius(step);
+  const want = Math.max(R + step * 0.5, tol * 0.5);
   if (legLen < tol) return 0;
   return Math.min(want, legLen * 0.48);
 }
@@ -93,6 +231,8 @@ export function computePipePathSegments(
   start: THREE.Vector3,
   end: THREE.Vector3,
   step: number,
+  preferAxisFlip = false,
+  startBackTrim = 0,
 ): PipePathSegment[] {
   const result: PipePathSegment[] = [];
   const y = start.y;
@@ -109,7 +249,8 @@ export function computePipePathSegments(
     return result;
   }
 
-  const firstAlongX = Math.abs(dx) >= Math.abs(dz);
+  const naturalAlongX = Math.abs(dx) >= Math.abs(dz);
+  const firstAlongX = preferAxisFlip ? !naturalAlongX : naturalAlongX;
   const corner = firstAlongX
     ? new THREE.Vector3(end.x, y, start.z)
     : new THREE.Vector3(start.x, y, end.z);
@@ -125,6 +266,7 @@ export function computePipePathSegments(
     from: THREE.Vector3,
     legDir: THREE.Vector3,
     runLen: number,
+    backTrim = 0,
   ): void {
     if (runLen < tol) return;
     const full = legDir.length();
@@ -133,14 +275,15 @@ export function computePipePathSegments(
     const uz = legDir.z / full;
     const rotY = Math.atan2(ux, uz) + PIPE_RUN_ROT_Y_OFFSET;
     const spacing = Math.max(step, 0.12);
+    const t0 = Math.min(Math.max(0, backTrim), Math.max(0, runLen));
 
     /** Центры сегментов через `spacing` — стык в стык по длине одной трубы. */
     const ts: number[] = [];
     if (runLen <= spacing + 1e-4) {
-      ts.push(runLen * 0.5);
+      ts.push(Math.max(runLen * 0.5, t0));
     } else {
-      ts.push(0);
-      let t = spacing;
+      ts.push(t0);
+      let t = Math.max(spacing, t0 + spacing * 0.5);
       while (t < runLen - 1e-4) {
         ts.push(t);
         t += spacing;
@@ -165,7 +308,7 @@ export function computePipePathSegments(
   if (len1 >= tol) {
     const dir1 = leg1.clone();
     const run1 = needsElbow ? Math.max(0, len1 - cornerTrim1) : len1;
-    pushStraightRun(start, dir1, run1);
+    pushStraightRun(start, dir1, run1, startBackTrim);
   }
 
   if (needsElbow) {
@@ -223,6 +366,8 @@ export function computePipeStraightSegmentsOnly(
   step: number,
   /** Если true — длина прогона уменьшается на cornerTrim до точки end (под колено в end). */
   trimRunForUpcomingElbow = false,
+  /** Сдвиг первого центра вперёд по направлению (для back-trim у существующего соседа). */
+  startBackTrim = 0,
 ): PipePathSegment[] {
   const result: PipePathSegment[] = [];
   const y = start.y;
@@ -249,12 +394,13 @@ export function computePipeStraightSegmentsOnly(
   const uz = leg.z / runLenFull;
   const rotY = Math.atan2(ux, uz) + PIPE_RUN_ROT_Y_OFFSET;
   const spacing = Math.max(step, 0.12);
+  const t0 = Math.min(Math.max(0, startBackTrim), Math.max(0, runLen));
   const ts: number[] = [];
   if (runLen <= spacing + 1e-4) {
-    ts.push(Math.max(runLen * 0.5, tol * 0.25));
+    ts.push(Math.max(runLen * 0.5, t0));
   } else {
-    ts.push(0);
-    let t = spacing;
+    ts.push(t0);
+    let t = Math.max(spacing, t0 + spacing * 0.5);
     while (t < runLen - 1e-4) {
       ts.push(t);
       t += spacing;
@@ -277,6 +423,43 @@ export function computePipeStraightSegmentsOnly(
 export function pipeCornerTrimForStep(step: number): number {
   const tol = 0.06;
   return Math.max(step * 0.12, tol * 0.5);
+}
+
+/**
+ * Когда новая нога стартует вплотную к уже стоящему колену/прямой того же типа,
+ * сместить первый центр первой ноги на (R + step/2) вперёд, чтобы новая прямая не
+ * залезала торцом внутрь существующей геометрии. Возвращает 0, если сосед не найден.
+ */
+export function pipeStartBackTrimForExistingNeighbor(
+  start: THREE.Vector3,
+  forwardDirX: number,
+  forwardDirZ: number,
+  step: number,
+  neighbors: Iterable<{
+    x: number;
+    z: number;
+    partPath: string;
+    rotY: number;
+    chord: number;
+  }>,
+  menuMatchPartPaths: ReadonlySet<string>,
+): number {
+  const R = proceduralPipeArcRadius(step);
+  const probeR = step * 0.55;
+  let any = false;
+  for (const n of neighbors) {
+    if (!menuMatchPartPaths.has(n.partPath)) continue;
+    const dx = n.x - start.x;
+    const dz = n.z - start.z;
+    const distXZ = Math.hypot(dx, dz);
+    if (distXZ > probeR) continue;
+    /** Только сосед с задней полусферы относительно forward dir. */
+    const back = -(dx * forwardDirX + dz * forwardDirZ);
+    if (back < -step * 0.05) continue;
+    any = true;
+    break;
+  }
+  return any ? R + step * 0.5 : 0;
 }
 
 /** Поворот колена и следующей прямой относительно курсора (90°). `turn`: +1 / −1 от cross(incoming, mouse). */

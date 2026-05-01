@@ -6,9 +6,11 @@
 import * as THREE from "three";
 import {
   PIPE_PROCEDURAL_ELBOW_PATH,
+  PIPE_PROCEDURAL_FREE_CURVE_PATH,
   PIPE_RUN_ROT_Y_OFFSET,
   isProceduralPipePartPath,
 } from "./pipeKitModels.ts";
+import { buildPipeFreeCurveTubeGeometry } from "../../render/builder/pipeFreeCurve.ts";
 
 export { isProceduralPipePartPath };
 
@@ -42,7 +44,7 @@ export function offsetProceduralPipeRootToSitOnFloor(
   partPath: string,
 ): void {
   const box = new THREE.Box3().setFromObject(root);
-  if (partPath === PIPE_PROCEDURAL_ELBOW_PATH) {
+  if (partPath === PIPE_PROCEDURAL_ELBOW_PATH || partPath === PIPE_PROCEDURAL_FREE_CURVE_PATH) {
     root.position.set(0, -box.min.y, 0);
     return;
   }
@@ -51,7 +53,7 @@ export function offsetProceduralPipeRootToSitOnFloor(
 }
 
 export function proceduralPipeArcRadius(segmentStep: number): number {
-  return Math.max(segmentStep * 0.52, 0.35);
+  return Math.max(segmentStep * 0.5, 0.35);
 }
 
 function disposeMeshHierarchy(root: THREE.Object3D): void {
@@ -106,20 +108,44 @@ export function createProceduralElbowPipeObject(
   const outVec = new THREE.Vector3(-turn * inZ, 0, turn * inX);
   const R = proceduralPipeArcRadius(segmentStep);
   const corner = new THREE.Vector3(0, 0, 0);
-  /** Чуть длиннее по касательным — меньше щель к прямым сегментам длины `segmentStep`. */
+  /**
+   * Concentric четверть круга от corner: торцы дуги ровно в R от угла,
+   * чтобы прямая (длиной step/2 от центра ноги) стыковалась стык в стык.
+   */
   const pts = [
-    corner.clone().sub(inVec.clone().multiplyScalar(R * 1.26)),
-    corner.clone().sub(inVec.clone().multiplyScalar(R * 0.42)),
+    corner.clone().sub(inVec.clone().multiplyScalar(R)),
+    corner.clone().sub(inVec.clone().multiplyScalar(R * 0.5)),
     corner.clone(),
-    corner.clone().add(outVec.clone().multiplyScalar(R * 0.42)),
-    corner.clone().add(outVec.clone().multiplyScalar(R * 1.26)),
+    corner.clone().add(outVec.clone().multiplyScalar(R * 0.5)),
+    corner.clone().add(outVec.clone().multiplyScalar(R)),
   ];
-  const curve = new THREE.CatmullRomCurve3(pts, false, "catmullrom", 0.35);
+  const curve = new THREE.CatmullRomCurve3(pts, false, "catmullrom", 0.5);
   const geo = new THREE.TubeGeometry(curve, 24, tubeRadius, 16, false);
   const mesh = new THREE.Mesh(geo, newPipeBodyMaterial());
   mesh.name = "pipe_body";
   const g = new THREE.Group();
   g.name = "procedural-pipe-elbow";
+  g.add(mesh);
+  return g;
+}
+
+/** Одна труба по сплайну; `worldPoints` — абсолютные миры, пивот в `worldPoints[0]`. */
+export function createProceduralFreeCurvePipeObject(
+  worldPoints: THREE.Vector3[],
+  tubeRadius: number,
+  segmentStep: number,
+): THREE.Group {
+  const o = worldPoints[0]!.clone();
+  const local = worldPoints.map((p) => p.clone().sub(o));
+  const geo = buildPipeFreeCurveTubeGeometry(
+    local,
+    tubeRadius,
+    segmentStep,
+  );
+  const mesh = new THREE.Mesh(geo, newPipeBodyMaterial());
+  mesh.name = "pipe_body";
+  const g = new THREE.Group();
+  g.name = "procedural-pipe-free-curve";
   g.add(mesh);
   return g;
 }
