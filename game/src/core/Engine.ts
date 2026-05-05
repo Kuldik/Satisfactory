@@ -241,11 +241,13 @@ export class Engine {
     ndcX: number,
     ndcY: number,
     altDeconstructHeld = false,
+    altPipeStraightHeld = false,
   ): void {
     this.sceneManager.updateBuilderGhostPosition(
       ndcX,
       ndcY,
       altDeconstructHeld,
+      altPipeStraightHeld,
     );
   }
 

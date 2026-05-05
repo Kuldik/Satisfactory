@@ -43,10 +43,18 @@ export function isKenneySpaceStationPipeBendPath(partPath: string): boolean {
   );
 }
 
+export function isKenneySpaceStationPipeFlangePath(partPath: string): boolean {
+  return (
+    partPath.includes("kenney_space-station-kit") &&
+    partPath.includes("pipe-end.glb")
+  );
+}
+
 export function isKenneySpaceStationPipeAssetPath(partPath: string): boolean {
   return (
     isKenneySpaceStationPipeStraightPath(partPath) ||
-    isKenneySpaceStationPipeBendPath(partPath)
+    isKenneySpaceStationPipeBendPath(partPath) ||
+    isKenneySpaceStationPipeFlangePath(partPath)
   );
 }
 

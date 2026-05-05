@@ -25,8 +25,9 @@ export type PipePathSegment = {
   straightChordMeters?: number;
 };
 
-const STRAIGHT_CHORD_OVERLAP = 1.018;
-const DEFAULT_STRAIGHT_CHORD_FACTOR = STRAIGHT_CHORD_OVERLAP;
+/** Совпадает с длиной процедурной прямой в реестрах/стыках (~хорда торцов). */
+export const PIPE_STRAIGHT_CHORD_OVERLAP = 1.018;
+const DEFAULT_STRAIGHT_CHORD_FACTOR = PIPE_STRAIGHT_CHORD_OVERLAP;
 
 /**
  * Узел L от start к end: есть ли угол с двумя плечами (нужен коленный пивот).
@@ -182,7 +183,7 @@ export function assignPipeStraightChordMeters(
         s.straightChordMeters = Math.max(minL, 2 * (D - R));
       } else {
         const d = s.position.distanceTo(next.position);
-        s.straightChordMeters = Math.max(minL, d * STRAIGHT_CHORD_OVERLAP);
+        s.straightChordMeters = Math.max(minL, d * PIPE_STRAIGHT_CHORD_OVERLAP);
       }
       continue;
     }
@@ -193,7 +194,7 @@ export function assignPipeStraightChordMeters(
     } else {
       s.straightChordMeters = Math.max(
         minL,
-        Math.min(step * 8, 2 * e * STRAIGHT_CHORD_OVERLAP),
+        Math.min(step * 8, 2 * e * PIPE_STRAIGHT_CHORD_OVERLAP),
       );
     }
   }

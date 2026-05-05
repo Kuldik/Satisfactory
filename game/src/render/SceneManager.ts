@@ -16,6 +16,7 @@ import {
   createProceduralFreeCurvePipeObject,
   createProceduralStraightPipeObject,
   offsetProceduralPipeRootToSitOnFloor,
+  proceduralPipeTubeRadiusLogical,
   proceduralPipeTubeRadiusWorld,
 } from "../buildings/logistics/proceduralPipeGeometry.ts";
 import type { BuilderMode } from "../core/types.ts";
@@ -43,6 +44,7 @@ import {
 import {
   isKenneySpaceStationPipeAssetPath,
   isKenneySpaceStationPipeBendPath,
+  isKenneySpaceStationPipeFlangePath,
   isKenneySpaceStationPipeStraightPath,
   isPipeLineMenuId,
   isPipeJunctionMenuId,
@@ -74,6 +76,7 @@ import {
 } from "./builder/conveyorPathSegments.ts";
 import {
   assignPipeStraightChordMeters,
+  PIPE_STRAIGHT_CHORD_OVERLAP,
   buildPipeFirstLegForPreviewAndPlace,
   computePipeJunctionRotations,
   computePipePathSegments,
@@ -116,6 +119,8 @@ type BuilderPlacedPartRecord = {
   elbowTurn?: 1 | -1;
   freeCurvePoints?: { x: number; y: number; z: number }[];
   tubeRadius?: number;
+  /** Нет кольца на u=0 при стыковке со свободной кривой (центр линии). */
+  pipeFreeOmitStartFlange?: boolean;
 };
 
 /**
@@ -206,7 +211,15 @@ export class SceneManager {
     rotationY: number;
     compositeId: string;
     lineKind: "conveyor" | "pipe";
+    /** `curveFace` — позиция уже на центре открытого торца свободной сплайновой трубы. */
+    pipeSnapMode?: "gridStep" | "curveFace";
+    /** Конец центральной линии сплайна (для траектории; совпадает с `position` для curveFace). */
+    curveCenterAnchor?: THREE.Vector3;
   }> = [];
+  /**
+   * Следующий отрезок free-curve начинается без кольца на входе — стык с центром предыдущего.
+   */
+  private pipeFreeStartIsCurveChain = false;
   /**
    * Belt rotationY at the current line start (after snap, auto-continue, or first click).
    * Used so L-shaped and curve paths extend along the incoming belt instead of picking
@@ -780,6 +793,7 @@ export class SceneManager {
     ndcX: number,
     ndcY: number,
     altDeconstructHeld = false,
+    altPipeStraightHeld = false,
   ): void {
     this.builderPointerNDC.set(ndcX, ndcY);
     this.builderHasPointer = true;
@@ -865,7 +879,15 @@ export class SceneManager {
             "pipe",
           );
           if (nearestEp) {
-            pos.copy(nearestEp.position);
+            if (
+              this.builderMode === "free" &&
+              nearestEp.pipeSnapMode === "curveFace" &&
+              nearestEp.curveCenterAnchor
+            ) {
+              pos.copy(nearestEp.curveCenterAnchor);
+            } else {
+              pos.copy(nearestEp.position);
+            }
             this.builderGhostRotY = nearestEp.rotationY;
             this.conveyorTangentAtLineEnd = nearestEp.rotationY;
             this.pipeLineEndSnappedToTarget = true;
@@ -908,7 +930,15 @@ export class SceneManager {
             "pipe",
           );
           if (nearestEp) {
-            pos.copy(nearestEp.position);
+            if (
+              this.builderMode === "free" &&
+              nearestEp.pipeSnapMode === "curveFace" &&
+              nearestEp.curveCenterAnchor
+            ) {
+              pos.copy(nearestEp.curveCenterAnchor);
+            } else {
+              pos.copy(nearestEp.position);
+            }
             this.builderGhostRotY = nearestEp.rotationY;
           } else {
             const nearestPort = this.findNearestPort(pos, snapRadius);
@@ -933,6 +963,32 @@ export class SceneManager {
       }
     }
 
+    if (
+      isPipeLineGhost &&
+      this.pipePlacementSubMode === "leg" &&
+      this.builderMode === "free" &&
+      this.builderLineStart
+    ) {
+      const s = this.builderLineStart;
+      if (altPipeStraightHeld && !this.pipeLineEndSnappedToTarget) {
+        const step = this.getSegmentStep();
+        const rotIn =
+          this.conveyorTangentAtLineStart ?? this.builderGhostRotY;
+        const off = PIPE_RUN_ROT_Y_OFFSET;
+        const vx = Math.sin(rotIn - off);
+        const vz = Math.cos(rotIn - off);
+        pos.y = s.y;
+        const dx = pos.x - s.x;
+        const dz = pos.z - s.z;
+        let t = dx * vx + dz * vz;
+        const minT = Math.max(0.06, step * 0.08);
+        if (t < minT) t = minT;
+        pos.set(s.x + vx * t, s.y, s.z + vz * t);
+        this.builderGhostRotY = rotIn;
+        this.conveyorTangentAtLineEnd = null;
+      }
+    }
+
     this.builderGhostCurrentPos.copy(pos);
     this.builderGhostPivot.position.copy(pos);
     this.builderGhostPivot.rotation.y = this.builderGhostRotY;
@@ -941,7 +997,10 @@ export class SceneManager {
       isKenneySpaceStationPipeAssetPath(this.builderCurrentPartPath)
     ) {
       this.builderGhostModelRoot.rotation.y = 0;
-      if (isKenneySpaceStationPipeStraightPath(this.builderCurrentPartPath)) {
+      if (
+        isKenneySpaceStationPipeStraightPath(this.builderCurrentPartPath) ||
+        isKenneySpaceStationPipeFlangePath(this.builderCurrentPartPath)
+      ) {
         this.builderGhostModelRoot.rotation.z = 0;
       }
     }
@@ -983,6 +1042,7 @@ export class SceneManager {
     let pipeBodyOverlap = false;
     if (
       isPipeLineGhost &&
+      this.builderMode !== "free" &&
       this.pipePlacementSubMode === "leg" &&
       isProceduralPipePartPath(this.builderCurrentPartPath) &&
       this.builderCurrentPartPath === PIPE_PROCEDURAL_STRAIGHT_PATH &&
@@ -1069,6 +1129,10 @@ export class SceneManager {
         this.conveyorTangentAtLineEnd,
         this.builderGhostRotY,
         st,
+        proceduralPipeTubeRadiusLogical(
+          this.prefabMenuBuildingId ?? undefined,
+          this.prefabPlacementScale ?? this.builderScale,
+        ),
       );
     }
 
@@ -1097,6 +1161,7 @@ export class SceneManager {
     if (this.builderGhostPivot && isPipeLineGhost) {
       this.builderGhostPivot.visible = !linePreviewActive;
     }
+
     if (linePreviewActive) {
       this.rebuildLinePreview(
         this.builderLineStart!,
@@ -1197,6 +1262,7 @@ export class SceneManager {
       }
 
       if (!this.builderLineStart) {
+        this.pipeFreeStartIsCurveChain = false;
         this.builderLineStart = this.builderGhostCurrentPos.clone();
         const snapR = this.getSegmentStep() * (isPipeLinePlacement ? 3 : 1.5);
         if (isConveyorLine) {
@@ -1214,23 +1280,36 @@ export class SceneManager {
             "pipe",
           );
           if (ep0) {
-            this.builderLineStart.copy(ep0.position);
             this.conveyorTangentAtLineStart = ep0.rotationY;
-            if (this.builderMode === "free") {
-              const st = this.getSegmentStep();
-              this.builderLineStart.copy(
-                this.refinePipeFreeEndpointToPipeOpenFace(
-                  this.builderLineStart,
-                  ep0.rotationY,
-                  st,
-                ),
-              );
+            if (
+              this.builderMode === "free" &&
+              ep0.pipeSnapMode === "curveFace" &&
+              ep0.curveCenterAnchor
+            ) {
+              this.builderLineStart.copy(ep0.curveCenterAnchor);
+              this.pipeFreeStartIsCurveChain = true;
+            } else {
+              this.builderLineStart.copy(ep0.position);
+              this.pipeFreeStartIsCurveChain = false;
+              if (this.builderMode === "free") {
+                const st = this.getSegmentStep();
+                if (ep0.pipeSnapMode !== "curveFace") {
+                  this.builderLineStart.copy(
+                    this.refinePipeFreeEndpointToPipeOpenFace(
+                      this.builderLineStart,
+                      ep0.rotationY,
+                      st,
+                    ),
+                  );
+                }
+              }
             }
           } else {
             const port0 = this.findNearestPort(this.builderLineStart, snapR);
             if (port0) {
               this.builderLineStart.copy(port0.worldPos);
               this.conveyorTangentAtLineStart = port0.worldDir;
+              this.pipeFreeStartIsCurveChain = false;
               if (this.builderMode === "free") {
                 const st = this.getSegmentStep();
                 this.builderLineStart.copy(
@@ -1243,6 +1322,7 @@ export class SceneManager {
               }
             } else {
               this.conveyorTangentAtLineStart = null;
+              this.pipeFreeStartIsCurveChain = false;
             }
           }
         }
@@ -1353,7 +1433,7 @@ export class SceneManager {
                 firstSeg.position.y,
                 firstSeg.position.z - Math.cos(dir) * step,
               ),
-              rotationY: firstSeg.rotationY,
+              rotationY: firstSeg.rotationY + Math.PI,
               compositeId,
               lineKind: "pipe",
             });
@@ -1426,6 +1506,7 @@ export class SceneManager {
       const start = this.builderLineStart.clone();
       const end = this.builderGhostCurrentPos.clone();
       this.builderLineStart = null;
+      this.pipeFreeStartIsCurveChain = false;
       this.builderLinePreviewGroup.clear();
       const records = getAxisLinePlacementPositions(
         start,
@@ -1514,6 +1595,7 @@ export class SceneManager {
       isPipeLineMenuId(this.prefabMenuBuildingId) &&
       this.pipePlacementSubMode === "junction";
     this.builderLineStart = null;
+    this.pipeFreeStartIsCurveChain = false;
     this.conveyorTangentAtLineStart = null;
     this.conveyorTangentAtLineEnd = null;
     this.conveyorDefaultTooTight = false;
@@ -1540,6 +1622,7 @@ export class SceneManager {
     this.prefabPlacementScale = null;
     this.prefabMenuBuildingId = null;
     this.builderLineStart = null;
+    this.pipeFreeStartIsCurveChain = false;
     this.conveyorTangentAtLineStart = null;
     this.conveyorTangentAtLineEnd = null;
     this.conveyorDefaultTooTight = false;
@@ -1560,6 +1643,7 @@ export class SceneManager {
     this.placedPorts.length = 0;
     this.conveyorEndpoints.length = 0;
     this.builderLineStart = null;
+    this.pipeFreeStartIsCurveChain = false;
     this.builderLinePreviewGroup.clear();
     this.persistBuilderState();
   }
@@ -1692,6 +1776,7 @@ export class SceneManager {
       this.builderMode = "free";
     }
     this.builderLineStart = null;
+    this.pipeFreeStartIsCurveChain = false;
     this.builderLinePreviewGroup.clear();
     this.conveyorTangentAtLineStart = null;
     this.conveyorTangentAtLineEnd = null;
@@ -1748,6 +1833,7 @@ export class SceneManager {
     this.builderDeconstructMode = enabled;
     if (enabled) {
       this.builderLineStart = null;
+      this.pipeFreeStartIsCurveChain = false;
       this.builderLinePreviewGroup.clear();
       this.refreshGhostMaterial();
       this.refreshDeconstructHoverFromPointer();
@@ -2183,6 +2269,7 @@ export class SceneManager {
       straightChordMeters?: number;
       freeCurvePoints?: { x: number; y: number; z: number }[];
       tubeRadius?: number;
+      pipeFreeOmitStartFlange?: boolean;
     },
   ): boolean {
     const path = sourcePath ?? this.builderCurrentPartPath;
@@ -2211,7 +2298,9 @@ export class SceneManager {
         const wp = raw.map((p) => new THREE.Vector3(p.x, p.y, p.z));
         const tr =
           typeof pipeSeg?.tubeRadius === "number" ? pipeSeg.tubeRadius : tubeR;
-        placed = createProceduralFreeCurvePipeObject(wp, tr, stepLen);
+        placed = createProceduralFreeCurvePipeObject(wp, tr, stepLen, {
+          omitStartFlange: pipeSeg.pipeFreeOmitStartFlange === true,
+        });
       } else {
         if (
           pipeSeg?.elbowIncomingRotY === undefined ||
@@ -2238,7 +2327,17 @@ export class SceneManager {
       const pivot = new THREE.Group();
       pivot.add(placed);
       offsetProceduralPipeRootToSitOnFloor(placed, path);
-      pivot.position.copy(worldPos);
+      const pivotWorld =
+        path === PIPE_PROCEDURAL_FREE_CURVE_PATH &&
+        pipeSeg?.freeCurvePoints &&
+        pipeSeg.freeCurvePoints.length >= 2
+          ? new THREE.Vector3(
+              pipeSeg.freeCurvePoints[0]!.x,
+              pipeSeg.freeCurvePoints[0]!.y,
+              pipeSeg.freeCurvePoints[0]!.z,
+            )
+          : worldPos.clone();
+      pivot.position.copy(pivotWorld);
       pivot.rotation.y =
         path === PIPE_PROCEDURAL_ELBOW_PATH ||
         path === PIPE_PROCEDURAL_FREE_CURVE_PATH
@@ -2282,6 +2381,9 @@ export class SceneManager {
         }));
         record.tubeRadius =
           typeof pipeSeg.tubeRadius === "number" ? pipeSeg.tubeRadius : tubeR;
+        if (pipeSeg.pipeFreeOmitStartFlange) {
+          record.pipeFreeOmitStartFlange = true;
+        }
       }
       if (compositeId) {
         record.compositeId = compositeId;
@@ -2444,6 +2546,8 @@ export class SceneManager {
     position: THREE.Vector3;
     rotationY: number;
     compositeId: string;
+    pipeSnapMode?: "gridStep" | "curveFace";
+    curveCenterAnchor?: THREE.Vector3;
   } | null {
     let best: (typeof this.conveyorEndpoints)[number] | null = null;
     let bestDist = maxRadius;
@@ -2457,7 +2561,16 @@ export class SceneManager {
         best = ep;
       }
     }
-    return best;
+    if (!best) return null;
+    return {
+      position: best.position,
+      rotationY: best.rotationY,
+      compositeId: best.compositeId,
+      ...(best.pipeSnapMode ? { pipeSnapMode: best.pipeSnapMode } : {}),
+      ...(best.curveCenterAnchor
+        ? { curveCenterAnchor: best.curveCenterAnchor.clone() }
+        : {}),
+    };
   }
 
   /**
@@ -2854,7 +2967,7 @@ export class SceneManager {
     const halfNew = chordLen * 0.5;
     const scaleNew = this.prefabPlacementScale ?? this.builderScale;
     const radialNew =
-      proceduralPipeTubeRadiusWorld(
+      proceduralPipeTubeRadiusLogical(
         this.prefabMenuBuildingId ?? undefined,
         scaleNew,
       ) *
@@ -2884,7 +2997,7 @@ export class SceneManager {
         rec.straightChordMeters ?? rec.segmentStep ?? GRID_CELL_SIZE;
       const halfOld = oLen * 0.5;
       const radialOld =
-        proceduralPipeTubeRadiusWorld(
+        proceduralPipeTubeRadiusLogical(
           rec.menuBuildingId ?? undefined,
           rec.scale,
         ) * 2.12 +
@@ -3183,7 +3296,7 @@ export class SceneManager {
           firstSeg.position.y,
           firstSeg.position.z - Math.cos(dir) * step,
         ),
-        rotationY: firstSeg.rotationY,
+        rotationY: firstSeg.rotationY + Math.PI,
         compositeId,
         lineKind: "pipe",
       });
@@ -3219,6 +3332,7 @@ export class SceneManager {
     this.pipeIncomingStraightRotY = incomingRot;
     this.pipeJunctionManhattanCornerWorld.copy(cornerForJunction);
     this.builderLineStart = null;
+    this.pipeFreeStartIsCurveChain = false;
     this.pipePlacementSubMode = "junction";
     this.replacePipeMenuGhostModelRootFromPath(PIPE_PROCEDURAL_ELBOW_PATH);
     this.updateBuilderGhostPosition(
@@ -3433,7 +3547,7 @@ export class SceneManager {
     const off = PIPE_RUN_ROT_Y_OFFSET;
     const ux = Math.sin(rotationY - off);
     const uz = Math.cos(rotationY - off);
-    const halfChord = step * 0.52;
+    const halfChord = step * PIPE_STRAIGHT_CHORD_OVERLAP * 0.5;
     const pull = Math.max(0, step - halfChord);
     return new THREE.Vector3(
       anchor.x - ux * pull,
@@ -3474,7 +3588,7 @@ export class SceneManager {
         if (d < bestD) {
           bestD = d;
           best.set(capX, pos.y, capZ);
-          bestRot = rec.rotY;
+          bestRot = sign > 0 ? rec.rotY : rec.rotY + Math.PI;
         }
       }
     }
@@ -3558,7 +3672,9 @@ export class SceneManager {
       this.builderGhostRotY,
       step,
     );
-    const placed = createProceduralFreeCurvePipeObject(pts, r, step);
+    const placed = createProceduralFreeCurvePipeObject(pts, r, step, {
+      omitStartFlange: this.pipeFreeStartIsCurveChain,
+    });
     const mat = this.builderGhostInvalid
       ? this.ghostMaterialInvalid
       : this.ghostMaterialOk;
@@ -3581,6 +3697,15 @@ export class SceneManager {
   /** Второй клик в режиме «free»: одна процедурная труба по сплайну. */
   private placePipeFreeCurveLeg(start: THREE.Vector3, end: THREE.Vector3): boolean {
     const step = this.getSegmentStep();
+    const scale = this.prefabPlacementScale ?? this.builderScale;
+    const tubeR = proceduralPipeTubeRadiusWorld(
+      this.prefabMenuBuildingId ?? undefined,
+      scale,
+    );
+    const tubeLogical = proceduralPipeTubeRadiusLogical(
+      this.prefabMenuBuildingId ?? undefined,
+      scale,
+    );
     if (
       pipeFreeCurvePlacementTooSharp(
         start,
@@ -3589,15 +3714,11 @@ export class SceneManager {
         this.conveyorTangentAtLineEnd,
         this.builderGhostRotY,
         step,
+        tubeLogical,
       )
     ) {
       return false;
     }
-    const scale = this.prefabPlacementScale ?? this.builderScale;
-    const tubeR = proceduralPipeTubeRadiusWorld(
-      this.prefabMenuBuildingId ?? undefined,
-      scale,
-    );
     const pts = computePipeFreeCurvePath(
       start,
       end,
@@ -3609,6 +3730,7 @@ export class SceneManager {
     if (this.pipeFreeCurveSampleCollides(pts, step)) return false;
     const compositeId = this.newCompositeId();
     const worldStart = pts[0]!.clone();
+    const omitStartFlange = this.pipeFreeStartIsCurveChain;
     const placed = this.placeSingleAt(
       worldStart,
       0,
@@ -3620,6 +3742,7 @@ export class SceneManager {
         segmentStep: step,
         freeCurvePoints: pts.map((p) => ({ x: p.x, y: p.y, z: p.z })),
         tubeRadius: tubeR,
+        pipeFreeOmitStartFlange: omitStartFlange,
       },
     );
     if (!placed) return false;
@@ -3637,34 +3760,32 @@ export class SceneManager {
     const tEnd = curve.getTangent(1).normalize();
     const rotS = Math.atan2(tStart.x, tStart.z) + PIPE_RUN_ROT_Y_OFFSET;
     const rotE = Math.atan2(tEnd.x, tEnd.z) + PIPE_RUN_ROT_Y_OFFSET;
-    const dirS = rotS - PIPE_RUN_ROT_Y_OFFSET;
-    const dirE = rotE - PIPE_RUN_ROT_Y_OFFSET;
     const p0 = pts[0]!;
     const pLast = pts[pts.length - 1]!;
+    /** Снап ровно в центр открытого торца; внешнее смещение фланца даёт видимый зазор. */
+    const entrySnap = p0.clone();
+    const exitSnap = pLast.clone();
     this.conveyorEndpoints.push({
-      position: new THREE.Vector3(
-        p0.x - Math.sin(dirS) * step,
-        p0.y,
-        p0.z - Math.cos(dirS) * step,
-      ),
-      rotationY: rotS,
+      position: entrySnap,
+      rotationY: rotS + Math.PI,
       compositeId,
       lineKind: "pipe",
+      pipeSnapMode: "curveFace",
+      curveCenterAnchor: p0.clone(),
     });
     this.conveyorEndpoints.push({
-      position: new THREE.Vector3(
-        pLast.x + Math.sin(dirE) * step,
-        pLast.y,
-        pLast.z + Math.cos(dirE) * step,
-      ),
+      position: exitSnap,
       rotationY: rotE,
       compositeId,
       lineKind: "pipe",
+      pipeSnapMode: "curveFace",
+      curveCenterAnchor: pLast.clone(),
     });
 
     this.persistBuilderState();
-    this.builderLineStart = end.clone();
+    this.builderLineStart = pLast.clone();
     this.conveyorTangentAtLineStart = rotE;
+    this.pipeFreeStartIsCurveChain = true;
     this.conveyorTangentAtLineEnd = null;
     this.pipeLineEndSnappedToTarget = false;
     this.updateBuilderGhostPosition(
@@ -3878,6 +3999,7 @@ export class SceneManager {
           elbowTurn?: 1 | -1;
           freeCurvePoints?: { x: number; y: number; z: number }[];
           tubeRadius?: number;
+          pipeFreeOmitStartFlange?: boolean;
         }>;
       };
       if (typeof parsed.scale === "number") {
@@ -3926,6 +4048,9 @@ export class SceneManager {
                     freeCurvePoints: part.freeCurvePoints,
                     ...(typeof part.tubeRadius === "number"
                       ? { tubeRadius: part.tubeRadius }
+                      : {}),
+                    ...(part.pipeFreeOmitStartFlange
+                      ? { pipeFreeOmitStartFlange: true }
                       : {}),
                   }
                 : {}),

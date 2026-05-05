@@ -222,6 +222,7 @@ function App() {
           ndcX,
           ndcY,
           isDeconstructMode && e.altKey,
+          !isDeconstructMode && e.altKey,
         );
       }
     },
