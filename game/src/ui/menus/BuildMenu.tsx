@@ -7,6 +7,12 @@ import { BuildingCategory } from '../../core/types.ts';
 import { hasPattern } from '../../buildings/BuildingPatterns.ts';
 import { hasPrefabBuilding } from '../../buildings/BuildingPrefabs.ts';
 import { PIPE_PROCEDURAL_STRAIGHT_PATH } from '../../buildings/logistics/pipeKitModels.ts';
+import {
+  isRollingStockMenuId,
+  type RollingStockKind,
+  type RollingStockVariant,
+} from '../../train/trainRollingStockCatalog.ts';
+import { RollingStockModelPicker } from './train/RollingStockModelPicker.tsx';
 import './BuildMenu.css';
 
 interface BuildMenuItem {
@@ -23,7 +29,10 @@ interface BuildMenuItem {
 interface BuildMenuProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectBuilding: (buildingId: string) => void | Promise<void>;
+  onSelectBuilding: (
+    buildingId: string,
+    variant?: { modelPath: string; variantId: string },
+  ) => void | Promise<void>;
 }
 
 // ---- ALL BUILDINGS organized by category + subcategory ----
@@ -209,18 +218,20 @@ const ALL_BUILDINGS: BuildMenuItem[] = [
 
   // — Железнодорожное сообщение —
   { id: 'railroad_track', name: 'Railway', nameRu: 'Ж/д пути', category: BuildingCategory.Logistics, subcategory: 'Железнодорожное сообщение',
+    modelPath: '/kits/kenney_train-kit/Models/OBJ format/railroad-straight.obj',
+    iconPath: '/kits/kenney_train-kit/Previews/railroad-straight.png',
     description: 'Железнодорожные рельсы для прокладки маршрутов поездов. Поддерживают прямые, изогнутые участки, подъёмы и спуски.' },
   { id: 'train_station', name: 'Train Station', nameRu: 'Ж/д станция', category: BuildingCategory.Logistics, subcategory: 'Железнодорожное сообщение',
+    modelPath: '/kits/models/train-station.glb',
     description: 'Платформа для остановки поездов. Позволяет загружать и выгружать предметы через конвейерные порты. Можно настраивать расписание.' },
-  { id: 'train_signal', name: 'Block Signal', nameRu: 'Блок-сигнал', category: BuildingCategory.Logistics, subcategory: 'Железнодорожное сообщение',
-    description: 'Светофор для регулирования движения поездов. Делит путь на блок-секции для предотвращения столкновений.' },
-  { id: 'train_path_signal', name: 'Path Signal', nameRu: 'Путевой сигнал', category: BuildingCategory.Logistics, subcategory: 'Железнодорожное сообщение',
-    description: 'Продвинутый светофор. Позволяет нескольким поездам одновременно использовать перекрёсток, если их маршруты не пересекаются.' },
   { id: 'locomotive', name: 'Electric Locomotive', nameRu: 'Электровоз', category: BuildingCategory.Logistics, subcategory: 'Железнодорожное сообщение',
+    iconPath: '/kits/kenney_train-kit/Previews/train-electric-double-a.png',
     description: 'Тяговый модуль поезда. Работает от электросети через рельсы. Каждый поезд требует минимум 1 локомотив. Потребляет 25 МВт.' },
   { id: 'freight_car', name: 'Freight Car', nameRu: 'Грузовой вагон', category: BuildingCategory.Logistics, subcategory: 'Железнодорожное сообщение',
+    iconPath: '/kits/kenney_train-kit/Previews/train-carriage-container-red.png',
     description: 'Грузовой вагон для перевозки твёрдых предметов по железной дороге. Вместимость: 32 стака. Цепляется к локомотиву.' },
   { id: 'fluid_freight_car', name: 'Fluid Freight Car', nameRu: 'Цистерный вагон', category: BuildingCategory.Logistics, subcategory: 'Железнодорожное сообщение',
+    iconPath: '/kits/kenney_train-kit/Previews/train-carriage-tank.png',
     description: 'Вагон-цистерна для перевозки жидкостей и газов по железной дороге. Вместимость: 2400 м³. Цепляется к локомотиву.' },
 
   // ============ ORGANIZATION ============
@@ -275,6 +286,8 @@ function groupBySubcategory(buildings: BuildMenuItem[]): Map<string, BuildMenuIt
 export const BuildMenu: FC<BuildMenuProps> = ({ isOpen, onClose, onSelectBuilding }) => {
   const [selectedCategory, setSelectedCategory] = useState<BuildingCategory>(BuildingCategory.Special);
   const [hoveredItem, setHoveredItem] = useState<BuildMenuItem | null>(null);
+  const [rollingStockPickerKind, setRollingStockPickerKind] =
+    useState<RollingStockKind | null>(null);
 
   if (!isOpen) return null;
 
@@ -311,6 +324,10 @@ export const BuildMenu: FC<BuildMenuProps> = ({ isOpen, onClose, onSelectBuildin
                     key={building.id}
                     className={`build-menu-item ${isSpecial ? 'build-menu-item-special' : ''}${hasPattern(building.id) || hasPrefabBuilding(building.id) ? ' has-pattern' : ''}`}
                     onClick={() => {
+                      if (isRollingStockMenuId(building.id)) {
+                        setRollingStockPickerKind(building.id);
+                        return;
+                      }
                       onSelectBuilding(building.id);
                       onClose();
                     }}
@@ -352,6 +369,20 @@ export const BuildMenu: FC<BuildMenuProps> = ({ isOpen, onClose, onSelectBuildin
           )}
         </div>
       </div>
+      {rollingStockPickerKind && (
+        <RollingStockModelPicker
+          kind={rollingStockPickerKind}
+          onCancel={() => setRollingStockPickerKind(null)}
+          onPick={(result: { variant: RollingStockVariant }) => {
+            onSelectBuilding(rollingStockPickerKind, {
+              modelPath: result.variant.modelPath,
+              variantId: result.variant.id,
+            });
+            setRollingStockPickerKind(null);
+            onClose();
+          }}
+        />
+      )}
     </div>
   );
 };

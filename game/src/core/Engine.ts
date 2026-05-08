@@ -16,6 +16,7 @@ import {
   isPipeJunctionMenuId,
   isPipeLineMenuId,
 } from '../buildings/logistics/pipeKitModels.ts';
+import { isRailroadTrackMenuId } from '../buildings/logistics/railroadKitModels.ts';
 
 export class Engine {
   private sceneManager: SceneManager;
@@ -167,7 +168,10 @@ export class Engine {
     this.notifyStateChange();
   }
 
-  async selectBuilding(buildingId: string | null): Promise<void> {
+  async selectBuilding(
+    buildingId: string | null,
+    overrideModelPath?: string,
+  ): Promise<void> {
     if (!buildingId) {
       this.sceneManager.abortPatternGhostLoad();
       this.sceneManager.clearBuilderGhost();
@@ -190,11 +194,11 @@ export class Engine {
     } else {
       const prefab = getBuildingPrefab(buildingId);
       this.sceneManager.abortPatternGhostLoad();
-      if (prefab) {
+      if (prefab || overrideModelPath) {
         try {
           await this.sceneManager.setPrefabBuildingGhost(
-            prefab.modelPath,
-            prefab.scale,
+            overrideModelPath ?? prefab!.modelPath,
+            prefab?.scale ?? 1,
             buildingId,
           );
         } catch (err) {
@@ -203,7 +207,11 @@ export class Engine {
       } else {
         this.sceneManager.clearBuilderGhost();
       }
-      if (isConveyorBeltMenuId(buildingId) || isPipeLineMenuId(buildingId)) {
+      if (
+        isConveyorBeltMenuId(buildingId) ||
+        isPipeLineMenuId(buildingId) ||
+        isRailroadTrackMenuId(buildingId)
+      ) {
         this.sceneManager.setBuilderMode("default");
       } else if (isPipeJunctionMenuId(buildingId)) {
         this.sceneManager.setBuilderMode("single");

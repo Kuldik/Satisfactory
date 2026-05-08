@@ -23,6 +23,11 @@ export const LOGISTICS_MENU_BUILDING_IDS = new Set<string>([
   "pipe_mk1",
   "pipe_mk2",
   "pipe_junction",
+  "railroad_track",
+  "train_station",
+  "locomotive",
+  "freight_car",
+  "fluid_freight_car",
 ]);
 
 export function isLogisticsMenuBuildingId(id: string | null | undefined): boolean {

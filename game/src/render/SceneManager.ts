@@ -4,6 +4,8 @@
 
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
+import { MTLLoader } from "three/addons/loaders/MTLLoader.js";
+import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
 import {
   CAMERA,
   GRID_CELL_SIZE,
@@ -42,6 +44,11 @@ import {
   isLogisticsMenuBuildingId,
 } from "../buildings/logistics/conveyorKitModels.ts";
 import {
+  isRailroadModelPath,
+  isRailroadTrackMenuId,
+  RAILROAD_CORNER_LARGE_MODEL_PATH,
+} from "../buildings/logistics/railroadKitModels.ts";
+import {
   isKenneySpaceStationPipeAssetPath,
   isKenneySpaceStationPipeBendPath,
   isKenneySpaceStationPipeFlangePath,
@@ -74,6 +81,7 @@ import {
   computeConveyorPathSegments,
   getPlacementSegmentStep,
 } from "./builder/conveyorPathSegments.ts";
+import { computeRailroadPathSegments } from "./builder/railroadPathSegments.ts";
 import {
   assignPipeStraightChordMeters,
   PIPE_STRAIGHT_CHORD_OVERLAP,
@@ -102,6 +110,7 @@ type BuilderPathPlanSegment = {
   elbowIncomingRotY?: number;
   elbowTurn?: 1 | -1;
   straightChordMeters?: number;
+  mirrorX?: boolean;
 };
 
 type BuilderPlacedPartRecord = {
@@ -121,6 +130,7 @@ type BuilderPlacedPartRecord = {
   tubeRadius?: number;
   /** Нет кольца на u=0 при стыковке со свободной кривой (центр линии). */
   pipeFreeOmitStartFlange?: boolean;
+  mirrorX?: boolean;
 };
 
 /**
@@ -183,6 +193,8 @@ export class SceneManager {
 
   private modelGallery: ModelGallery | null = null;
   private buildingKitLoader = new GLTFLoader();
+  private objLoader = new OBJLoader();
+  private mtlLoader = new MTLLoader();
   private clock = new THREE.Clock();
   private _visibleFloor = 0;
 
@@ -210,7 +222,7 @@ export class SceneManager {
     position: THREE.Vector3;
     rotationY: number;
     compositeId: string;
-    lineKind: "conveyor" | "pipe";
+    lineKind: "conveyor" | "pipe" | "railroad";
     /** `curveFace` — позиция уже на центре открытого торца свободной сплайновой трубы. */
     pipeSnapMode?: "gridStep" | "curveFace";
     /** Конец центральной линии сплайна (для траектории; совпадает с `position` для curveFace). */
@@ -619,6 +631,31 @@ export class SceneManager {
     });
   }
 
+  private async loadModelRoot(path: string): Promise<THREE.Group> {
+    if (path.toLowerCase().endsWith(".obj")) {
+      const mtlPath = path.replace(/\.obj$/i, ".mtl");
+      try {
+        const materials = await new Promise<{
+          preload: () => void;
+        }>((resolve, reject) => {
+          this.mtlLoader.load(mtlPath, resolve, undefined, reject);
+        });
+        materials.preload();
+        this.objLoader.setMaterials(
+          materials as Parameters<OBJLoader["setMaterials"]>[0],
+        );
+      } catch (err) {
+        console.warn(`[SceneManager] OBJ material load failed: ${mtlPath}`, err);
+      }
+      return new Promise((resolve, reject) => {
+        this.objLoader.load(path, resolve, undefined, reject);
+      });
+    }
+
+    const gltf = await this.loadGLB(this.buildingKitLoader, path);
+    return gltf.scene;
+  }
+
   /** Create a text sprite label */
   private addTextSprite(text: string, x: number, y: number, z: number): void {
     const canvas = document.createElement("canvas");
@@ -715,17 +752,18 @@ export class SceneManager {
 
     let original = this.glbCache.get(partPath);
     if (!original) {
-      const gltf = await this.loadGLB(this.buildingKitLoader, partPath);
-      original = gltf.scene;
+      original = await this.loadModelRoot(partPath);
       this.glbCache.set(partPath, original);
     }
+    if (isRailroadTrackMenuId(menuBuildingId)) {
+      await this.ensureCached(RAILROAD_CORNER_LARGE_MODEL_PATH);
+    }
 
-    this.prefabPlacementScale = usesConveyorGalleryFitScale(
-      menuBuildingId,
-      partPath,
-    )
-      ? scaleToFitMaxExtent(original)
-      : scale;
+    this.prefabPlacementScale =
+      usesConveyorGalleryFitScale(menuBuildingId, partPath) ||
+      isRailroadModelPath(partPath)
+        ? scaleToFitMaxExtent(original)
+        : scale;
 
     const ghost = original.clone(true);
     ghost.traverse((child) => {
@@ -759,8 +797,7 @@ export class SceneManager {
 
     let original = this.glbCache.get(partPath);
     if (!original) {
-      const gltf = await this.loadGLB(this.buildingKitLoader, partPath);
-      original = gltf.scene;
+      original = await this.loadModelRoot(partPath);
       this.glbCache.set(partPath, original);
     }
 
@@ -818,7 +855,9 @@ export class SceneManager {
 
     const isConveyorGhost = isConveyorBeltMenuId(this.prefabMenuBuildingId);
     const isPipeLineGhost = isPipeLineMenuId(this.prefabMenuBuildingId);
-    const isLineLogisticsGhost = isConveyorGhost || isPipeLineGhost;
+    const isRailroadGhost = isRailroadTrackMenuId(this.prefabMenuBuildingId);
+    const isLineLogisticsGhost =
+      isConveyorGhost || isPipeLineGhost || isRailroadGhost;
 
     // Face-snap to nearby placed parts (overrides grid on both axes when close)
     if (!this.builderCtrlHeld && !isLineLogisticsGhost) this.faceSnapToPlaced(pos);
@@ -849,6 +888,19 @@ export class SceneManager {
         const nearestPort = this.findNearestPort(pos, snapRadius);
         if (nearestPort) {
           pos.copy(nearestPort.worldPos);
+        }
+      }
+    } else if (isRailroadGhost) {
+      const snapRadius = this.getSegmentStep() * 1.5;
+      const nearestEp = this.findNearestConveyorEndpoint(
+        pos,
+        snapRadius,
+        "railroad",
+      );
+      if (nearestEp) {
+        pos.copy(nearestEp.position);
+        if (this.builderLineStart) {
+          this.conveyorTangentAtLineEnd = nearestEp.rotationY;
         }
       }
     } else if (isPipeLineGhost) {
@@ -1157,7 +1209,8 @@ export class SceneManager {
       !pipeJunctionPreviewBlocksLine &&
       (this.prefabPlacementScale === null ||
         isConveyorBeltMenuId(this.prefabMenuBuildingId) ||
-        isPipeLineMenuId(this.prefabMenuBuildingId));
+        isPipeLineMenuId(this.prefabMenuBuildingId) ||
+        isRailroadTrackMenuId(this.prefabMenuBuildingId));
     if (this.builderGhostPivot && isPipeLineGhost) {
       this.builderGhostPivot.visible = !linePreviewActive;
     }
@@ -1204,7 +1257,13 @@ export class SceneManager {
       this.prefabPlacementScale !== null &&
       isPipeLineMenuId(this.prefabMenuBuildingId);
 
-    const isMenuLinePlacement = isConveyorLine || isPipeLinePlacement;
+    const isRailroadLine =
+      this.builderMode !== "single" &&
+      this.prefabPlacementScale !== null &&
+      isRailroadTrackMenuId(this.prefabMenuBuildingId);
+
+    const isMenuLinePlacement =
+      isConveyorLine || isPipeLinePlacement || isRailroadLine;
 
     const hasLineAnchor =
       isMenuLinePlacement &&
@@ -1265,11 +1324,11 @@ export class SceneManager {
         this.pipeFreeStartIsCurveChain = false;
         this.builderLineStart = this.builderGhostCurrentPos.clone();
         const snapR = this.getSegmentStep() * (isPipeLinePlacement ? 3 : 1.5);
-        if (isConveyorLine) {
+        if (isConveyorLine || isRailroadLine) {
           const epAtStart = this.findNearestConveyorEndpoint(
             this.builderLineStart,
             snapR,
-            "conveyor",
+            isRailroadLine ? "railroad" : "conveyor",
           );
           this.conveyorTangentAtLineStart =
             epAtStart != null ? epAtStart.rotationY : null;
@@ -1404,7 +1463,7 @@ export class SceneManager {
             compositeId,
             this.prefabMenuBuildingId ?? undefined,
             partPath,
-            pipeSeg,
+            seg.mirrorX ? { ...(pipeSeg ?? { segmentStep: stepSeg }), mirrorX: true } : pipeSeg,
           ) || placedAny;
       }
       if (placedAny) {
@@ -1413,7 +1472,7 @@ export class SceneManager {
         const firstSeg = segments[0];
         const lastSeg = segments[segments.length - 1];
         if (firstSeg) {
-          if (isConveyorLine) {
+          if (isConveyorLine || isRailroadLine) {
             const dir = firstSeg.rotationY - this.conveyorRotOffset;
             this.conveyorEndpoints.push({
               position: new THREE.Vector3(
@@ -1423,7 +1482,7 @@ export class SceneManager {
               ),
               rotationY: firstSeg.rotationY,
               compositeId,
-              lineKind: "conveyor",
+              lineKind: isRailroadLine ? "railroad" : "conveyor",
             });
           } else {
             const dir = firstSeg.rotationY - PIPE_RUN_ROT_Y_OFFSET;
@@ -1440,7 +1499,7 @@ export class SceneManager {
           }
         }
         if (lastSeg) {
-          if (isConveyorLine) {
+          if (isConveyorLine || isRailroadLine) {
             const dir = lastSeg.rotationY - this.conveyorRotOffset;
             this.conveyorEndpoints.push({
               position: new THREE.Vector3(
@@ -1450,7 +1509,7 @@ export class SceneManager {
               ),
               rotationY: lastSeg.rotationY,
               compositeId,
-              lineKind: "conveyor",
+              lineKind: isRailroadLine ? "railroad" : "conveyor",
             });
           } else {
             const dir = lastSeg.rotationY - PIPE_RUN_ROT_Y_OFFSET;
@@ -1470,7 +1529,7 @@ export class SceneManager {
       const lastSeg = segments[segments.length - 1];
       if (lastSeg) {
         const step = this.getSegmentStep();
-        if (isConveyorLine) {
+        if (isConveyorLine || isRailroadLine) {
           const dir = lastSeg.rotationY - this.conveyorRotOffset;
           this.builderLineStart = new THREE.Vector3(
             lastSeg.position.x + Math.sin(dir) * step,
@@ -2104,8 +2163,7 @@ export class SceneManager {
   private async ensureCached(partPath: string): Promise<void> {
     if (isProceduralPipePartPath(partPath)) return;
     if (this.glbCache.has(partPath)) return;
-    const gltf = await this.loadGLB(this.buildingKitLoader, partPath);
-    this.glbCache.set(partPath, gltf.scene);
+    this.glbCache.set(partPath, await this.loadModelRoot(partPath));
   }
 
   private applyGhostScale(): void {
@@ -2270,6 +2328,7 @@ export class SceneManager {
       freeCurvePoints?: { x: number; y: number; z: number }[];
       tubeRadius?: number;
       pipeFreeOmitStartFlange?: boolean;
+      mirrorX?: boolean;
     },
   ): boolean {
     const path = sourcePath ?? this.builderCurrentPartPath;
@@ -2412,16 +2471,29 @@ export class SceneManager {
     const original = this.glbCache.get(path);
     if (!original) return false;
 
-    const scale = usesConveyorGalleryFitScale(menuBuildingId, path)
+    const scale =
+      usesConveyorGalleryFitScale(menuBuildingId, path) ||
+      isRailroadModelPath(path)
       ? scaleToFitMaxExtent(original)
       : baseScale;
 
     const placed = original.clone(true);
     placed.scale.setScalar(scale);
+    if (pipeSeg?.mirrorX) {
+      placed.scale.x *= -1;
+    }
     placed.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         child.castShadow = true;
         child.receiveShadow = true;
+        if (pipeSeg?.mirrorX && child.material) {
+          const mats = Array.isArray(child.material)
+            ? child.material
+            : [child.material];
+          mats.forEach((mat) => {
+            mat.side = THREE.DoubleSide;
+          });
+        }
       }
     });
 
@@ -2452,6 +2524,7 @@ export class SceneManager {
       z: pivot.position.z,
       rotY: pivot.rotation.y,
       scale,
+      ...(pipeSeg?.mirrorX ? { mirrorX: true } : {}),
     };
     if (compositeId) {
       record.compositeId = compositeId;
@@ -2541,7 +2614,7 @@ export class SceneManager {
   private findNearestConveyorEndpoint(
     worldPos: THREE.Vector3,
     maxRadius: number,
-    lineKind: "conveyor" | "pipe",
+    lineKind: "conveyor" | "pipe" | "railroad",
   ): {
     position: THREE.Vector3;
     rotationY: number;
@@ -3438,6 +3511,14 @@ export class SceneManager {
         this.conveyorRotOffset,
       );
     }
+    if (isRailroadTrackMenuId(this.prefabMenuBuildingId)) {
+      return computeRailroadPathSegments(start, end, {
+        builderMode: this.builderMode,
+        step: this.getSegmentStep(),
+        tangentStart: this.conveyorTangentAtLineStart,
+        ghostRotY: this.builderGhostRotY,
+      });
+    }
     if (!isConveyorBeltMenuId(this.prefabMenuBuildingId)) {
       return computeAxisAlignedPathSegments(
         start,
@@ -3513,9 +3594,13 @@ export class SceneManager {
     if (!original) return null;
     const placed = original.clone(true);
     placed.scale.setScalar(scale);
+    if (seg?.mirrorX) {
+      placed.scale.x *= -1;
+    }
     placed.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         child.material = this.ghostMaterialOk;
+        if (seg?.mirrorX) child.material.side = THREE.DoubleSide;
         child.castShadow = false;
         child.receiveShadow = false;
       }
@@ -4000,6 +4085,7 @@ export class SceneManager {
           freeCurvePoints?: { x: number; y: number; z: number }[];
           tubeRadius?: number;
           pipeFreeOmitStartFlange?: boolean;
+          mirrorX?: boolean;
         }>;
       };
       if (typeof parsed.scale === "number") {
@@ -4025,7 +4111,11 @@ export class SceneManager {
         const origCached = this.glbCache.get(part.partPath);
         let scaleForPart =
           typeof part.scale === "number" ? part.scale : this.builderScale;
-        if (origCached && usesConveyorGalleryFitScale(menuId, part.partPath)) {
+        if (
+          origCached &&
+          (usesConveyorGalleryFitScale(menuId, part.partPath) ||
+            isRailroadModelPath(part.partPath))
+        ) {
           scaleForPart = scaleToFitMaxExtent(origCached);
         } else if (menuId) {
           const def = getBuildingPrefab(menuId);
@@ -4058,6 +4148,9 @@ export class SceneManager {
               elbowTurn: part.elbowTurn,
             }
           : undefined;
+        const placementMeta = part.mirrorX
+          ? { ...(pipeSeg ?? { segmentStep: GRID_CELL_SIZE }), mirrorX: true }
+          : pipeSeg;
         this.placeSingleAt(
           new THREE.Vector3(part.x, part.y, part.z),
           part.rotY,
@@ -4065,7 +4158,7 @@ export class SceneManager {
           typeof part.compositeId === "string" ? part.compositeId : undefined,
           menuId,
           part.partPath,
-          pipeSeg,
+          placementMeta,
         );
       }
       this.builderCurrentPartPath = "";

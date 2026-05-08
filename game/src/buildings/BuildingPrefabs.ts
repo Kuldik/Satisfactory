@@ -11,6 +11,13 @@ import {
   PIPE_ELBOW_MODEL_PATH,
   PIPE_PROCEDURAL_STRAIGHT_PATH,
 } from "./logistics/pipeKitModels.ts";
+import {
+  RAILROAD_STRAIGHT_MODEL_PATH,
+} from "./logistics/railroadKitModels.ts";
+import {
+  getDefaultRollingStockVariant,
+  getAllRollingStockModelPaths,
+} from "../train/trainRollingStockCatalog.ts";
 
 const CITY = "/kits/City Kit Industrial/Models/GLB format";
 const COMMERCIAL = "/kits/kenney_city-kit-commercial_2.1/Models/GLB format";
@@ -103,6 +110,20 @@ const RAW: Record<string, BuildingPrefabDef> = {
   fluid_buffer_large: { modelPath: `${CITY}/detail-tank.glb`, scale: 25 },
   loading_module: { modelPath: `${KITS_MODELS}/module-in.glb`, scale: 8 },
   unloading_module: { modelPath: `${KITS_MODELS}/module-out.glb`, scale: 8 },
+  railroad_track: { modelPath: RAILROAD_STRAIGHT_MODEL_PATH, scale: 1 },
+  train_station: { modelPath: `${KITS_MODELS}/train-station.glb`, scale: 10 },
+  locomotive: {
+    modelPath: getDefaultRollingStockVariant("locomotive").modelPath,
+    scale: 1,
+  },
+  freight_car: {
+    modelPath: getDefaultRollingStockVariant("freight_car").modelPath,
+    scale: 1,
+  },
+  fluid_freight_car: {
+    modelPath: getDefaultRollingStockVariant("fluid_freight_car").modelPath,
+    scale: 1,
+  },
 };
 
 export function getBuildingPrefab(
@@ -113,4 +134,11 @@ export function getBuildingPrefab(
 
 export function hasPrefabBuilding(buildingId: string): boolean {
   return buildingId in RAW;
+}
+
+export function getBuildingPrefabModelPaths(): string[] {
+  return [
+    ...Object.values(RAW).map((prefab) => prefab.modelPath),
+    ...getAllRollingStockModelPaths(),
+  ];
 }

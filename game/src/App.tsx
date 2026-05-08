@@ -87,7 +87,10 @@ function App() {
   }, [engineRef, gameState.selectedBuilding]);
 
   const handleSelectBuilding = useCallback(
-    async (buildingId: string) => {
+    async (
+      buildingId: string,
+      variant?: { modelPath: string; variantId: string },
+    ) => {
       setIsBuildMenuOpen(false);
       if (!engineRef.current) return;
       engineRef.current.setBuilderDeconstructMode(false);
@@ -95,7 +98,7 @@ function App() {
       const showLoad = hasPattern(buildingId) || hasPrefabBuilding(buildingId);
       if (showLoad) setPatternGhostLoading(true);
       try {
-        await engineRef.current.selectBuilding(buildingId);
+        await engineRef.current.selectBuilding(buildingId, variant?.modelPath);
       } finally {
         if (showLoad) setPatternGhostLoading(false);
       }
