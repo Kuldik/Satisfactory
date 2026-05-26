@@ -290,7 +290,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--ui-overlay-scrim);
   backdrop-filter: blur(3px);
 }
 
@@ -300,10 +300,10 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid rgba(100, 140, 255, 0.45);
+  border: 1px solid var(--ui-border);
   border-radius: 12px;
-  background: var(--ui-menu-bg);
-  box-shadow: 0 10px 70px rgba(0, 0, 0, 0.85);
+  background: var(--ui-surface-deep);
+  box-shadow: 0 10px 70px var(--ui-shadow-deep);
 }
 
 .rolling-picker-header {
@@ -353,10 +353,10 @@
   flex-direction: column;
   align-items: center;
   gap: 7px;
-  border: 1px solid var(--ui-item-border);
+  border: 1px solid var(--ui-card-border);
   border-radius: 9px;
-  background: var(--ui-item-bg);
-  color: var(--ui-item-fg);
+  background: var(--ui-card-bg);
+  color: var(--ui-card-text);
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s, transform 0.15s;
 }
@@ -364,7 +364,7 @@
 .rolling-picker-card:hover,
 .rolling-picker-card.active {
   border-color: rgba(120, 160, 255, 0.75);
-  background: var(--ui-item-hover-bg);
+  background: var(--ui-card-hover-bg);
   transform: translateY(-1px);
 }
 
@@ -441,4 +441,26 @@
 
 .rolling-picker-secondary {
   background: rgba(35, 42, 75, 0.88);
+}
+
+.build-menu-default-toggle {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 3;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  background: rgba(4, 8, 20, 0.72);
+  border: 1px solid rgba(130, 150, 220, 0.5);
+  cursor: pointer;
+}
+
+.build-menu-default-toggle input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--ui-accent-bright);
+  cursor: pointer;
 }

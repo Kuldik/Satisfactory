@@ -29,12 +29,8 @@ export const RollingStockModelPicker: FC<Props> = ({
 }) => {
   const variants = ROLLING_STOCK_VARIANTS[kind];
   const initialDefaultId = useMemo(() => getRollingStockDefaultId(kind), [kind]);
-  const [selectedId, setSelectedId] = useState<string>(
-    initialDefaultId ?? variants[0]!.id,
-  );
   const [defaultId, setDefaultId] = useState<string | null>(initialDefaultId);
 
-  const selected = variants.find((variant) => variant.id === selectedId) ?? variants[0]!;
   const title =
     kind === "locomotive"
       ? "Выбор электровоза"
@@ -66,9 +62,11 @@ export const RollingStockModelPicker: FC<Props> = ({
             <button
               key={variant.id}
               className={`rolling-picker-card ${
-                selectedId === variant.id ? "active" : ""
+                defaultId === variant.id ? "active" : ""
               }`}
-              onClick={() => setSelectedId(variant.id)}
+              onClick={() =>
+                onPick({ kind, variant, isDefault: defaultId === variant.id })
+              }
             >
               <label
                 className="rolling-default-toggle"
@@ -100,15 +98,6 @@ export const RollingStockModelPicker: FC<Props> = ({
         <div className="rolling-picker-actions">
           <button className="rolling-picker-secondary" onClick={onCancel}>
             Отмена
-          </button>
-          <button
-            className="rolling-picker-primary"
-            onClick={() => {
-              const isDefault = defaultId === selected.id;
-              onPick({ kind, variant: selected, isDefault });
-            }}
-          >
-            Выбрать модель
           </button>
         </div>
       </div>

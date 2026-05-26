@@ -8,10 +8,15 @@ import { hasPattern } from '../../buildings/BuildingPatterns.ts';
 import { hasPrefabBuilding } from '../../buildings/BuildingPrefabs.ts';
 import { PIPE_PROCEDURAL_STRAIGHT_PATH } from '../../buildings/logistics/pipeKitModels.ts';
 import {
+  getRollingStockVariant,
   isRollingStockMenuId,
   type RollingStockKind,
   type RollingStockVariant,
 } from '../../train/trainRollingStockCatalog.ts';
+import {
+  getRollingStockDefaultId,
+  setRollingStockDefaultId,
+} from '../../train/rollingStockDefaults.ts';
 import { RollingStockModelPicker } from './train/RollingStockModelPicker.tsx';
 import './BuildMenu.css';
 
@@ -283,11 +288,21 @@ function groupBySubcategory(buildings: BuildMenuItem[]): Map<string, BuildMenuIt
   return map;
 }
 
+function readRollingStockDefaults(): Partial<Record<RollingStockKind, string>> {
+  return {
+    locomotive: getRollingStockDefaultId('locomotive') ?? undefined,
+    freight_car: getRollingStockDefaultId('freight_car') ?? undefined,
+    fluid_freight_car: getRollingStockDefaultId('fluid_freight_car') ?? undefined,
+  };
+}
+
 export const BuildMenu: FC<BuildMenuProps> = ({ isOpen, onClose, onSelectBuilding }) => {
   const [selectedCategory, setSelectedCategory] = useState<BuildingCategory>(BuildingCategory.Special);
   const [hoveredItem, setHoveredItem] = useState<BuildMenuItem | null>(null);
   const [rollingStockPickerKind, setRollingStockPickerKind] =
     useState<RollingStockKind | null>(null);
+  const [rollingStockDefaults, setRollingStockDefaults] =
+    useState<Partial<Record<RollingStockKind, string>>>(readRollingStockDefaults);
 
   if (!isOpen) return null;
 
@@ -319,32 +334,67 @@ export const BuildMenu: FC<BuildMenuProps> = ({ isOpen, onClose, onSelectBuildin
             <div key={subcategory} className="build-subcategory">
               <div className="subcategory-header">{subcategory}</div>
               <div className={`subcategory-grid ${isSpecial ? 'special-grid' : ''}`}>
-                {buildings.map(building => (
-                  <button
-                    key={building.id}
-                    className={`build-menu-item ${isSpecial ? 'build-menu-item-special' : ''}${hasPattern(building.id) || hasPrefabBuilding(building.id) ? ' has-pattern' : ''}`}
-                    onClick={() => {
-                      if (isRollingStockMenuId(building.id)) {
-                        setRollingStockPickerKind(building.id);
-                        return;
-                      }
-                      onSelectBuilding(building.id);
-                      onClose();
-                    }}
-                    onMouseEnter={() => setHoveredItem(building)}
-                    onMouseLeave={() => setHoveredItem(null)}
-                  >
-                    {building.iconPath ? (
-                      <img className="item-icon-preview" src={building.iconPath} alt={building.nameRu} />
-                    ) : (
-                      <div className="item-icon">{isSpecial ? '🏛️' : '🏭'}</div>
-                    )}
-                    <div className="item-name">{building.nameRu}</div>
-                    {(hasPattern(building.id) || hasPrefabBuilding(building.id)) && (
-                      <div className="pattern-badge">3D</div>
-                    )}
-                  </button>
-                ))}
+                {buildings.map(building => {
+                      const rollingKind = isRollingStockMenuId(building.id)
+                        ? building.id
+                        : null;
+                      const defaultVariant =
+                        rollingKind && rollingStockDefaults[rollingKind]
+                          ? getRollingStockVariant(
+                              rollingKind,
+                              rollingStockDefaults[rollingKind]!,
+                            )
+                          : null;
+                      const iconPath = defaultVariant?.previewPath ?? building.iconPath;
+
+                      return (
+                        <button
+                          key={building.id}
+                          className={`build-menu-item ${isSpecial ? 'build-menu-item-special' : ''}${hasPattern(building.id) || hasPrefabBuilding(building.id) ? ' has-pattern' : ''}`}
+                          onClick={() => {
+                            if (rollingKind) {
+                              if (defaultVariant) {
+                                onSelectBuilding(rollingKind, {
+                                  modelPath: defaultVariant.modelPath,
+                                  variantId: defaultVariant.id,
+                                });
+                                onClose();
+                                return;
+                              }
+                              setRollingStockPickerKind(rollingKind);
+                              return;
+                            }
+                            onSelectBuilding(building.id);
+                            onClose();
+                          }}
+                          onMouseEnter={() => setHoveredItem(building)}
+                          onMouseLeave={() => setHoveredItem(null)}
+                        >
+                          {defaultVariant && (
+                            <label
+                              className="build-menu-default-toggle"
+                              title="Сбросить модель по умолчанию"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <input
+                                type="checkbox"
+                                checked
+                                onChange={() => {
+                                  setRollingStockDefaultId(rollingKind!, null);
+                                  setRollingStockDefaults(readRollingStockDefaults());
+                                }}
+                              />
+                            </label>
+                          )}
+                          {iconPath ? (
+                            <img className="item-icon-preview" src={iconPath} alt={building.nameRu} />
+                          ) : (
+                            <div className="item-icon">{isSpecial ? '🏛️' : '🏭'}</div>
+                          )}
+                          <div className="item-name">{building.nameRu}</div>
+                        </button>
+                      );
+                })}
               </div>
             </div>
           ))}
@@ -372,12 +422,16 @@ export const BuildMenu: FC<BuildMenuProps> = ({ isOpen, onClose, onSelectBuildin
       {rollingStockPickerKind && (
         <RollingStockModelPicker
           kind={rollingStockPickerKind}
-          onCancel={() => setRollingStockPickerKind(null)}
+          onCancel={() => {
+            setRollingStockDefaults(readRollingStockDefaults());
+            setRollingStockPickerKind(null);
+          }}
           onPick={(result: { variant: RollingStockVariant }) => {
             onSelectBuilding(rollingStockPickerKind, {
               modelPath: result.variant.modelPath,
               variantId: result.variant.id,
             });
+            setRollingStockDefaults(readRollingStockDefaults());
             setRollingStockPickerKind(null);
             onClose();
           }}

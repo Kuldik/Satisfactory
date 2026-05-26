@@ -136,3 +136,7 @@ export function getAllRollingStockModelPaths(): string[] {
     .flat()
     .map((variant) => variant.modelPath);
 }
+
+export function isRollingStockModelPath(path: string | null | undefined): boolean {
+  return !!path && path.includes("/kenney_train-kit/Models/OBJ format/train-");
+}

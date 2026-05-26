@@ -24,3 +24,15 @@ export function isRailroadModelPath(path: string | null | undefined): boolean {
 export function getAllRailroadModelPaths(): string[] {
   return [RAILROAD_STRAIGHT_MODEL_PATH, RAILROAD_CORNER_LARGE_MODEL_PATH];
 }
+
+/** Длина прямого рельса в OBJ (ось Z). */
+export const RAILROAD_STRAIGHT_LENGTH_UNITS = 4;
+
+/**
+ * Смещение внутреннего угла `railroad-corner-large` от центра bbox (OBJ, до normalize).
+ * Центр bbox ≈ (-1.7565, 2.2435); внутренний угол L — в (0, 0).
+ */
+export const RAILROAD_CORNER_INNER_OFFSET_UNITS = {
+  x: 1.7565,
+  z: -2.2435,
+} as const;

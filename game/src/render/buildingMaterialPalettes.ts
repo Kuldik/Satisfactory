@@ -4,6 +4,7 @@
 // ============================================================
 
 import * as THREE from "three";
+import type { SceneThemeMode } from "../ui/themeSync.ts";
 
 type TintSpec = {
   color: number;
@@ -78,6 +79,36 @@ function tintMeshesWithRulesAndCycle(
   }
 }
 
+function bodySpecForTheme(theme: SceneThemeMode): TintSpec {
+  return theme === "light"
+    ? { color: 0x1f5f96, metalness: 0.35, roughness: 0.48 }
+    : { color: 0xf2f2f2, metalness: 0.22, roughness: 0.52 };
+}
+
+function accentSpecForTheme(theme: SceneThemeMode): TintSpec {
+  return theme === "light"
+    ? { color: 0xff9933, metalness: 0.42, roughness: 0.45 }
+    : { color: 0xffaa44, metalness: 0.4, roughness: 0.46 };
+}
+
+function logisticsModulePalette(theme: SceneThemeMode): {
+  rules: MeshTintRule[];
+  cycle: TintSpec[];
+} {
+  const body = bodySpecForTheme(theme);
+  const accent = accentSpecForTheme(theme);
+  return {
+    rules: [
+      {
+        nameMatch: /chute|port|door|frame|trim|detail|stripe|panel/i,
+        ...accent,
+      },
+      { nameMatch: /body|case|main|housing|base|platform|roof|wall/i, ...body },
+    ],
+    cycle: [body, accent, body, accent],
+  };
+}
+
 /** Экстрактор: основание / рёбра / башня по ключевым словам в имени. */
 const ALIEN_ENERGY_EXTRACTOR_RULES: MeshTintRule[] = [
   {
@@ -114,7 +145,6 @@ const ALIEN_ENERGY_EXTRACTOR_CYCLE: TintSpec[] = [
   { color: 0x6c5b7b, metalness: 0.44, roughness: 0.5 },
 ];
 
-/** Разветвитель: оранжевый акцент (как Satisfactory), корпус тёмный, жёлтые панели в цикле. */
 const SPLITTER_RULES: MeshTintRule[] = [
   {
     nameMatch: /chute|out|exit|diverge|branch|port|spout|shoot/i,
@@ -164,7 +194,6 @@ const PIPE_BODY_SPEC: TintSpec = {
   side: THREE.DoubleSide,
 };
 
-/** Ур.1 / Ур.2 — процедурная труба `pipe_body`. */
 const PIPE_MK1_RULES: MeshTintRule[] = [
   { nameMatch: /^pipe_body$/i, ...PIPE_BODY_SPEC },
 ];
@@ -175,36 +204,63 @@ const PIPE_MK2_RULES: MeshTintRule[] = [
 ];
 const PIPE_MK2_CYCLE: TintSpec[] = [PIPE_BODY_SPEC];
 
-const PALETTES: Record<
-  string,
-  { rules: MeshTintRule[]; cycle: TintSpec[] }
-> = {
-  alien_energy_extractor: {
-    rules: ALIEN_ENERGY_EXTRACTOR_RULES,
-    cycle: ALIEN_ENERGY_EXTRACTOR_CYCLE,
-  },
-  splitter: {
-    rules: SPLITTER_RULES,
-    cycle: SPLITTER_CYCLE,
-  },
-  merger: {
-    rules: SPLITTER_RULES,
-    cycle: SPLITTER_CYCLE,
-  },
-  pipe_mk1: { rules: PIPE_MK1_RULES, cycle: PIPE_MK1_CYCLE },
-  pipe_mk2: { rules: PIPE_MK2_RULES, cycle: PIPE_MK2_CYCLE },
-  pipe_junction: { rules: PIPE_MK1_RULES, cycle: PIPE_MK1_CYCLE },
-};
+const THEME_PALETTE_BUILDINGS = new Set([
+  "alien_energy_extractor",
+  "loading_module",
+  "unloading_module",
+  "train_station",
+]);
+
+let activeSceneTheme: SceneThemeMode = "dark";
+
+export function setPrefabPaletteTheme(theme: SceneThemeMode): void {
+  activeSceneTheme = theme;
+}
+
+export function getPrefabPaletteTheme(): SceneThemeMode {
+  return activeSceneTheme;
+}
+
+function resolvePalette(
+  buildingId: string,
+  theme: SceneThemeMode,
+): { rules: MeshTintRule[]; cycle: TintSpec[] } | null {
+  switch (buildingId) {
+    case "train_station":
+    case "loading_module":
+    case "unloading_module":
+      return logisticsModulePalette(theme);
+    case "alien_energy_extractor":
+      return {
+        rules: ALIEN_ENERGY_EXTRACTOR_RULES,
+        cycle: ALIEN_ENERGY_EXTRACTOR_CYCLE,
+      };
+    case "splitter":
+    case "merger":
+      return { rules: SPLITTER_RULES, cycle: SPLITTER_CYCLE };
+    case "pipe_mk1":
+    case "pipe_junction":
+      return { rules: PIPE_MK1_RULES, cycle: PIPE_MK1_CYCLE };
+    case "pipe_mk2":
+      return { rules: PIPE_MK2_RULES, cycle: PIPE_MK2_CYCLE };
+    default:
+      return null;
+  }
+}
 
 /**
  * Подмена материалов у клона префаба (после `clone(true)`).
- * Добавляйте ключи в `PALETTES` для новых «серых» моделей.
  */
 export function applyPrefabMaterialPalette(
   buildingId: string,
   root: THREE.Object3D,
+  theme: SceneThemeMode = activeSceneTheme,
 ): void {
-  const entry = PALETTES[buildingId];
+  const entry = resolvePalette(buildingId, theme);
   if (!entry) return;
   tintMeshesWithRulesAndCycle(root, entry.rules, entry.cycle);
+}
+
+export function hasThemeAwarePrefabPalette(buildingId: string): boolean {
+  return THEME_PALETTE_BUILDINGS.has(buildingId);
 }

@@ -123,6 +123,84 @@ export function faceSnapGhostToPlaced(
   }
 }
 
+const ROLLING_STOCK_MENU_IDS = new Set([
+  "locomotive",
+  "freight_car",
+  "fluid_freight_car",
+]);
+
+function measureCouplerExtents(
+  object: THREE.Object3D,
+  rotY: number,
+): { front: number; rear: number; length: number } {
+  const box = new THREE.Box3().setFromObject(object);
+  const origin = object.getWorldPosition(new THREE.Vector3());
+  const fx = Math.sin(rotY);
+  const fz = Math.cos(rotY);
+  const corners = [
+    new THREE.Vector3(box.min.x, 0, box.min.z),
+    new THREE.Vector3(box.min.x, 0, box.max.z),
+    new THREE.Vector3(box.max.x, 0, box.min.z),
+    new THREE.Vector3(box.max.x, 0, box.max.z),
+  ];
+  let minP = Infinity;
+  let maxP = -Infinity;
+  for (const c of corners) {
+    const p = (c.x - origin.x) * fx + (c.z - origin.z) * fz;
+    minP = Math.min(minP, p);
+    maxP = Math.max(maxP, p);
+  }
+  const front = Math.max(0.05, maxP);
+  const rear = Math.max(0.05, -minP);
+  return { front, rear, length: front + rear };
+}
+
+/**
+ * Сцепка вагонов вдоль оси состава (не AABB face-snap по миру).
+ * Возвращает true, если позиция/поворот были подстроены.
+ */
+export function snapRollingStockCoupling(
+  pos: THREE.Vector3,
+  rotYRef: { value: number },
+  placedGroup: THREE.Group,
+  ghostRoot: THREE.Object3D | null,
+): boolean {
+  if (!ghostRoot) return false;
+
+  const ghostExt = measureCouplerExtents(ghostRoot, rotYRef.value);
+  const threshold = ghostExt.length * 1.8;
+  let bestDist = threshold;
+  let bestCenter: THREE.Vector3 | null = null;
+  let bestRotY = rotYRef.value;
+
+  for (const placed of placedGroup.children) {
+    const menuId = placed.userData?.menuBuildingId as string | undefined;
+    if (!menuId || !ROLLING_STOCK_MENU_IDS.has(menuId)) continue;
+
+    const rot = placed.rotation.y;
+    const placedExt = measureCouplerExtents(placed, rot);
+    const fx = Math.sin(rot);
+    const fz = Math.cos(rot);
+    const rearX = placed.position.x - fx * placedExt.rear;
+    const rearZ = placed.position.z - fz * placedExt.rear;
+    const d = Math.hypot(pos.x - rearX, pos.z - rearZ);
+    if (d < bestDist) {
+      bestDist = d;
+      bestCenter = new THREE.Vector3(
+        rearX - fx * ghostExt.front,
+        pos.y,
+        rearZ - fz * ghostExt.front,
+      );
+      bestRotY = rot;
+    }
+  }
+
+  if (!bestCenter) return false;
+  pos.copy(bestCenter);
+  rotYRef.value = bestRotY;
+  return true;
+}
+
 /** Углы и середины рёбер отпечатка в мировых XZ — для лучей вертикальной опоры. */
 export function getFootprintSamplePointsXZ(
   pos: THREE.Vector3,

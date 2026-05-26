@@ -7,9 +7,19 @@ import {
   isConveyorBeltMenuId,
   isLogisticsConveyorKitPath,
 } from "./conveyorKitModels.ts";
+import { isRailroadModelPath } from "./railroadKitModels.ts";
+import { isRollingStockModelPath } from "../../train/trainRollingStockCatalog.ts";
 
 /** Совпадает с KIT_CATEGORY_MAX_SIZE['Conveyor Kit'].belts в ModelGallery */
 export const CONVEYOR_BELT_MAX_EXTENT_M = 6;
+
+/**
+ * Train Kit scale targets in world meters. Rails are sized to the 2 m grid,
+ * while rolling stock and stations are scaled as gameplay buildings, not toys.
+ */
+export const RAILROAD_STRAIGHT_WORLD_LENGTH_M = 8;
+export const ROLLING_STOCK_WORLD_LENGTH_M = 14;
+export const TRAIN_STATION_MAX_EXTENT_M = 24;
 
 /** Единый множитель для необработанного GLB: max(x,y,z) → targetMax. */
 export function scaleToFitMaxExtent(
@@ -22,6 +32,29 @@ export function scaleToFitMaxExtent(
   return targetMax / maxDim;
 }
 
+/** Fit a Train Kit model by its local Z length, the kit's forward axis. */
+export function scaleToFitLengthZ(
+  root: THREE.Object3D,
+  targetLength: number,
+): number {
+  const box = new THREE.Box3().setFromObject(root);
+  const size = box.getSize(new THREE.Vector3());
+  return targetLength / Math.max(size.z, 1e-6);
+}
+
+export function measureScaledTrainMetrics(
+  root: THREE.Object3D,
+  scale = 1,
+): { lengthZ: number; widthX: number; heightY: number } {
+  const box = new THREE.Box3().setFromObject(root);
+  const size = box.getSize(new THREE.Vector3());
+  return {
+    lengthZ: Math.max(size.z * scale, 0.1),
+    widthX: Math.max(size.x * scale, 0.1),
+    heightY: Math.max(size.y * scale, 0.1),
+  };
+}
+
 export function usesConveyorGalleryFitScale(
   menuBuildingId?: string,
   partPath?: string,
@@ -30,4 +63,43 @@ export function usesConveyorGalleryFitScale(
   if (menuBuildingId === "splitter" || menuBuildingId === "merger") return true;
   if (partPath && isLogisticsConveyorKitPath(partPath)) return true;
   return false;
+}
+
+export function usesTrainGalleryFitScale(
+  menuBuildingId?: string,
+  partPath?: string,
+): boolean {
+  if (
+    menuBuildingId === "locomotive" ||
+    menuBuildingId === "freight_car" ||
+    menuBuildingId === "fluid_freight_car" ||
+    menuBuildingId === "railroad_track" ||
+    menuBuildingId === "train_station"
+  ) {
+    return true;
+  }
+  if (partPath && isRailroadModelPath(partPath)) return true;
+  if (partPath && isRollingStockModelPath(partPath)) return true;
+  return false;
+}
+
+export function resolvePrefabFitScale(
+  root: THREE.Object3D,
+  menuBuildingId?: string,
+  partPath?: string,
+  prefabScale = 1,
+): number {
+  if (usesConveyorGalleryFitScale(menuBuildingId, partPath)) {
+    return scaleToFitMaxExtent(root, CONVEYOR_BELT_MAX_EXTENT_M);
+  }
+  if (usesTrainGalleryFitScale(menuBuildingId, partPath)) {
+    if (menuBuildingId === "train_station") {
+      return scaleToFitMaxExtent(root, TRAIN_STATION_MAX_EXTENT_M);
+    }
+    if (partPath && isRailroadModelPath(partPath)) {
+      return scaleToFitLengthZ(root, RAILROAD_STRAIGHT_WORLD_LENGTH_M);
+    }
+    return scaleToFitLengthZ(root, ROLLING_STOCK_WORLD_LENGTH_M);
+  }
+  return prefabScale;
 }
