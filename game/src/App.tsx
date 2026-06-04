@@ -4,7 +4,11 @@
 
 import { useCallback, useRef, useState, type MouseEvent } from "react";
 import { GameMode } from "./core/types.ts";
-import type { GameState, BuilderMode } from "./core/types.ts";
+import type {
+  GameState,
+  BuilderMode,
+  RailroadPlacementSubMode,
+} from "./core/types.ts";
 import { HUD } from "./ui/hud/HUD.tsx";
 import { DeconstructHoldOverlay } from "./ui/hud/DeconstructHoldOverlay.tsx";
 import { PatternGhostLoadOverlay } from "./ui/hud/PatternGhostLoadOverlay.tsx";
@@ -36,6 +40,8 @@ function App() {
   const [isBuilderActive, setIsBuilderActive] = useState(false);
   const [isDeconstructMode, setIsDeconstructMode] = useState(false);
   const [builderMode, setBuilderMode] = useState<BuilderMode>("single");
+  const [railroadPlacementSubMode, setRailroadPlacementSubMode] =
+    useState<RailroadPlacementSubMode>("straight");
   const [builderScale, setBuilderScale] = useState(1);
   const [placedCount, setPlacedCount] = useState(0);
   const [patternGhostLoading, setPatternGhostLoading] = useState(false);
@@ -69,6 +75,7 @@ function App() {
     setIsBuilderActive,
     setBuilderMode,
     setBuilderScale,
+    setRailroadPlacementSubMode,
   );
   useWindowShortcutGuards();
   useAdminPanelHotkey(IS_DEV, setIsAdminOpen);
@@ -103,8 +110,11 @@ function App() {
         if (showLoad) setPatternGhostLoading(false);
       }
       setBuilderMode(engineRef.current.getBuilderMode());
+      setRailroadPlacementSubMode(
+        engineRef.current.getRailroadPlacementSubMode(),
+      );
     },
-    [engineRef, setBuilderMode],
+    [engineRef, setBuilderMode, setRailroadPlacementSubMode],
   );
 
   const handleOpenAdminPanel = useCallback(() => setIsAdminOpen(true), []);
@@ -123,8 +133,11 @@ function App() {
         if (showLoad) setPatternGhostLoading(false);
       }
       setBuilderMode(engineRef.current.getBuilderMode());
+      setRailroadPlacementSubMode(
+        engineRef.current.getRailroadPlacementSubMode(),
+      );
     },
-    [engineRef, setBuilderMode],
+    [engineRef, setBuilderMode, setRailroadPlacementSubMode],
   );
 
   const handleSelectBuilderPart = useCallback(
@@ -181,8 +194,11 @@ function App() {
       if (!engineRef.current) return;
       engineRef.current.setBuilderMode(mode);
       setBuilderMode(engineRef.current.getBuilderMode());
+      setRailroadPlacementSubMode(
+        engineRef.current.getRailroadPlacementSubMode(),
+      );
     },
-    [engineRef],
+    [engineRef, setRailroadPlacementSubMode],
   );
 
   const handleToggleDeconstruct = useCallback(() => {
@@ -271,6 +287,9 @@ function App() {
         if (e.button === 0) {
           if (engineRef.current.placePrefabFromMenu()) {
             setPlacedCount(engineRef.current.getBuilderPlacedCount());
+            setRailroadPlacementSubMode(
+              engineRef.current.getRailroadPlacementSubMode(),
+            );
           }
         } else if (e.button === 2) {
           if (engineRef.current.hasActiveConveyorLine()) {
@@ -337,6 +356,7 @@ function App() {
         isDeconstructMode={IS_DEV ? isDeconstructMode : false}
         onToggleDeconstruct={IS_DEV ? handleToggleDeconstruct : undefined}
         builderMode={builderMode}
+        railroadPlacementSubMode={railroadPlacementSubMode}
       />
 
       <BuildMenu

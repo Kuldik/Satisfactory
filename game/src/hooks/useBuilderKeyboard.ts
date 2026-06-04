@@ -4,7 +4,7 @@
 
 import { useEffect, type Dispatch, type RefObject, type SetStateAction } from "react";
 import type { Engine } from "../core/Engine.ts";
-import type { BuilderMode } from "../core/types.ts";
+import type { BuilderMode, RailroadPlacementSubMode } from "../core/types.ts";
 
 function isKeyboardTypingTarget(target: EventTarget | null): boolean {
   if (!target || !(target instanceof HTMLElement)) return false;
@@ -23,6 +23,7 @@ export function useBuilderKeyboard(
   setIsBuilderActive: Dispatch<SetStateAction<boolean>>,
   setBuilderMode: Dispatch<SetStateAction<BuilderMode>>,
   setBuilderScale: Dispatch<SetStateAction<number>>,
+  setRailroadPlacementSubMode: Dispatch<SetStateAction<RailroadPlacementSubMode>>,
 ): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -47,11 +48,17 @@ export function useBuilderKeyboard(
       if (engineRef.current.isPrefabPlacementActive()) {
         if (e.code === "KeyT") {
           engineRef.current.rotateBuilderGhost(1);
+          setRailroadPlacementSubMode(
+            engineRef.current.getRailroadPlacementSubMode(),
+          );
           e.preventDefault();
         }
         if (e.code === "KeyR") {
           const nextMode = engineRef.current.cycleBuilderMode();
           setBuilderMode(nextMode);
+          setRailroadPlacementSubMode(
+            engineRef.current.getRailroadPlacementSubMode(),
+          );
           e.preventDefault();
         }
         if (e.key === "Escape") {
@@ -84,12 +91,18 @@ export function useBuilderKeyboard(
       if (e.code === "KeyT") {
         if (!isDeconstructMode) {
           engineRef.current.rotateBuilderGhost(1);
+          setRailroadPlacementSubMode(
+            engineRef.current.getRailroadPlacementSubMode(),
+          );
           e.preventDefault();
         }
       }
       if (e.code === "KeyR") {
         const nextMode = engineRef.current.cycleBuilderMode();
         setBuilderMode(nextMode);
+        setRailroadPlacementSubMode(
+          engineRef.current.getRailroadPlacementSubMode(),
+        );
         e.preventDefault();
       }
       if (e.code === "Equal" || e.code === "NumpadAdd") {
@@ -136,5 +149,6 @@ export function useBuilderKeyboard(
     setIsBuilderActive,
     setBuilderMode,
     setBuilderScale,
+    setRailroadPlacementSubMode,
   ]);
 }

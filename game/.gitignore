@@ -11,7 +11,8 @@ node_modules
 dist
 public/kits
 dist-ssr
-*.local
+*.local+
+PROJECT_CONTEXT.md
 
 # Editor directories and files
 .vscode/*

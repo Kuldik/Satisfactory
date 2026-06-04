@@ -29,6 +29,13 @@ export function getAllRailroadModelPaths(): string[] {
 export const RAILROAD_STRAIGHT_LENGTH_UNITS = 4;
 
 /**
+ * `railroad-corner-large` — внутренний угол L в (0, 0, 0) OBJ.
+ * Входящее плечо вдоль +Z до z≈4.487; исходящее вдоль −X до x≈−4.
+ */
+export const RAILROAD_CORNER_ENTRY_LEG_UNITS = 4.48727;
+export const RAILROAD_CORNER_EXIT_LEG_UNITS = 4;
+
+/**
  * Смещение внутреннего угла `railroad-corner-large` от центра bbox (OBJ, до normalize).
  * Центр bbox ≈ (-1.7565, 2.2435); внутренний угол L — в (0, 0).
  */

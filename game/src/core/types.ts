@@ -251,6 +251,8 @@ export const BUILDER_MODE_LABELS: Record<BuilderMode, string> = {
   free: "Свободная кривая",
 };
 
+export type RailroadPlacementSubMode = "straight" | "corner";
+
 // ---- Game State ----
 
 export enum GameMode {
@@ -267,4 +269,28 @@ export interface GameState {
   currentFloor: number;
   isPaused: boolean;
   gameTime: number; // seconds since game start
+  /** Сводка симуляции для HUD; обновляется троттлингом из тика. */
+  sim?: SimulationSummary;
+}
+
+// ---- Simulation readout (ECS → UI) ----
+
+export interface PowerSummary {
+  /** Суммарная выработка сети, МВт. */
+  generationMW: number;
+  /** Суммарное потребление сети, МВт. */
+  consumptionMW: number;
+  /** 0..1 — доля удовлетворённого спроса. */
+  satisfiedRatio: number;
+  /** Потребление превышает выработку — сеть отключена. */
+  blackout: boolean;
+}
+
+export interface SimulationSummary {
+  gameTime: number;
+  power: PowerSummary;
+  /** Топ предметов глобального склада (itemId + количество), по убыванию. */
+  inventory: ItemStack[];
+  /** Число зданий, участвующих в симуляции. */
+  buildingCount: number;
 }

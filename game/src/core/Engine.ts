@@ -3,12 +3,13 @@
 // ============================================================
 
 import { TICK_INTERVAL, AUTOSAVE_INTERVAL } from './constants.ts';
-import type { GameState, BuilderMode } from './types.ts';
+import type { GameState, BuilderMode, RailroadPlacementSubMode } from './types.ts';
 import { GameMode } from './types.ts';
 import { SceneManager } from '../render/SceneManager.ts';
 import { InputManager } from '../input/InputManager.ts';
 import { GridManager } from './grid/GridManager.ts';
 import { SaveManager } from './save/SaveManager.ts';
+import { SimulationManager } from '../sim/SimulationManager.ts';
 import { getBuildingPattern } from '../buildings/BuildingPatterns.ts';
 import { getBuildingPrefab } from '../buildings/BuildingPrefabs.ts';
 import { isConveyorBeltMenuId } from '../buildings/logistics/conveyorKitModels.ts';
@@ -23,10 +24,13 @@ export class Engine {
   private inputManager: InputManager;
   private gridManager: GridManager;
   private saveManager: SaveManager;
+  private simulation: SimulationManager;
 
   private gameState: GameState;
   private lastTickTime = 0;
   private tickAccumulator = 0;
+  /** Троттлинг обновления sim-сводки в UI (секунды). */
+  private summaryAccumulator = 0;
   private animationFrameId: number | null = null;
   private autoSaveTimerId: number | null = null;
   private isRunning = false;
@@ -48,6 +52,7 @@ export class Engine {
     this.inputManager = new InputManager(canvas, this);
     this.gridManager = new GridManager();
     this.saveManager = new SaveManager();
+    this.simulation = new SimulationManager();
   }
 
   /** Start the game loop */
@@ -111,14 +116,41 @@ export class Engine {
 
   /** Fixed-rate simulation tick */
   private tick(dt: number): void {
-    this.gameState.gameTime += dt;
+    // Симуляция работает над снапшотом размещённых зданий из визуального мира.
+    const snapshot = this.sceneManager.getPlacedBuildingSnapshot();
+    this.simulation.update(dt, snapshot);
+    this.gameState.gameTime = this.simulation.getGameTime();
 
-    // TODO: Run ECS systems here
-    // - ProductionSystem
-    // - ConveyorSystem
-    // - PipeSystem
-    // - PowerGridSystem
-    // - etc.
+    // Сводку в UI отдаём троттлингом (~3 раза/сек), а не каждый тик.
+    this.summaryAccumulator += dt;
+    if (this.summaryAccumulator >= 0.33) {
+      this.summaryAccumulator = 0;
+      this.gameState.sim = this.simulation.getSummary();
+      this.notifyStateChange();
+    }
+  }
+
+  /** Текущая сводка симуляции (энергия/склад) для UI. */
+  getSimulationSummary() {
+    return this.simulation.getSummary();
+  }
+
+  /** Загрузить сохранённое состояние симуляции (склад/время). Визуальный мир восстанавливает SceneManager. */
+  async loadPersisted(): Promise<void> {
+    try {
+      const data = await this.saveManager.load();
+      if (!data) return;
+      this.simulation.restore({
+        version: SimulationManager.SAVE_VERSION,
+        gameTime: data.gameTime,
+        inventory: data.inventory,
+      });
+      this.gameState.gameTime = this.simulation.getGameTime();
+      this.gameState.sim = this.simulation.getSummary();
+      this.notifyStateChange();
+    } catch (err) {
+      console.warn('[Engine] loadPersisted failed:', err);
+    }
   }
 
   /** Auto-save the game */
@@ -138,9 +170,11 @@ export class Engine {
       version: 1,
       timestamp: Date.now(),
       checksum: '', // Will be computed by SaveManager
-      gameTime: this.gameState.gameTime,
-      entities: [], // TODO: serialize from ECS
-      inventory: {},
+      gameTime: this.simulation.getGameTime(),
+      // Здания держит визуальный мир (builder-state); сюда пишем игровое
+      // состояние симуляции — глобальный склад.
+      entities: [],
+      inventory: this.simulation.serializeInventory(),
       unlockedMilestones: [],
       unlockedRecipes: [],
       milestoneProgress: {},
@@ -305,6 +339,10 @@ export class Engine {
 
   getBuilderMode(): BuilderMode {
     return this.sceneManager.getBuilderMode();
+  }
+
+  getRailroadPlacementSubMode(): RailroadPlacementSubMode {
+    return this.sceneManager.getRailroadPlacementSubMode();
   }
 
   toggleBuilderDeconstructMode(): boolean {

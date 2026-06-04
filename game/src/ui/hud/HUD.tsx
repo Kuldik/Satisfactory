@@ -4,8 +4,13 @@
 
 import { type FC } from 'react';
 import { ENABLE_MULTI_FLOOR } from '../../core/constants.ts';
-import type { GameState, BuilderMode } from '../../core/types.ts';
+import type {
+  GameState,
+  BuilderMode,
+  RailroadPlacementSubMode,
+} from '../../core/types.ts';
 import { GameMode, BUILDER_MODE_LABELS } from '../../core/types.ts';
+import { simItemName } from '../../sim/buildingCatalog.ts';
 import './HUD.css';
 
 interface HUDProps {
@@ -19,6 +24,7 @@ interface HUDProps {
   isDeconstructMode?: boolean;
   onToggleDeconstruct?: () => void;
   builderMode?: BuilderMode;
+  railroadPlacementSubMode?: RailroadPlacementSubMode;
 }
 
 export const HUD: FC<HUDProps> = ({
@@ -30,6 +36,7 @@ export const HUD: FC<HUDProps> = ({
   isDeconstructMode = false,
   onToggleDeconstruct,
   builderMode = "single",
+  railroadPlacementSubMode = "straight",
 }) => {
   const formatTime = (seconds: number): string => {
     const hrs = Math.floor(seconds / 3600);
@@ -62,6 +69,75 @@ export const HUD: FC<HUDProps> = ({
           {gameState.isPaused && ' ⏸ ПАУЗА'}
         </div>
       </div>
+
+      {gameState.sim &&
+        (gameState.sim.buildingCount > 0 ||
+          gameState.sim.inventory.length > 0) && (
+          <div
+            className="hud-sim"
+            style={{
+              position: "absolute",
+              top: 64,
+              left: 12,
+              minWidth: 196,
+              padding: "10px 12px",
+              borderRadius: 8,
+              background: "rgba(12, 16, 24, 0.82)",
+              border: "1px solid rgba(120, 150, 200, 0.35)",
+              color: "#e6edf6",
+              font: "12px/1.5 system-ui, sans-serif",
+              pointerEvents: "none",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+                color: gameState.sim.power.blackout ? "#ff7a7a" : "#9fe0a0",
+              }}
+            >
+              <span>⚡ {Math.round(gameState.sim.power.generationMW)} МВт</span>
+              <span style={{ opacity: 0.85 }}>
+                / {Math.round(gameState.sim.power.consumptionMW)} МВт
+              </span>
+            </div>
+            {gameState.sim.power.blackout && (
+              <div style={{ color: "#ff7a7a", fontWeight: 700 }}>
+                ⚠ БЛЭКАУТ — производство остановлено
+              </div>
+            )}
+            <div style={{ opacity: 0.7, marginTop: 2 }}>
+              Зданий в симуляции: {gameState.sim.buildingCount}
+            </div>
+            {gameState.sim.inventory.length > 0 && (
+              <div
+                style={{
+                  marginTop: 6,
+                  paddingTop: 6,
+                  borderTop: "1px solid rgba(120, 150, 200, 0.25)",
+                }}
+              >
+                <div style={{ opacity: 0.7, marginBottom: 2 }}>📦 Склад</div>
+                {gameState.sim.inventory.map((s) => (
+                  <div
+                    key={s.itemId}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 12,
+                    }}
+                  >
+                    <span>{simItemName(s.itemId)}</span>
+                    <span style={{ fontVariantNumeric: "tabular-nums" }}>
+                      {s.amount.toLocaleString("ru-RU")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
       {isDeconstructMode && (
         <div className="hud-deconstruct-banner" role="status">
@@ -120,8 +196,15 @@ export const HUD: FC<HUDProps> = ({
               {BUILDER_MODE_LABELS[builderMode]}
             </span>
           )}
+          {gameState.selectedBuilding === "railroad_track" && (
+            <span className="hud-mode-badge">
+              {railroadPlacementSubMode === "corner" ? "Колено" : "Прямая"} · geo8
+            </span>
+          )}
           <span className="hud-hint">
-            ЛКМ — поставить | T — повернуть | R — режим | F — деконстр. | Ctrl — выравнивание | Esc — отмена
+            {gameState.selectedBuilding === "railroad_track"
+              ? "ЛКМ — поставить | T — прямая/колено | R — разворот / сторона колена | F — деконстр. | Esc — отмена"
+              : "ЛКМ — поставить | T — повернуть | R — режим | F — деконстр. | Ctrl — выравнивание | Esc — отмена"}
             {/^conveyor_mk[1-6]$/.test(gameState.selectedBuilding) && (
               <> · R: L-угол / кривая · 1-й ЛКМ начало, 2-й конец</>
             )}

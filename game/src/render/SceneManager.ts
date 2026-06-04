@@ -21,7 +21,7 @@ import {
   proceduralPipeTubeRadiusLogical,
   proceduralPipeTubeRadiusWorld,
 } from "../buildings/logistics/proceduralPipeGeometry.ts";
-import type { BuilderMode } from "../core/types.ts";
+import type { BuilderMode, RailroadPlacementSubMode } from "../core/types.ts";
 import { CONVEYOR_PLACEMENT_MODES } from "../core/types.ts";
 import type { ConveyorPlacementMode } from "../core/types.ts";
 import { CameraController } from "./CameraController.ts";
@@ -37,6 +37,9 @@ import {
 import {
   measureScaledTrainMetrics,
   resolvePrefabFitScale,
+  resolveRailroadCornerLegLengthsWorld,
+  resolveTrainKitUniformScale,
+  RAILROAD_STRAIGHT_WORLD_LENGTH_M,
   usesConveyorGalleryFitScale,
 } from "../buildings/logistics/conveyorFitScale.ts";
 import {
@@ -48,6 +51,7 @@ import {
   isRailroadModelPath,
   isRailroadTrackMenuId,
   RAILROAD_CORNER_LARGE_MODEL_PATH,
+  RAILROAD_STRAIGHT_MODEL_PATH,
 } from "../buildings/logistics/railroadKitModels.ts";
 import {
   isKenneySpaceStationPipeAssetPath,
@@ -78,13 +82,19 @@ import {
   faceSnapGhostToPlaced,
   resolveGhostVerticalSupport,
   snapRollingStockCoupling,
+  snapRollingStockToRail,
 } from "./builder/builderGhostSnapping.ts";
 import { isRollingStockMenuId } from "../train/trainRollingStockCatalog.ts";
 import {
   computeConveyorPathSegments,
   getPlacementSegmentStep,
 } from "./builder/conveyorPathSegments.ts";
-import { computeRailroadPathSegments } from "./builder/railroadPathSegments.ts";
+import {
+  computeRailroadCornerSegment,
+  computeRailroadStraightSegments,
+  railroadEndpointFromSegmentCenter,
+  recomputeRailroadCornerEndpoints,
+} from "./builder/railroadPathSegments.ts";
 import {
   assignPipeStraightChordMeters,
   PIPE_STRAIGHT_CHORD_OVERLAP,
@@ -118,6 +128,8 @@ type BuilderPathPlanSegment = {
   elbowTurn?: 1 | -1;
   straightChordMeters?: number;
   mirrorX?: boolean;
+  exitPosition?: THREE.Vector3;
+  exitRotationY?: number;
 };
 
 type BuilderPlacedPartRecord = {
@@ -138,6 +150,9 @@ type BuilderPlacedPartRecord = {
   /** Нет кольца на u=0 при стыковке со свободной кривой (центр линии). */
   pipeFreeOmitStartFlange?: boolean;
   mirrorX?: boolean;
+  railroadEntryAnchor?: { x: number; y: number; z: number };
+  railroadExitPosition?: { x: number; y: number; z: number };
+  railroadExitRotationY?: number;
 };
 
 /**
@@ -250,6 +265,7 @@ export class SceneManager {
   /** Default (L) mode: both legs shorter than min turn → red ghost, no place */
   private conveyorDefaultTooTight = false;
   private pipeDefaultTooTight = false;
+  private railroadDefaultTooTight = false;
   private pipeLineEndSnappedToTarget = false;
   /** T в линейной трубе — переключает приоритетную ось L (firstAlongX <-> firstAlongZ). */
   private pipePreferredAxisFlip = false;
@@ -264,6 +280,26 @@ export class SceneManager {
    * Труба в режиме default: leg — одна прямая до клика; junction — колено на углу, крутится за мышью.
    */
   private pipePlacementSubMode: "leg" | "junction" = "leg";
+  private railroadPlacementSubMode: RailroadPlacementSubMode = "straight";
+  private railroadCornerMirrorX = false;
+  /** R на прямой: разворот вдоль tangent (не крутит модель на 180° через along-sign). */
+  private railroadStraightAxisFlip = false;
+  /** Конец последней поставленной прямой/колена — якорь колена, не preview-курсор. */
+  private railroadPlacedChainTip: {
+    position: THREE.Vector3;
+    rotationY: number;
+  } | null = null;
+  private railroadCornerSnap: {
+    position: THREE.Vector3;
+    rotationY: number;
+    compositeId?: string;
+  } | null = null;
+  /** Стабильный якорь колена — не прыгает при R / движении мыши в сторону. */
+  private railroadLockedCornerAnchor: {
+    position: THREE.Vector3;
+    rotationY: number;
+    compositeId?: string;
+  } | null = null;
   /** Угол L на полу (второй клик) — та же точка, что `corner` для колена в `computePipePathSegments`. */
   private readonly pipeJunctionManhattanCornerWorld = new THREE.Vector3();
   private pipeIncomingStraightRotY = 0;
@@ -291,6 +327,15 @@ export class SceneManager {
     depthWrite: false,
   });
   private builderPlaced: BuilderPlacedPartRecord[] = [];
+  /**
+   * Реестр «логических зданий» для симуляции: compositeId → {buildingId, позиция}.
+   * Заполняется при постановке паттернов; читается через getPlacedBuildingSnapshot
+   * (с прунингом по выжившим частям) и персистится вместе с builder-state.
+   */
+  private readonly placedBuildings = new Map<
+    string,
+    { buildingId: string; x: number; y: number; z: number }
+  >();
   private readonly builderPlacedGroup = new THREE.Group();
   private readonly builderLinePreviewGroup = new THREE.Group();
   private readonly glbCache = new Map<string, THREE.Group>();
@@ -739,6 +784,12 @@ export class SceneManager {
     this.prefabMenuBuildingId = menuBuildingId;
     this.builderGhostRotY = 0;
     this.builderCurrentPartPath = partPath;
+    this.railroadPlacementSubMode = "straight";
+    this.railroadCornerMirrorX = false;
+    this.railroadStraightAxisFlip = false;
+    this.railroadPlacedChainTip = null;
+    this.railroadCornerSnap = null;
+    this.railroadLockedCornerAnchor = null;
     this.conveyorRotOffset = isConveyorBeltMenuId(menuBuildingId)
       ? -Math.PI / 2
       : 0;
@@ -886,6 +937,16 @@ export class SceneManager {
     } else if (!this.builderCtrlHeld && isRollingStockGhost) {
       const rotRef = { value: this.builderGhostRotY };
       if (
+        snapRollingStockToRail(
+          pos,
+          rotRef,
+          this.builderPlacedGroup,
+          this.builderGhostPivot,
+        )
+      ) {
+        this.builderGhostRotY = rotRef.value;
+      }
+      if (
         snapRollingStockCoupling(
           pos,
           rotRef,
@@ -900,13 +961,16 @@ export class SceneManager {
     // After XZ is final: sit on floor or on top of any placed volume under footprint + vertical probe
     if (!isLineLogisticsGhost) {
       this.resolveVerticalSupport(pos);
-    } else if (isPipeLineGhost && !this.builderLineStart) {
-      /** Труба без якоря: как у обычных префабов — иначе призрак «тонет» под сетку. */
+    } else if (
+      (isPipeLineGhost && !this.builderLineStart) ||
+      isRailroadGhost
+    ) {
       this.resolveVerticalSupport(pos);
     }
 
     this.conveyorTangentAtLineEnd = null;
     this.pipeLineEndSnappedToTarget = false;
+    let railroadCornerMissingSnap = false;
     if (isConveyorGhost) {
       const snapRadius = this.getSegmentStep() * 1.5;
       const nearestEp = this.findNearestConveyorEndpoint(
@@ -927,15 +991,48 @@ export class SceneManager {
       }
     } else if (isRailroadGhost) {
       const snapRadius = this.getSegmentStep() * 1.5;
-      const nearestEp = this.findNearestConveyorEndpoint(
-        pos,
-        snapRadius,
-        "railroad",
-      );
-      if (nearestEp) {
-        pos.copy(nearestEp.position);
-        if (this.builderLineStart) {
-          this.conveyorTangentAtLineEnd = nearestEp.rotationY;
+      if (this.railroadPlacementSubMode === "corner") {
+        const snapSource = this.resolveRailroadCornerAnchor(pos);
+        if (snapSource) {
+          const anchor = snapSource.position.clone();
+          const rotationY = snapSource.rotationY;
+          this.railroadCornerSnap = {
+            position: anchor,
+            rotationY,
+            compositeId:
+              "compositeId" in snapSource ? snapSource.compositeId : undefined,
+          };
+          const cornerLegs = resolveRailroadCornerLegLengthsWorld();
+          const seg = computeRailroadCornerSegment(anchor, {
+            incomingRotY: rotationY,
+            mirrorX: this.railroadCornerMirrorX,
+            entryLeg: cornerLegs.entryLeg,
+            exitLeg: cornerLegs.exitLeg,
+            cornerInnerOffset: cornerLegs.innerOffset,
+          });
+          pos.copy(seg.position);
+          this.builderGhostRotY = seg.rotationY;
+          if (this.builderGhostModelRoot) {
+            const s = this.effectiveGhostScale();
+            this.builderGhostModelRoot.scale.set(
+              this.railroadCornerMirrorX ? -s : s,
+              s,
+              s,
+            );
+          }
+        } else {
+          this.railroadCornerSnap = null;
+          railroadCornerMissingSnap = true;
+        }
+      } else if (!this.builderLineStart) {
+        const nearestEp = this.findRailroadExitEndpointForCorner(
+          pos,
+          snapRadius,
+          this.builderGhostRotY,
+        );
+        if (nearestEp) {
+          pos.copy(nearestEp.position);
+          this.builderGhostRotY = nearestEp.rotationY;
         }
       }
     } else if (isPipeLineGhost) {
@@ -1076,6 +1173,31 @@ export class SceneManager {
       }
     }
 
+    if (
+      isRailroadGhost &&
+      this.railroadPlacementSubMode === "straight" &&
+      this.builderLineStart &&
+      this.conveyorTangentAtLineStart !== null
+    ) {
+      const s = this.builderLineStart;
+      const step = this.getSegmentStep();
+      const rot = this.conveyorTangentAtLineStart;
+      const fx = Math.sin(rot);
+      const fz = Math.cos(rot);
+      const px = -fz;
+      const pz = fx;
+      const dx = pos.x - s.x;
+      const dz = pos.z - s.z;
+      const along = dx * fx + dz * fz;
+      const side = dx * px + dz * pz;
+      const signedAlong = this.railroadStraightAxisFlip ? -along : along;
+      if (Math.abs(side) < step * 0.32) {
+        pos.set(s.x + fx * signedAlong, s.y, s.z + fz * signedAlong);
+        this.builderGhostRotY =
+          signedAlong < 0 ? rot + Math.PI : rot;
+      }
+    }
+
     this.builderGhostCurrentPos.copy(pos);
     this.builderGhostPivot.position.copy(pos);
     this.builderGhostPivot.rotation.y = this.builderGhostRotY;
@@ -1107,6 +1229,9 @@ export class SceneManager {
       }
     }
     this.conveyorDefaultTooTight = conveyorTooTight;
+
+    const railroadTooTight = false;
+    this.railroadDefaultTooTight = false;
 
     let pipeTooTight = false;
     if (
@@ -1230,7 +1355,10 @@ export class SceneManager {
           pipeBodyOverlap ||
           pipeFreeOverlap ||
           pipeFreeTooSharp
-        : this.computeGhostInvalid(this.builderGhostPivot);
+        : isRailroadGhost
+          ? this.railroadPlacementSubMode === "corner" &&
+            railroadCornerMissingSnap
+          : this.computeGhostInvalid(this.builderGhostPivot);
     this.refreshGhostMaterial();
 
     const isMultiSegmentMode = this.builderMode !== "single";
@@ -1238,15 +1366,18 @@ export class SceneManager {
       isPipeLineGhost &&
       this.builderMode === "default" &&
       this.pipePlacementSubMode === "junction";
+    const railroadCornerUsesSingleGhost =
+      isRailroadGhost && this.railroadPlacementSubMode === "corner";
     const linePreviewActive =
       isMultiSegmentMode &&
       this.builderLineStart &&
       !pipeJunctionPreviewBlocksLine &&
+      !railroadCornerUsesSingleGhost &&
       (this.prefabPlacementScale === null ||
         isConveyorBeltMenuId(this.prefabMenuBuildingId) ||
         isPipeLineMenuId(this.prefabMenuBuildingId) ||
         isRailroadTrackMenuId(this.prefabMenuBuildingId));
-    if (this.builderGhostPivot && isPipeLineGhost) {
+    if (this.builderGhostPivot && (isPipeLineGhost || isRailroadGhost)) {
       this.builderGhostPivot.visible = !linePreviewActive;
     }
 
@@ -1311,17 +1442,32 @@ export class SceneManager {
       ? this.conveyorDefaultTooTight
       : isPipeLinePlacement
         ? this.pipeDefaultTooTight
-        : false;
+        : isRailroadLine
+          ? this.railroadDefaultTooTight
+          : false;
 
+    if (!this.builderGhostPivot || !this.builderCurrentPartPath) return false;
+
+    const railroadCornerBlocked =
+      isRailroadLine &&
+      this.railroadPlacementSubMode === "corner" &&
+      this.builderGhostInvalid;
     if (
-      !this.builderGhostPivot ||
-      !this.builderCurrentPartPath ||
-      (this.builderGhostInvalid &&
-        (!hasLineAnchor || lineTooTight || isPipeLinePlacement))
-    )
+      this.builderGhostInvalid &&
+      (railroadCornerBlocked ||
+        (!isRailroadLine &&
+          (!hasLineAnchor || lineTooTight || isPipeLinePlacement)))
+    ) {
       return false;
+    }
 
     if (isMenuLinePlacement) {
+      if (
+        isRailroadLine &&
+        this.railroadPlacementSubMode === "corner"
+      ) {
+        return this.placeRailroadCornerClick();
+      }
       if (isPipeLinePlacement && this.builderMode === "default") {
         if (this.pipePlacementSubMode === "junction") {
           return this.placePipeJunctionClick();
@@ -1360,13 +1506,53 @@ export class SceneManager {
         this.builderLineStart = this.builderGhostCurrentPos.clone();
         const snapR = this.getSegmentStep() * (isPipeLinePlacement ? 3 : 1.5);
         if (isConveyorLine || isRailroadLine) {
-          const epAtStart = this.findNearestConveyorEndpoint(
-            this.builderLineStart,
-            snapR,
-            isRailroadLine ? "railroad" : "conveyor",
-          );
-          this.conveyorTangentAtLineStart =
-            epAtStart != null ? epAtStart.rotationY : null;
+          if (isRailroadLine) {
+            const step = this.getSegmentStep();
+            const sceneTip = this.findRailroadTerminalExitNear(
+              this.builderLineStart,
+              step * 2,
+              null,
+              { exitsOnly: true },
+            );
+            if (sceneTip) {
+              this.builderLineStart.copy(sceneTip.position);
+              this.conveyorTangentAtLineStart = sceneTip.rotationY;
+              this.railroadPlacedChainTip = {
+                position: sceneTip.position.clone(),
+                rotationY: sceneTip.rotationY,
+              };
+            } else {
+              const epAtStart = this.findRailroadExitEndpointForCorner(
+                this.builderLineStart,
+                snapR,
+                this.builderGhostRotY,
+              );
+              if (epAtStart) {
+                this.builderLineStart.copy(epAtStart.position);
+                this.conveyorTangentAtLineStart = epAtStart.rotationY;
+              } else {
+                this.conveyorTangentAtLineStart = null;
+              }
+            }
+          } else {
+            const epAtStart = this.findNearestConveyorEndpoint(
+              this.builderLineStart,
+              snapR,
+              "conveyor",
+            );
+            if (epAtStart) {
+              this.builderLineStart.copy(epAtStart.position);
+              this.conveyorTangentAtLineStart = epAtStart.rotationY;
+            } else {
+              this.conveyorTangentAtLineStart = null;
+            }
+          }
+          if (
+            isRailroadLine &&
+            this.conveyorTangentAtLineStart === null
+          ) {
+            this.conveyorTangentAtLineStart = this.builderGhostRotY;
+          }
         } else {
           const ep0 = this.findNearestConveyorEndpoint(
             this.builderLineStart,
@@ -1471,10 +1657,15 @@ export class SceneManager {
           "partPath" in seg && typeof seg.partPath === "string"
             ? seg.partPath
             : this.builderCurrentPartPath;
-        const pipeSeg =
-          isPipeLineMenuId(this.prefabMenuBuildingId) &&
-          isProceduralPipePartPath(partPath)
+        const placementMeta =
+          isRailroadLine
             ? {
+                segmentStep: stepSeg,
+                ...(seg.mirrorX ? { mirrorX: true } : {}),
+              }
+            : isPipeLineMenuId(this.prefabMenuBuildingId) &&
+                isProceduralPipePartPath(partPath)
+              ? {
                 segmentStep: stepSeg,
                 ...(partPath === PIPE_PROCEDURAL_STRAIGHT_PATH &&
                 typeof seg.straightChordMeters === "number"
@@ -1488,8 +1679,8 @@ export class SceneManager {
                       elbowTurn: seg.elbowTurn,
                     }
                   : {}),
-              }
-            : undefined;
+                }
+              : undefined;
         placedAny =
           this.placeSingleAt(
             seg.position,
@@ -1498,17 +1689,36 @@ export class SceneManager {
             compositeId,
             this.prefabMenuBuildingId ?? undefined,
             partPath,
-            seg.mirrorX ? { ...(pipeSeg ?? { segmentStep: stepSeg }), mirrorX: true } : pipeSeg,
+            placementMeta,
           ) || placedAny;
       }
       if (placedAny) {
         this.persistBuilderState();
         const step = this.getSegmentStep();
-        const endpointOffset = isRailroadLine ? step * 0.5 : step;
         const firstSeg = segments[0];
         const lastSeg = segments[segments.length - 1];
         if (firstSeg) {
-          if (isConveyorLine || isRailroadLine) {
+          if (isRailroadLine) {
+            const startEndpoint = railroadEndpointFromSegmentCenter(
+              firstSeg.position,
+              firstSeg.rotationY,
+              step,
+              -1,
+            );
+            const consumed = this.consumeRailroadEndpointsNear(
+              startEndpoint,
+              Math.max(0.08, step * 0.22),
+            );
+            if (consumed === 0) {
+              this.conveyorEndpoints.push({
+                position: startEndpoint,
+                rotationY: firstSeg.rotationY + Math.PI,
+                compositeId,
+                lineKind: "railroad",
+              });
+            }
+          } else if (isConveyorLine) {
+            const endpointOffset = step;
             const dir = firstSeg.rotationY - this.conveyorRotOffset;
             this.conveyorEndpoints.push({
               position: new THREE.Vector3(
@@ -1518,7 +1728,7 @@ export class SceneManager {
               ),
               rotationY: firstSeg.rotationY,
               compositeId,
-              lineKind: isRailroadLine ? "railroad" : "conveyor",
+              lineKind: "conveyor",
             });
           } else {
             const dir = firstSeg.rotationY - PIPE_RUN_ROT_Y_OFFSET;
@@ -1535,7 +1745,25 @@ export class SceneManager {
           }
         }
         if (lastSeg) {
-          if (isConveyorLine || isRailroadLine) {
+          if (isRailroadLine) {
+            const endPos = railroadEndpointFromSegmentCenter(
+              lastSeg.position,
+              lastSeg.rotationY,
+              step,
+              1,
+            );
+            this.consumeRailroadEndpointsNear(
+              endPos,
+              Math.max(0.08, step * 0.22),
+            );
+            this.conveyorEndpoints.push({
+              position: endPos,
+              rotationY: lastSeg.rotationY,
+              compositeId,
+              lineKind: "railroad",
+            });
+          } else if (isConveyorLine) {
+            const endpointOffset = step;
             const dir = lastSeg.rotationY - this.conveyorRotOffset;
             this.conveyorEndpoints.push({
               position: new THREE.Vector3(
@@ -1545,7 +1773,7 @@ export class SceneManager {
               ),
               rotationY: lastSeg.rotationY,
               compositeId,
-              lineKind: isRailroadLine ? "railroad" : "conveyor",
+              lineKind: "conveyor",
             });
           } else {
             const dir = lastSeg.rotationY - PIPE_RUN_ROT_Y_OFFSET;
@@ -1562,11 +1790,25 @@ export class SceneManager {
           }
         }
       }
-      const lastSeg = segments[segments.length - 1];
-      if (lastSeg) {
-        const step = this.getSegmentStep();
-        const endpointOffset = isRailroadLine ? step * 0.5 : step;
-        if (isConveyorLine || isRailroadLine) {
+      if (placedAny) {
+        const lastSeg = segments[segments.length - 1];
+        if (lastSeg) {
+          const step = this.getSegmentStep();
+          if (isRailroadLine) {
+            this.builderLineStart = railroadEndpointFromSegmentCenter(
+              lastSeg.position,
+              lastSeg.rotationY,
+              step,
+              1,
+            );
+            this.conveyorTangentAtLineStart = lastSeg.rotationY;
+            this.railroadPlacedChainTip = {
+              position: this.builderLineStart.clone(),
+              rotationY: lastSeg.rotationY,
+            };
+            this.railroadStraightAxisFlip = false;
+          } else if (isConveyorLine) {
+          const endpointOffset = step;
           const dir = lastSeg.rotationY - this.conveyorRotOffset;
           this.builderLineStart = new THREE.Vector3(
             lastSeg.position.x + Math.sin(dir) * endpointOffset,
@@ -1582,10 +1824,14 @@ export class SceneManager {
             lastSeg.position.z + Math.cos(dir) * step,
           );
           this.conveyorTangentAtLineStart = null;
+          }
+        } else {
+          this.builderLineStart = end.clone();
+          this.conveyorTangentAtLineStart = null;
         }
-      } else {
-        this.builderLineStart = end.clone();
-        this.conveyorTangentAtLineStart = null;
+      }
+      if (placedAny && isRailroadLine) {
+        this.rebuildRailroadEndpointsFromPlacedParts();
       }
       return placedAny;
     }
@@ -1641,6 +1887,15 @@ export class SceneManager {
 
   /** Rotate ghost by 90° */
   rotateBuilderGhost(dir: 1 | -1): void {
+    if (
+      this.prefabPlacementScale !== null &&
+      isRailroadTrackMenuId(this.prefabMenuBuildingId)
+    ) {
+      this.setRailroadPlacementSubMode(
+        this.railroadPlacementSubMode === "straight" ? "corner" : "straight",
+      );
+      return;
+    }
     /**
      * В линейной трубе с активным якорем линии rotationY всё равно
      * перезаписывается направлением start->cursor каждый кадр; «сырой» поворот
@@ -1676,7 +1931,8 @@ export class SceneManager {
   hasActiveConveyorLine(): boolean {
     const conv = isConveyorBeltMenuId(this.prefabMenuBuildingId);
     const pipe = isPipeLineMenuId(this.prefabMenuBuildingId);
-    if (!conv && !pipe) return false;
+    const railroad = isRailroadTrackMenuId(this.prefabMenuBuildingId);
+    if (!conv && !pipe && !railroad) return false;
     if (this.builderLineStart !== null) return true;
     return (
       pipe &&
@@ -1696,9 +1952,16 @@ export class SceneManager {
     this.conveyorTangentAtLineEnd = null;
     this.conveyorDefaultTooTight = false;
     this.pipeDefaultTooTight = false;
+    this.railroadDefaultTooTight = false;
     this.pipePreferredAxisFlip = false;
     this.pipeAutoAxisFlip = false;
     this.pipePlacementSubMode = "leg";
+    this.railroadPlacementSubMode = "straight";
+    this.railroadCornerMirrorX = false;
+    this.railroadStraightAxisFlip = false;
+    this.railroadPlacedChainTip = null;
+    this.railroadCornerSnap = null;
+    this.railroadLockedCornerAnchor = null;
     this.pipeJunctionLastTurn = 1;
     this.pipeJunctionManhattanCornerWorld.set(0, 0, 0);
     this.builderLinePreviewGroup.clear();
@@ -1723,9 +1986,16 @@ export class SceneManager {
     this.conveyorTangentAtLineEnd = null;
     this.conveyorDefaultTooTight = false;
     this.pipeDefaultTooTight = false;
+    this.railroadDefaultTooTight = false;
     this.pipePreferredAxisFlip = false;
     this.pipeAutoAxisFlip = false;
     this.pipePlacementSubMode = "leg";
+    this.railroadPlacementSubMode = "straight";
+    this.railroadCornerMirrorX = false;
+    this.railroadStraightAxisFlip = false;
+    this.railroadPlacedChainTip = null;
+    this.railroadCornerSnap = null;
+    this.railroadLockedCornerAnchor = null;
     this.pipeJunctionLastTurn = 1;
     this.pipeJunctionManhattanCornerWorld.set(0, 0, 0);
     this.builderLinePreviewGroup.clear();
@@ -1736,6 +2006,7 @@ export class SceneManager {
   clearBuilderComposition(): void {
     this.builderPlacedGroup.clear();
     this.builderPlaced = [];
+    this.placedBuildings.clear();
     this.placedPorts.length = 0;
     this.conveyorEndpoints.length = 0;
     this.builderLineStart = null;
@@ -1878,9 +2149,16 @@ export class SceneManager {
     this.conveyorTangentAtLineEnd = null;
     this.conveyorDefaultTooTight = false;
     this.pipeDefaultTooTight = false;
+    this.railroadDefaultTooTight = false;
     this.pipePreferredAxisFlip = false;
     this.pipeAutoAxisFlip = false;
     this.pipePlacementSubMode = "leg";
+    this.railroadPlacementSubMode = "straight";
+    this.railroadCornerMirrorX = false;
+    this.railroadStraightAxisFlip = false;
+    this.railroadPlacedChainTip = null;
+    this.railroadCornerSnap = null;
+    this.railroadLockedCornerAnchor = null;
     this.pipeJunctionManhattanCornerWorld.set(0, 0, 0);
     if (
       isPipeLineMenuId(this.prefabMenuBuildingId) &&
@@ -1902,6 +2180,63 @@ export class SceneManager {
       this.prefabPlacementScale !== null &&
       isPipeLineMenuId(this.prefabMenuBuildingId)
     ) {
+      return this.builderMode;
+    }
+    if (
+      this.prefabPlacementScale !== null &&
+      isRailroadTrackMenuId(this.prefabMenuBuildingId)
+    ) {
+      if (this.railroadPlacementSubMode === "corner") {
+        this.railroadCornerMirrorX = !this.railroadCornerMirrorX;
+        if (this.railroadCornerSnap) {
+          const anchor = this.railroadCornerSnap.position.clone();
+          const rotationY = this.railroadCornerSnap.rotationY;
+          this.railroadLockedCornerAnchor = {
+            position: anchor.clone(),
+            rotationY,
+            compositeId: this.railroadCornerSnap.compositeId,
+          };
+          const cornerLegs = resolveRailroadCornerLegLengthsWorld();
+          const seg = computeRailroadCornerSegment(anchor, {
+            incomingRotY: rotationY,
+            mirrorX: this.railroadCornerMirrorX,
+            entryLeg: cornerLegs.entryLeg,
+            exitLeg: cornerLegs.exitLeg,
+            cornerInnerOffset: cornerLegs.innerOffset,
+          });
+          if (this.builderGhostPivot && this.builderGhostModelRoot) {
+            this.builderGhostPivot.position.copy(seg.position);
+            this.builderGhostRotY = seg.rotationY;
+            const s = this.effectiveGhostScale();
+            this.builderGhostModelRoot.scale.set(
+              this.railroadCornerMirrorX ? -s : s,
+              s,
+              s,
+            );
+            this.refreshGhostMaterial();
+          }
+          return this.builderMode;
+        }
+      } else {
+        this.railroadStraightAxisFlip = !this.railroadStraightAxisFlip;
+        if (!this.builderLineStart) {
+          this.builderGhostRotY += Math.PI;
+          if (this.builderGhostPivot) {
+            this.builderGhostPivot.rotation.y = this.builderGhostRotY;
+          }
+        } else if (this.builderLineStart) {
+          this.rebuildLinePreview(
+            this.builderLineStart,
+            this.builderGhostCurrentPos,
+          );
+        }
+      }
+      if (this.builderGhostPivot && this.builderHasPointer) {
+        this.updateBuilderGhostPosition(
+          this.builderPointerNDC.x,
+          this.builderPointerNDC.y,
+        );
+      }
       return this.builderMode;
     }
     if (this.builderMode === "single") {
@@ -2366,6 +2701,9 @@ export class SceneManager {
       tubeRadius?: number;
       pipeFreeOmitStartFlange?: boolean;
       mirrorX?: boolean;
+      railroadEntryAnchor?: THREE.Vector3;
+      railroadExitPosition?: THREE.Vector3;
+      railroadExitRotationY?: number;
     },
   ): boolean {
     const path = sourcePath ?? this.builderCurrentPartPath;
@@ -2557,7 +2895,28 @@ export class SceneManager {
       z: pivot.position.z,
       rotY: pivot.rotation.y,
       scale,
+      ...(pipeSeg?.segmentStep ? { segmentStep: pipeSeg.segmentStep } : {}),
       ...(pipeSeg?.mirrorX ? { mirrorX: true } : {}),
+      ...(pipeSeg?.railroadEntryAnchor
+        ? {
+            railroadEntryAnchor: {
+              x: pipeSeg.railroadEntryAnchor.x,
+              y: pipeSeg.railroadEntryAnchor.y,
+              z: pipeSeg.railroadEntryAnchor.z,
+            },
+          }
+        : {}),
+      ...(pipeSeg?.railroadExitPosition &&
+      typeof pipeSeg.railroadExitRotationY === "number"
+        ? {
+            railroadExitPosition: {
+              x: pipeSeg.railroadExitPosition.x,
+              y: pipeSeg.railroadExitPosition.y,
+              z: pipeSeg.railroadExitPosition.z,
+            },
+            railroadExitRotationY: pipeSeg.railroadExitRotationY,
+          }
+        : {}),
     };
     if (compositeId) {
       record.compositeId = compositeId;
@@ -2644,6 +3003,486 @@ export class SceneManager {
    * Find the nearest placed conveyor endpoint within maxRadius of the given world position.
    * Returns null if none found.
    */
+  private railroadAngleDelta(a: number, b: number): number {
+    let d = Math.abs(a - b) % (Math.PI * 2);
+    if (d > Math.PI) d = Math.PI * 2 - d;
+    return d;
+  }
+
+  private railroadStraightExitFromRecord(
+    rec: BuilderPlacedPartRecord,
+    defaultStep: number,
+  ): THREE.Vector3 {
+    const segStep =
+      typeof rec.segmentStep === "number" ? rec.segmentStep : defaultStep;
+    const fx = Math.sin(rec.rotY);
+    const fz = Math.cos(rec.rotY);
+    return new THREE.Vector3(
+      rec.x + fx * segStep * 0.5,
+      rec.y,
+      rec.z + fz * segStep * 0.5,
+    );
+  }
+
+  private railroadStraightEntryFromRecord(
+    rec: BuilderPlacedPartRecord,
+    defaultStep: number,
+  ): THREE.Vector3 {
+    const segStep =
+      typeof rec.segmentStep === "number" ? rec.segmentStep : defaultStep;
+    const fx = Math.sin(rec.rotY);
+    const fz = Math.cos(rec.rotY);
+    return new THREE.Vector3(
+      rec.x - fx * segStep * 0.5,
+      rec.y,
+      rec.z - fz * segStep * 0.5,
+    );
+  }
+
+  private railroadCornerEndpointsFromRecord(
+    rec: BuilderPlacedPartRecord,
+  ): {
+    entryAnchor: THREE.Vector3;
+    exitPosition: THREE.Vector3;
+    exitRotationY: number;
+  } | null {
+    if (!rec.partPath.includes("railroad-corner")) return null;
+    if (
+      rec.railroadExitPosition &&
+      typeof rec.railroadExitRotationY === "number"
+    ) {
+      const exitPosition = new THREE.Vector3(
+        rec.railroadExitPosition.x,
+        rec.railroadExitPosition.y,
+        rec.railroadExitPosition.z,
+      );
+      const entryAnchor = rec.railroadEntryAnchor
+        ? new THREE.Vector3(
+            rec.railroadEntryAnchor.x,
+            rec.railroadEntryAnchor.y,
+            rec.railroadEntryAnchor.z,
+          )
+        : exitPosition.clone();
+      return {
+        entryAnchor,
+        exitPosition,
+        exitRotationY: rec.railroadExitRotationY,
+      };
+    }
+    const cornerLegs = resolveRailroadCornerLegLengthsWorld();
+    const endpoints = recomputeRailroadCornerEndpoints(
+      new THREE.Vector3(rec.x, rec.y, rec.z),
+      rec.rotY,
+      !!rec.mirrorX,
+      cornerLegs,
+    );
+    rec.railroadEntryAnchor = {
+      x: endpoints.entryAnchor.x,
+      y: endpoints.entryAnchor.y,
+      z: endpoints.entryAnchor.z,
+    };
+    rec.railroadExitPosition = {
+      x: endpoints.exitPosition.x,
+      y: endpoints.exitPosition.y,
+      z: endpoints.exitPosition.z,
+    };
+    rec.railroadExitRotationY = endpoints.exitRotationY;
+    return endpoints;
+  }
+
+  /** Только концевые exit линий (не стыки между сегментами одной прямой). */
+  private collectRailroadTerminalExits(
+    exitsOnly = false,
+  ): Array<{
+    position: THREE.Vector3;
+    rotationY: number;
+    compositeId?: string;
+  }> {
+    const defaultStep = this.getSegmentStep();
+    const exits: Array<{
+      position: THREE.Vector3;
+      rotationY: number;
+      compositeId?: string;
+    }> = [];
+
+    const byComposite = new Map<
+      string,
+      { straights: BuilderPlacedPartRecord[]; corners: BuilderPlacedPartRecord[] }
+    >();
+    const orphanStraights: BuilderPlacedPartRecord[] = [];
+
+    for (const child of this.builderPlacedGroup.children) {
+      const rec = child.userData?.builderRecord as
+        | BuilderPlacedPartRecord
+        | undefined;
+      if (!rec?.partPath || !isRailroadModelPath(rec.partPath)) continue;
+      const cid = rec.compositeId;
+      if (!cid) {
+        if (rec.partPath.includes("railroad-straight")) orphanStraights.push(rec);
+        continue;
+      }
+      let bucket = byComposite.get(cid);
+      if (!bucket) {
+        bucket = { straights: [], corners: [] };
+        byComposite.set(cid, bucket);
+      }
+      if (rec.partPath.includes("railroad-straight")) bucket.straights.push(rec);
+      else if (rec.partPath.includes("railroad-corner")) bucket.corners.push(rec);
+    }
+
+    const pushExit = (
+      position: THREE.Vector3,
+      rotationY: number,
+      compositeId?: string,
+    ) => {
+      exits.push({ position: position.clone(), rotationY, compositeId });
+    };
+
+    for (const [compositeId, bucket] of byComposite) {
+      if (bucket.straights.length > 0) {
+        let bestStart = bucket.straights[0]!;
+        let bestEnd = bucket.straights[0]!;
+        let minAlong = Infinity;
+        let maxAlong = -Infinity;
+        for (const s of bucket.straights) {
+          const fx = Math.sin(s.rotY);
+          const fz = Math.cos(s.rotY);
+          const along = s.x * fx + s.z * fz;
+          if (along < minAlong) {
+            minAlong = along;
+            bestStart = s;
+          }
+          if (along > maxAlong) {
+            maxAlong = along;
+            bestEnd = s;
+          }
+        }
+        if (!exitsOnly) {
+          pushExit(
+            this.railroadStraightEntryFromRecord(bestStart, defaultStep),
+            bestStart.rotY + Math.PI,
+            compositeId,
+          );
+        }
+        pushExit(
+          this.railroadStraightExitFromRecord(bestEnd, defaultStep),
+          bestEnd.rotY,
+          compositeId,
+        );
+      }
+      for (const c of bucket.corners) {
+        const corner = this.railroadCornerEndpointsFromRecord(c);
+        if (corner) {
+          pushExit(corner.exitPosition, corner.exitRotationY, compositeId);
+        }
+      }
+    }
+
+    for (const s of orphanStraights) {
+      const cid = s.compositeId ?? `orphan-${s.x}-${s.z}`;
+      if (!exitsOnly) {
+        pushExit(
+          this.railroadStraightEntryFromRecord(s, defaultStep),
+          s.rotY + Math.PI,
+          cid,
+        );
+      }
+      pushExit(this.railroadStraightExitFromRecord(s, defaultStep), s.rotY, cid);
+    }
+
+    return exits;
+  }
+
+  /** Конец линии рядом с точкой — ближайший terminal exit, не mid-track сегмент. */
+  private findRailroadTerminalExitNear(
+    nearPos: THREE.Vector3,
+    maxRadius: number,
+    preferredTangentY: number | null,
+    opts?: { exitsOnly?: boolean },
+  ): {
+    position: THREE.Vector3;
+    rotationY: number;
+    compositeId?: string;
+  } | null {
+    const step = this.getSegmentStep();
+    let best: {
+      position: THREE.Vector3;
+      rotationY: number;
+      compositeId?: string;
+    } | null = null;
+    let bestScore = Infinity;
+
+    for (const ex of this.collectRailroadTerminalExits(opts?.exitsOnly ?? false)) {
+      const dist = Math.hypot(
+        ex.position.x - nearPos.x,
+        ex.position.z - nearPos.z,
+      );
+      if (dist > maxRadius) continue;
+
+      let score = dist;
+      if (preferredTangentY !== null) {
+        score +=
+          this.railroadAngleDelta(ex.rotationY, preferredTangentY) * step * 0.15;
+      }
+
+      if (score < bestScore - 1e-4) {
+        bestScore = score;
+        best = ex;
+      }
+    }
+
+    if (!best) return null;
+    return {
+      position: best.position.clone(),
+      rotationY: best.rotationY,
+      compositeId: best.compositeId,
+    };
+  }
+
+  /** Нужно ли пересчитать якорь колена (не дергать incomingRotY при движении мыши). */
+  private shouldReplaceRailroadCornerLock(
+    searchPos: THREE.Vector3,
+    step: number,
+  ): boolean {
+    const lock = this.railroadLockedCornerAnchor;
+    if (!lock) return true;
+
+    const candidate = this.findRailroadTerminalExitNear(
+      searchPos,
+      step * 2,
+      null,
+      { exitsOnly: true },
+    );
+    if (!candidate) return false;
+
+    const sameExit =
+      Math.hypot(
+        candidate.position.x - lock.position.x,
+        candidate.position.z - lock.position.z,
+      ) < 0.45;
+    if (sameExit) return false;
+
+    const lockCursor = Math.hypot(
+      searchPos.x - lock.position.x,
+      searchPos.z - lock.position.z,
+    );
+    const candCursor = Math.hypot(
+      searchPos.x - candidate.position.x,
+      searchPos.z - candidate.position.z,
+    );
+    return candCursor < lockCursor - step * 0.15;
+  }
+
+  private isPlacedRailroadTerminalNear(
+    pos: THREE.Vector3,
+    radius: number,
+  ): boolean {
+    return (
+      this.findRailroadTerminalExitNear(pos, radius, null) !== null
+    );
+  }
+
+  /** Пересборка railroad endpoints из поставленных частей (после F5 / restore). */
+  private rebuildRailroadEndpointsFromPlacedParts(): void {
+    for (let i = this.conveyorEndpoints.length - 1; i >= 0; i--) {
+      if (this.conveyorEndpoints[i]!.lineKind === "railroad") {
+        this.conveyorEndpoints.splice(i, 1);
+      }
+    }
+
+    for (const ex of this.collectRailroadTerminalExits()) {
+      this.conveyorEndpoints.push({
+        position: ex.position.clone(),
+        rotationY: ex.rotationY,
+        compositeId: ex.compositeId ?? this.newCompositeId(),
+        lineKind: "railroad",
+      });
+    }
+  }
+
+  /** Активный конец цепи — всегда приоритетнее «ближайшего» endpoint на теле пути. */
+  private resolveRailroadChainTipSnap(): {
+    position: THREE.Vector3;
+    rotationY: number;
+    compositeId?: string;
+  } | null {
+    return this.resolveRailroadCornerAnchor(null);
+  }
+
+  /**
+   * Якорь колена: конец поставленной прямой (не preview-курсор, не стык сегментов).
+   */
+  private resolveRailroadCornerAnchor(
+    cursorPos: THREE.Vector3 | null,
+  ): {
+    position: THREE.Vector3;
+    rotationY: number;
+    compositeId?: string;
+  } | null {
+    const step = this.getSegmentStep();
+    const searchPos = cursorPos ?? this.builderGhostCurrentPos;
+
+    if (
+      this.railroadLockedCornerAnchor &&
+      !this.shouldReplaceRailroadCornerLock(searchPos, step)
+    ) {
+      return {
+        position: this.railroadLockedCornerAnchor.position.clone(),
+        rotationY: this.railroadLockedCornerAnchor.rotationY,
+        compositeId: this.railroadLockedCornerAnchor.compositeId,
+      };
+    }
+    this.railroadLockedCornerAnchor = null;
+
+    const commit = (snap: {
+      position: THREE.Vector3;
+      rotationY: number;
+      compositeId?: string;
+    }) => {
+      this.railroadLockedCornerAnchor = {
+        position: snap.position.clone(),
+        rotationY: snap.rotationY,
+        compositeId: snap.compositeId,
+      };
+      return snap;
+    };
+
+    if (this.railroadPlacedChainTip) {
+      const tipPos = this.railroadPlacedChainTip.position;
+      const other = this.findRailroadTerminalExitNear(
+        searchPos,
+        step * 2,
+        null,
+        { exitsOnly: true },
+      );
+      if (other) {
+        const tipCursor = Math.hypot(
+          searchPos.x - tipPos.x,
+          searchPos.z - tipPos.z,
+        );
+        const otherCursor = Math.hypot(
+          searchPos.x - other.position.x,
+          searchPos.z - other.position.z,
+        );
+        const sameExit =
+          Math.hypot(
+            other.position.x - tipPos.x,
+            other.position.z - tipPos.z,
+          ) < 0.45;
+        if (!sameExit && otherCursor < tipCursor - step * 0.15) {
+          return commit(other);
+        }
+      }
+      return commit({
+        position: tipPos.clone(),
+        rotationY: this.railroadPlacedChainTip.rotationY,
+      });
+    }
+
+    if (this.builderLineStart) {
+      const atLineStart = this.findRailroadTerminalExitNear(
+        this.builderLineStart,
+        step * 0.45,
+        null,
+        { exitsOnly: true },
+      );
+      if (atLineStart) {
+        return commit(atLineStart);
+      }
+    }
+
+    const sceneTip = this.findRailroadTerminalExitNear(
+      searchPos,
+      step * 2,
+      this.conveyorTangentAtLineStart,
+      { exitsOnly: true },
+    );
+    if (sceneTip) {
+      return commit(sceneTip);
+    }
+
+    if (
+      this.builderLineStart &&
+      !this.isPlacedRailroadTerminalNear(this.builderLineStart, step * 0.45)
+    ) {
+      const previewSegs = computeRailroadStraightSegments(
+        this.builderLineStart,
+        searchPos,
+        {
+          step,
+          tangentStart: this.conveyorTangentAtLineStart,
+          ghostRotY: this.builderGhostRotY,
+          reverse: this.railroadStraightAxisFlip,
+        },
+      );
+      const previewLast = previewSegs[previewSegs.length - 1];
+      if (previewLast) {
+        return commit({
+          position: railroadEndpointFromSegmentCenter(
+            previewLast.position,
+            previewLast.rotationY,
+            step,
+            1,
+          ),
+          rotationY: previewLast.rotationY,
+        });
+      }
+    }
+
+    const fallback = this.findRailroadExitEndpointForCorner(
+      searchPos,
+      step * 2,
+      this.conveyorTangentAtLineStart ?? this.builderGhostRotY,
+    );
+    return fallback ? commit(fallback) : null;
+  }
+
+  /** Exit-endpoint с нужным направлением; при нескольких — ближайший к курсору. */
+  private findRailroadExitEndpointForCorner(
+    worldPos: THREE.Vector3,
+    maxRadius: number,
+    preferredTangentY: number,
+  ): {
+    position: THREE.Vector3;
+    rotationY: number;
+    compositeId?: string;
+  } | null {
+    const terminal = this.findRailroadTerminalExitNear(
+      worldPos,
+      maxRadius,
+      preferredTangentY,
+      { exitsOnly: true },
+    );
+    if (terminal) return terminal;
+
+    let best: (typeof this.conveyorEndpoints)[number] | null = null;
+    let bestScore = Infinity;
+    const step = this.getSegmentStep();
+
+    for (const ep of this.conveyorEndpoints) {
+      if (ep.lineKind !== "railroad") continue;
+      const dist = Math.hypot(
+        ep.position.x - worldPos.x,
+        ep.position.z - worldPos.z,
+      );
+      if (dist > maxRadius) continue;
+      const score =
+        dist +
+        this.railroadAngleDelta(ep.rotationY, preferredTangentY) * step * 0.2;
+      if (score < bestScore - 1e-4) {
+        bestScore = score;
+        best = ep;
+      }
+    }
+
+    if (!best) return null;
+    return {
+      position: best.position.clone(),
+      rotationY: best.rotationY,
+      compositeId: best.compositeId,
+    };
+  }
+
   private findNearestConveyorEndpoint(
     worldPos: THREE.Vector3,
     maxRadius: number,
@@ -2677,6 +3516,22 @@ export class SceneManager {
         ? { curveCenterAnchor: best.curveCenterAnchor.clone() }
         : {}),
     };
+  }
+
+  private consumeRailroadEndpointsNear(pos: THREE.Vector3, radiusXZ: number): number {
+    const r2 = radiusXZ * radiusXZ;
+    let removed = 0;
+    for (let i = this.conveyorEndpoints.length - 1; i >= 0; i--) {
+      const ep = this.conveyorEndpoints[i]!;
+      if (ep.lineKind !== "railroad") continue;
+      const dx = ep.position.x - pos.x;
+      const dz = ep.position.z - pos.z;
+      if (dx * dx + dz * dz <= r2) {
+        this.conveyorEndpoints.splice(i, 1);
+        removed++;
+      }
+    }
+    return removed;
   }
 
   /**
@@ -3296,6 +4151,117 @@ export class SceneManager {
     this.replacePipeMenuGhostModelRootFromPath(this.getPipeMenuStraightModelPath());
   }
 
+  private replaceRailroadMenuGhostModelRootFromPath(partPath: string): void {
+    if (!this.builderGhostPivot) return;
+    const original = this.glbCache.get(partPath);
+    if (!original) return;
+    while (this.builderGhostPivot.children.length > 0) {
+      this.builderGhostPivot.remove(this.builderGhostPivot.children[0]!);
+    }
+    const ghost = original.clone(true);
+    ghost.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.material = this.ghostMaterialOk;
+        child.castShadow = false;
+        child.receiveShadow = false;
+      }
+    });
+    const s = this.effectiveGhostScale();
+    const mirrorCorner =
+      partPath === RAILROAD_CORNER_LARGE_MODEL_PATH &&
+      this.railroadCornerMirrorX;
+    ghost.scale.set(mirrorCorner ? -s : s, s, s);
+    this.builderGhostPivot.add(ghost);
+    this.builderGhostModelRoot = ghost;
+    this.builderCurrentPartPath = partPath;
+    this.normalizeGhostModel();
+    this.refreshGhostMaterial();
+  }
+
+  private setRailroadPlacementSubMode(mode: RailroadPlacementSubMode): void {
+    this.railroadPlacementSubMode = mode;
+    this.railroadCornerSnap = null;
+    this.railroadLockedCornerAnchor = null;
+    if (mode === "corner" && this.railroadPlacedChainTip) {
+      this.conveyorTangentAtLineStart = this.railroadPlacedChainTip.rotationY;
+    }
+    const partPath =
+      mode === "corner"
+        ? RAILROAD_CORNER_LARGE_MODEL_PATH
+        : RAILROAD_STRAIGHT_MODEL_PATH;
+    this.replaceRailroadMenuGhostModelRootFromPath(partPath);
+    if (this.builderGhostPivot && this.builderHasPointer) {
+      this.updateBuilderGhostPosition(
+        this.builderPointerNDC.x,
+        this.builderPointerNDC.y,
+      );
+    }
+  }
+
+  getRailroadPlacementSubMode(): RailroadPlacementSubMode {
+    return this.railroadPlacementSubMode;
+  }
+
+  private placeRailroadCornerClick(): boolean {
+    const snap =
+      this.railroadCornerSnap ??
+      this.resolveRailroadCornerAnchor(this.builderGhostCurrentPos);
+    if (!snap) return false;
+
+    const step = this.getSegmentStep();
+    const cornerLegs = resolveRailroadCornerLegLengthsWorld();
+    const seg = computeRailroadCornerSegment(snap.position, {
+      incomingRotY: snap.rotationY,
+      mirrorX: this.railroadCornerMirrorX,
+      entryLeg: cornerLegs.entryLeg,
+      exitLeg: cornerLegs.exitLeg,
+      cornerInnerOffset: cornerLegs.innerOffset,
+    });
+    if (!seg.exitPosition || typeof seg.exitRotationY !== "number") return false;
+
+    const compositeId = this.newCompositeId();
+    const placed = this.placeSingleAt(
+      seg.position,
+      seg.rotationY,
+      this.prefabPlacementScale ?? this.builderScale,
+      compositeId,
+      this.prefabMenuBuildingId ?? undefined,
+      seg.partPath,
+      {
+        segmentStep: step,
+        ...(seg.mirrorX ? { mirrorX: true } : {}),
+        railroadEntryAnchor: snap.position.clone(),
+        railroadExitPosition: seg.exitPosition.clone(),
+        railroadExitRotationY: seg.exitRotationY,
+      },
+    );
+    if (!placed) return false;
+
+    this.consumeRailroadEndpointsNear(
+      snap.position,
+      Math.max(0.08, step * 0.22),
+    );
+    this.conveyorEndpoints.push({
+      position: seg.exitPosition.clone(),
+      rotationY: seg.exitRotationY,
+      compositeId,
+      lineKind: "railroad",
+    });
+    this.persistBuilderState();
+    this.builderLineStart = seg.exitPosition.clone();
+    this.conveyorTangentAtLineStart = seg.exitRotationY;
+    this.railroadPlacedChainTip = {
+      position: seg.exitPosition.clone(),
+      rotationY: seg.exitRotationY,
+    };
+    this.railroadStraightAxisFlip = false;
+    this.conveyorTangentAtLineEnd = null;
+    this.railroadCornerSnap = null;
+    this.rebuildRailroadEndpointsFromPlacedParts();
+    this.setRailroadPlacementSubMode("straight");
+    return true;
+  }
+
   /** Второй клик в default: только прямые до угла, затем режим выбора колена. */
   private placePipeStraightLegClick(): boolean {
     const start = this.builderLineStart!.clone();
@@ -3490,12 +4456,20 @@ export class SceneManager {
     return true;
   }
 
+  private getRailroadStraightStep(): number {
+    const cached = this.glbCache.get(RAILROAD_STRAIGHT_MODEL_PATH);
+    if (cached) {
+      return measureScaledTrainMetrics(
+        cached,
+        resolveTrainKitUniformScale(),
+      ).lengthZ;
+    }
+    return RAILROAD_STRAIGHT_WORLD_LENGTH_M;
+  }
+
   private getSegmentStep(): number {
-    if (
-      isRailroadTrackMenuId(this.prefabMenuBuildingId) &&
-      this.builderGhostModelRoot
-    ) {
-      return measureScaledTrainMetrics(this.builderGhostModelRoot, 1).lengthZ;
+    if (isRailroadTrackMenuId(this.prefabMenuBuildingId)) {
+      return this.getRailroadStraightStep();
     }
     const pipeMenu =
       isPipeLineMenuId(this.prefabMenuBuildingId) ||
@@ -3514,34 +4488,6 @@ export class SceneManager {
       this.builderGhostFootprint,
       this.prefabMenuBuildingId,
     );
-  }
-
-  private getRailroadCornerMetrics(step: number): {
-    innerOffset: { x: number; z: number };
-    trim: number;
-  } {
-    const original = this.glbCache.get(RAILROAD_CORNER_LARGE_MODEL_PATH);
-    if (!original) {
-      return {
-        innerOffset: { x: step * 0.44, z: -step * 0.56 },
-        trim: step * 0.5,
-      };
-    }
-
-    const scale = resolvePrefabFitScale(
-      original,
-      "railroad_track",
-      RAILROAD_CORNER_LARGE_MODEL_PATH,
-      this.prefabPlacementScale ?? 1,
-    );
-    const box = new THREE.Box3().setFromObject(original);
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-    const measuredTrim = Math.min(size.x, size.z) * scale * 0.5;
-    return {
-      innerOffset: { x: -center.x * scale, z: -center.z * scale },
-      trim: THREE.MathUtils.clamp(measuredTrim, step * 0.45, step * 0.75),
-    };
   }
 
   private computePathSegments(
@@ -3580,14 +4526,27 @@ export class SceneManager {
     }
     if (isRailroadTrackMenuId(this.prefabMenuBuildingId)) {
       const step = this.getSegmentStep();
-      const cornerMetrics = this.getRailroadCornerMetrics(step);
-      return computeRailroadPathSegments(start, end, {
-        builderMode: this.builderMode,
+      const cornerLegs = resolveRailroadCornerLegLengthsWorld();
+      if (this.railroadPlacementSubMode === "corner") {
+        const snap =
+          this.railroadCornerSnap ??
+          this.resolveRailroadCornerAnchor(end);
+        if (!snap) return [];
+        return [
+          computeRailroadCornerSegment(snap.position, {
+            incomingRotY: snap.rotationY,
+            mirrorX: this.railroadCornerMirrorX,
+            entryLeg: cornerLegs.entryLeg,
+            exitLeg: cornerLegs.exitLeg,
+            cornerInnerOffset: cornerLegs.innerOffset,
+          }),
+        ];
+      }
+      return computeRailroadStraightSegments(start, end, {
         step,
         tangentStart: this.conveyorTangentAtLineStart,
         ghostRotY: this.builderGhostRotY,
-        cornerInnerOffset: cornerMetrics.innerOffset,
-        cornerTrim: cornerMetrics.trim,
+        reverse: this.railroadStraightAxisFlip,
       });
     }
     if (!isConveyorBeltMenuId(this.prefabMenuBuildingId)) {
@@ -3615,6 +4574,7 @@ export class SceneManager {
     rotY: number,
     scale: number,
     seg?: BuilderPathPlanSegment,
+    previewMaterial = this.ghostMaterialOk,
   ): THREE.Group | null {
     if (isProceduralPipePartPath(partPath)) {
       const step = this.getSegmentStep();
@@ -3645,7 +4605,7 @@ export class SceneManager {
       }
       placed.traverse((child) => {
         if (child instanceof THREE.Mesh) {
-          const m = this.ghostMaterialOk.clone();
+          const m = previewMaterial.clone();
           m.side = THREE.DoubleSide;
           child.material = m;
           child.castShadow = false;
@@ -3670,7 +4630,7 @@ export class SceneManager {
     }
     placed.traverse((child) => {
       if (child instanceof THREE.Mesh) {
-        child.material = this.ghostMaterialOk;
+        child.material = previewMaterial;
         if (seg?.mirrorX) child.material.side = THREE.DoubleSide;
         child.castShadow = false;
         child.receiveShadow = false;
@@ -3965,6 +4925,11 @@ export class SceneManager {
       this.prefabPlacementScale !== null &&
       isPipeLineMenuId(this.prefabMenuBuildingId);
 
+    const isRailroadMultiSegment =
+      this.builderMode !== "single" &&
+      this.prefabPlacementScale !== null &&
+      isRailroadTrackMenuId(this.prefabMenuBuildingId);
+
     if (isConveyorMultiSegment) {
       const segments = this.computePathSegments(start, end);
       for (const seg of segments) {
@@ -3974,6 +4939,27 @@ export class SceneManager {
         pivot.position.copy(seg.position);
         pivot.rotation.y = seg.rotationY;
         this.builderLinePreviewGroup.add(pivot);
+      }
+    } else if (isRailroadMultiSegment) {
+      const segments = this.computePathSegments(start, end);
+      const scale = this.prefabPlacementScale ?? this.builderScale;
+      const previewMat = this.builderGhostInvalid
+        ? this.ghostMaterialInvalid
+        : this.ghostMaterialOk;
+      for (const seg of segments) {
+        const partPath =
+          "partPath" in seg && typeof seg.partPath === "string"
+            ? seg.partPath
+            : this.builderCurrentPartPath;
+        const pivot = this.makeLinePreviewPivotForPath(
+          partPath,
+          seg.position,
+          seg.rotationY,
+          scale,
+          seg,
+          previewMat,
+        );
+        if (pivot) this.builderLinePreviewGroup.add(pivot);
       }
     } else if (isPipeMultiSegment) {
       if (
@@ -4120,12 +5106,47 @@ export class SceneManager {
     const payload = {
       scale: this.builderScale,
       parts: this.builderPlaced,
+      buildings: Array.from(this.placedBuildings.entries()).map(
+        ([compositeId, b]) => ({ compositeId, ...b }),
+      ),
     };
     try {
       localStorage.setItem(this.builderStateKey, JSON.stringify(payload));
     } catch {
       // Ignore storage failures in dev helper.
     }
+  }
+
+  /**
+   * Снапшот логических зданий для симуляции. Прунит записи, у которых не
+   * осталось ни одной части (после сноса), и возвращает только живые здания.
+   */
+  getPlacedBuildingSnapshot(): Array<{
+    compositeId: string;
+    buildingId: string;
+    x: number;
+    y: number;
+    z: number;
+  }> {
+    const aliveComposites = new Set<string>();
+    for (const p of this.builderPlaced) {
+      if (p.compositeId) aliveComposites.add(p.compositeId);
+    }
+    const out: Array<{
+      compositeId: string;
+      buildingId: string;
+      x: number;
+      y: number;
+      z: number;
+    }> = [];
+    for (const [compositeId, b] of this.placedBuildings) {
+      if (!aliveComposites.has(compositeId)) {
+        this.placedBuildings.delete(compositeId);
+        continue;
+      }
+      out.push({ compositeId, ...b });
+    }
+    return out;
   }
 
   private async restoreBuilderState(): Promise<void> {
@@ -4140,6 +5161,13 @@ export class SceneManager {
       const parsed = JSON.parse(raw) as {
         scale?: number;
         mode?: string;
+        buildings?: Array<{
+          compositeId?: string;
+          buildingId?: string;
+          x?: number;
+          y?: number;
+          z?: number;
+        }>;
         parts?: Array<{
           partPath: string;
           x: number;
@@ -4157,6 +5185,9 @@ export class SceneManager {
           tubeRadius?: number;
           pipeFreeOmitStartFlange?: boolean;
           mirrorX?: boolean;
+          railroadEntryAnchor?: { x: number; y: number; z: number };
+          railroadExitPosition?: { x: number; y: number; z: number };
+          railroadExitRotationY?: number;
         }>;
       };
       if (typeof parsed.scale === "number") {
@@ -4165,6 +5196,20 @@ export class SceneManager {
           0.2,
           SceneManager.BUILDER_SCALE_MAX,
         );
+      }
+      this.placedBuildings.clear();
+      for (const b of parsed.buildings ?? []) {
+        if (
+          typeof b.compositeId === "string" &&
+          typeof b.buildingId === "string"
+        ) {
+          this.placedBuildings.set(b.compositeId, {
+            buildingId: b.buildingId,
+            x: typeof b.x === "number" ? b.x : 0,
+            y: typeof b.y === "number" ? b.y : 0,
+            z: typeof b.z === "number" ? b.z : 0,
+          });
+        }
       }
       const parts = parsed.parts ?? [];
       const elevatorPath = getBuildingPrefab("space_elevator")?.modelPath;
@@ -4187,7 +5232,12 @@ export class SceneManager {
           (usesConveyorGalleryFitScale(menuId, part.partPath) ||
             isRailroadModelPath(part.partPath))
         ) {
-          scaleForPart = scaleToFitMaxExtent(origCached);
+          scaleForPart = resolvePrefabFitScale(
+            origCached,
+            menuId,
+            part.partPath,
+            scaleForPart,
+          );
         } else if (menuId) {
           const def = getBuildingPrefab(menuId);
           if (def) scaleForPart = def.scale;
@@ -4219,9 +5269,41 @@ export class SceneManager {
               elbowTurn: part.elbowTurn,
             }
           : undefined;
-        const placementMeta = part.mirrorX
-          ? { ...(pipeSeg ?? { segmentStep: GRID_CELL_SIZE }), mirrorX: true }
-          : pipeSeg;
+        const isRailroadPart = isRailroadModelPath(part.partPath);
+        const railroadMeta = isRailroadPart
+          ? {
+              segmentStep:
+                typeof part.segmentStep === "number"
+                  ? part.segmentStep
+                  : this.getRailroadStraightStep(),
+              ...(part.mirrorX ? { mirrorX: true } : {}),
+              ...(part.railroadEntryAnchor
+                ? {
+                    railroadEntryAnchor: new THREE.Vector3(
+                      part.railroadEntryAnchor.x,
+                      part.railroadEntryAnchor.y,
+                      part.railroadEntryAnchor.z,
+                    ),
+                  }
+                : {}),
+              ...(part.railroadExitPosition &&
+              typeof part.railroadExitRotationY === "number"
+                ? {
+                    railroadExitPosition: new THREE.Vector3(
+                      part.railroadExitPosition.x,
+                      part.railroadExitPosition.y,
+                      part.railroadExitPosition.z,
+                    ),
+                    railroadExitRotationY: part.railroadExitRotationY,
+                  }
+                : {}),
+            }
+          : undefined;
+        const placementMeta =
+          railroadMeta ??
+          (part.mirrorX
+            ? { ...(pipeSeg ?? { segmentStep: GRID_CELL_SIZE }), mirrorX: true }
+            : pipeSeg);
         this.placeSingleAt(
           new THREE.Vector3(part.x, part.y, part.z),
           part.rotY,
@@ -4233,6 +5315,7 @@ export class SceneManager {
         );
       }
       this.builderCurrentPartPath = "";
+      this.rebuildRailroadEndpointsFromPlacedParts();
     } catch {
       // Ignore corrupted JSON.
     }
@@ -4358,6 +5441,7 @@ export class SceneManager {
     const sinR = Math.sin(rot);
     const savedPath = this.builderCurrentPartPath;
     const patternCompositeId = this.newCompositeId();
+    const patternBuildingId = this.patternBuildingId;
     let placed = 0;
 
     console.log(
@@ -4395,6 +5479,14 @@ export class SceneManager {
 
     this.builderCurrentPartPath = savedPath;
     if (placed > 0) {
+      if (patternBuildingId) {
+        this.placedBuildings.set(patternCompositeId, {
+          buildingId: patternBuildingId,
+          x: anchor.x,
+          y: anchor.y,
+          z: anchor.z,
+        });
+      }
       this.persistBuilderState();
       // Убрать композитный призрак — иначе мышь продолжит двигать паттерн, а не демонтаж/hover по поставленным частям
       this.clearPatternGhost();

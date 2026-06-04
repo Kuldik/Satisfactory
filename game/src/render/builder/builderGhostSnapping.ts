@@ -201,6 +201,60 @@ export function snapRollingStockCoupling(
   return true;
 }
 
+export function snapRollingStockToRail(
+  pos: THREE.Vector3,
+  rotYRef: { value: number },
+  placedGroup: THREE.Group,
+  ghostRoot: THREE.Object3D | null,
+): boolean {
+  if (!ghostRoot) return false;
+
+  const ghostExt = measureCouplerExtents(ghostRoot, rotYRef.value);
+  const threshold = Math.max(2.5, ghostExt.length * 0.3);
+  let bestDist = threshold;
+  let bestPos: THREE.Vector3 | null = null;
+  let bestRotY = rotYRef.value;
+
+  for (const placed of placedGroup.children) {
+    const menuId = placed.userData?.menuBuildingId as string | undefined;
+    const record = placed.userData?.builderRecord as
+      | { partPath?: string }
+      | undefined;
+    if (
+      menuId !== "railroad_track" ||
+      !record?.partPath?.endsWith("railroad-straight.obj")
+    ) {
+      continue;
+    }
+
+    const rot = placed.rotation.y;
+    const fx = Math.sin(rot);
+    const fz = Math.cos(rot);
+    const placedExt = measureCouplerExtents(placed, rot);
+    const dx = pos.x - placed.position.x;
+    const dz = pos.z - placed.position.z;
+    const along = dx * fx + dz * fz;
+    const clamped = THREE.MathUtils.clamp(
+      along,
+      -placedExt.rear,
+      placedExt.front,
+    );
+    const sx = placed.position.x + fx * clamped;
+    const sz = placed.position.z + fz * clamped;
+    const d = Math.hypot(pos.x - sx, pos.z - sz);
+    if (d < bestDist) {
+      bestDist = d;
+      bestPos = new THREE.Vector3(sx, pos.y, sz);
+      bestRotY = rot;
+    }
+  }
+
+  if (!bestPos) return false;
+  pos.copy(bestPos);
+  rotYRef.value = bestRotY;
+  return true;
+}
+
 /** Углы и середины рёбер отпечатка в мировых XZ — для лучей вертикальной опоры. */
 export function getFootprintSamplePointsXZ(
   pos: THREE.Vector3,

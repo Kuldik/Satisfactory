@@ -7,7 +7,13 @@ import {
   isConveyorBeltMenuId,
   isLogisticsConveyorKitPath,
 } from "./conveyorKitModels.ts";
-import { isRailroadModelPath } from "./railroadKitModels.ts";
+import {
+  isRailroadModelPath,
+  RAILROAD_CORNER_ENTRY_LEG_UNITS,
+  RAILROAD_CORNER_EXIT_LEG_UNITS,
+  RAILROAD_CORNER_INNER_OFFSET_UNITS,
+  RAILROAD_STRAIGHT_LENGTH_UNITS,
+} from "./railroadKitModels.ts";
 import { isRollingStockModelPath } from "../../train/trainRollingStockCatalog.ts";
 
 /** Совпадает с KIT_CATEGORY_MAX_SIZE['Conveyor Kit'].belts в ModelGallery */
@@ -17,8 +23,9 @@ export const CONVEYOR_BELT_MAX_EXTENT_M = 6;
  * Train Kit scale targets in world meters. Rails are sized to the 2 m grid,
  * while rolling stock and stations are scaled as gameplay buildings, not toys.
  */
-export const RAILROAD_STRAIGHT_WORLD_LENGTH_M = 8;
-export const ROLLING_STOCK_WORLD_LENGTH_M = 14;
+/** Shared Train Kit forward length — rails and rolling stock use the same scale. */
+export const RAILROAD_STRAIGHT_WORLD_LENGTH_M = 28;
+export const ROLLING_STOCK_WORLD_LENGTH_M = 28;
 export const TRAIN_STATION_MAX_EXTENT_M = 24;
 
 /** Единый множитель для необработанного GLB: max(x,y,z) → targetMax. */
@@ -40,6 +47,27 @@ export function scaleToFitLengthZ(
   const box = new THREE.Box3().setFromObject(root);
   const size = box.getSize(new THREE.Vector3());
   return targetLength / Math.max(size.z, 1e-6);
+}
+
+export function resolveTrainKitUniformScale(): number {
+  return RAILROAD_STRAIGHT_WORLD_LENGTH_M / RAILROAD_STRAIGHT_LENGTH_UNITS;
+}
+
+/** Длины плеч corner-large в world meters (из OBJ + uniform scale). */
+export function resolveRailroadCornerLegLengthsWorld(): {
+  entryLeg: number;
+  exitLeg: number;
+  innerOffset: { x: number; z: number };
+} {
+  const uniform = resolveTrainKitUniformScale();
+  return {
+    entryLeg: RAILROAD_CORNER_ENTRY_LEG_UNITS * uniform,
+    exitLeg: RAILROAD_CORNER_EXIT_LEG_UNITS * uniform,
+    innerOffset: {
+      x: RAILROAD_CORNER_INNER_OFFSET_UNITS.x * uniform,
+      z: RAILROAD_CORNER_INNER_OFFSET_UNITS.z * uniform,
+    },
+  };
 }
 
 export function measureScaledTrainMetrics(
@@ -96,8 +124,11 @@ export function resolvePrefabFitScale(
     if (menuBuildingId === "train_station") {
       return scaleToFitMaxExtent(root, TRAIN_STATION_MAX_EXTENT_M);
     }
-    if (partPath && isRailroadModelPath(partPath)) {
-      return scaleToFitLengthZ(root, RAILROAD_STRAIGHT_WORLD_LENGTH_M);
+    if (
+      partPath &&
+      (isRailroadModelPath(partPath) || isRollingStockModelPath(partPath))
+    ) {
+      return resolveTrainKitUniformScale();
     }
     return scaleToFitLengthZ(root, ROLLING_STOCK_WORLD_LENGTH_M);
   }
