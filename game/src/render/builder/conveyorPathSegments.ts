@@ -16,8 +16,6 @@ export type ConveyorPathSegment = {
   rotationY: number;
 };
 
-/** Минимальное смещение от оси, чтобы путь считался «по двум осям» (L) vs прямой в плоскости. */
-const CONVEYOR_AXIS_LEAN_EPS = 0.03;
 /** Считаем, что идём «прямо вдоль» якоря (без L/Безье), если косинус > этого. */
 const CONVEYOR_TANGENT_ALIGN_MIN = 0.92;
 const CONVEYOR_DUAL_TANGENT_STRAIGHT_MIN = 0.96;
@@ -187,14 +185,6 @@ function getLShapedPath(
       return getChordStraightConveyorPath(start, end, input);
     }
   }
-  if (
-    absDx > CONVEYOR_AXIS_LEAN_EPS &&
-    absDz > CONVEYOR_AXIS_LEAN_EPS &&
-    Math.min(absDx, absDz) / Math.max(absDx, absDz) > 0.35
-  ) {
-    return getChordStraightConveyorPath(start, end, input);
-  }
-
   let firstAlongX: boolean;
   let corner: THREE.Vector3;
   if (incoming !== null) {

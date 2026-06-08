@@ -1877,6 +1877,11 @@ export class SceneManager {
       this.prefabMenuBuildingId ?? undefined,
     );
     if (placed) {
+      this.registerMenuPrefabBuilding(
+        compositeId,
+        this.prefabMenuBuildingId ?? undefined,
+        this.builderGhostCurrentPos,
+      );
       this.persistBuilderState();
       if (this.prefabPlacementScale !== null) {
         this.clearBuilderGhost();
@@ -2684,6 +2689,27 @@ export class SceneManager {
     );
   }
 
+  /**
+   * Одиночные GLB-префабы из меню (производственные здания, генераторы и т.д.)
+   * тоже должны попадать в логический снапшот симуляции. Логистические линии
+   * (ленты/трубы/рельсы/вагоны) не регистрируем здесь: у них один compositeId
+   * на цепочку сегментов и другая будущая модель симуляции.
+   */
+  private registerMenuPrefabBuilding(
+    compositeId: string | undefined,
+    menuBuildingId: string | undefined,
+    worldPos: THREE.Vector3,
+  ): void {
+    if (!compositeId || !menuBuildingId) return;
+    if (isLogisticsMenuBuildingId(menuBuildingId)) return;
+    this.placedBuildings.set(compositeId, {
+      buildingId: menuBuildingId,
+      x: worldPos.x,
+      y: worldPos.y,
+      z: worldPos.z,
+    });
+  }
+
   private placeSingleAt(
     worldPos: THREE.Vector3,
     forcedRotY?: number,
@@ -2881,7 +2907,13 @@ export class SceneManager {
       -origCenter.z * scale,
     );
 
-    this.applyKenneyPipeLayFlatToRoot(placed, path);
+    if (
+      (isPipeLineMenuId(menuBuildingId) ||
+        isPipeJunctionMenuId(menuBuildingId)) &&
+      isKenneySpaceStationPipeAssetPath(path)
+    ) {
+      this.applyKenneyPipeLayFlatToRoot(placed, path);
+    }
 
     const pivot = new THREE.Group();
     pivot.add(placed);
@@ -5130,7 +5162,22 @@ export class SceneManager {
   }> {
     const aliveComposites = new Set<string>();
     for (const p of this.builderPlaced) {
-      if (p.compositeId) aliveComposites.add(p.compositeId);
+      if (!p.compositeId) continue;
+      aliveComposites.add(p.compositeId);
+      // Backfill для .glb-префабов, поставленных до появления реестра
+      // placedBuildings (или после HMR без перезагрузки страницы).
+      if (
+        p.menuBuildingId &&
+        !isLogisticsMenuBuildingId(p.menuBuildingId) &&
+        !this.placedBuildings.has(p.compositeId)
+      ) {
+        this.placedBuildings.set(p.compositeId, {
+          buildingId: p.menuBuildingId,
+          x: p.x,
+          y: p.y,
+          z: p.z,
+        });
+      }
     }
     const out: Array<{
       compositeId: string;
@@ -5304,14 +5351,21 @@ export class SceneManager {
           (part.mirrorX
             ? { ...(pipeSeg ?? { segmentStep: GRID_CELL_SIZE }), mirrorX: true }
             : pipeSeg);
+        const restoredCompositeId =
+          typeof part.compositeId === "string" ? part.compositeId : undefined;
         this.placeSingleAt(
           new THREE.Vector3(part.x, part.y, part.z),
           part.rotY,
           scaleForPart,
-          typeof part.compositeId === "string" ? part.compositeId : undefined,
+          restoredCompositeId,
           menuId,
           part.partPath,
           placementMeta,
+        );
+        this.registerMenuPrefabBuilding(
+          restoredCompositeId,
+          menuId,
+          new THREE.Vector3(part.x, part.y, part.z),
         );
       }
       this.builderCurrentPartPath = "";

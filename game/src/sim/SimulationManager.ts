@@ -44,8 +44,8 @@ interface SimEntity {
 }
 
 const SIM_SAVE_VERSION = 1;
-/** Сколько позиций склада отдавать в HUD-сводку. */
-const SUMMARY_TOP_ITEMS = 8;
+/** Сколько позиций склада отдавать в HUD-сводку. Больше 8 нужно для диагностики цепочек. */
+const SUMMARY_TOP_ITEMS = 16;
 /** Порог «не считаем дробные крохи» (предметов). */
 const EPSILON = 1e-6;
 

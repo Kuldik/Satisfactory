@@ -56,9 +56,6 @@ const ALL_BUILDINGS: BuildMenuItem[] = [
     modelPath: '/kits/City Kit Industrial/Models/GLB format/building-o.glb',
     iconPath: '/kits/City Kit Industrial/Previews/building-o.png',
     description: 'Уничтожает любые предметы (кроме радиоактивных отходов) и начисляет за них купоны AWESOME Shop. Идеален для утилизации излишков производства. Потребляет 30 МВт.' },
-  { id: 'detail_vertical_pipe', name: 'Vertical pipe stack', nameRu: 'Деталь: вертикальная труба', category: BuildingCategory.Special, subcategory: 'Детализация',
-    description: 'Высокая вертикальная оболочка из скруглённых угловых бордюров. Для декора сцены.' },
-
   // ============ PRODUCTION ============
   // — Производство деталей —
   { id: 'constructor', name: 'Constructor', nameRu: 'Конструктор', category: BuildingCategory.Production, subcategory: 'Производство деталей',
