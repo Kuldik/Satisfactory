@@ -428,13 +428,14 @@ export class SimulationManager {
         const transfer = Math.min(amount, (amount / total) * budget);
         if (transfer <= EPSILON) continue;
 
-        buf.items.set(itemId, amount - transfer);
-        if ((buf.items.get(itemId) ?? 0) <= EPSILON) buf.items.delete(itemId);
-
+        let moved = false;
         for (const link of this.supplyLinks) {
           if (link.itemId !== itemId) continue;
           const segIdx = link.beltChain.indexOf(beltId);
           if (segIdx < 0) continue;
+
+          buf.items.set(itemId, amount - transfer);
+          if ((buf.items.get(itemId) ?? 0) <= EPSILON) buf.items.delete(itemId);
 
           if (segIdx < link.beltChain.length - 1) {
             this.pushToBelt(link.beltChain[segIdx + 1]!, itemId, transfer);
@@ -442,8 +443,10 @@ export class SimulationManager {
             const store = this.getBuildingInputStore(link.sinkCompositeId);
             this.addToPool(store, itemId, transfer);
           }
+          moved = true;
           break;
         }
+        if (!moved) continue;
       }
     }
   }

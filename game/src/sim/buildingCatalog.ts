@@ -8,6 +8,7 @@
 // ============================================================
 
 import { ResourceType } from "../core/types.ts";
+import { tGlobal } from "../i18n/translate.ts";
 
 export type SimBuildingKind = "miner" | "producer" | "generator";
 
@@ -38,31 +39,11 @@ export interface BuildingSimSpec {
   requireConveyorIo?: boolean;
 }
 
-/** Производные предметы вне `ResourceType` (слитки/детали) — для отображения. */
-export const SIM_ITEM_NAMES: Record<string, string> = {
-  [ResourceType.IronOre]: "Железная руда",
-  [ResourceType.CopperOre]: "Медная руда",
-  [ResourceType.Limestone]: "Известняк",
-  [ResourceType.Coal]: "Уголь",
-  [ResourceType.Water]: "Вода",
-  [ResourceType.CrudeOil]: "Нефть",
-  [ResourceType.NitrogenGas]: "Азот",
-  iron_ingot: "Железный слиток",
-  iron_plate: "Железная пластина",
-  reinforced_iron_plate: "Усиленная железная пластина",
-  modular_frame: "Модульная рама",
-  copper_ingot: "Медный слиток",
-  steel_ingot: "Стальной слиток",
-  plastic: "Пластик",
-  fuel: "Топливо",
-  packaged_water: "Упакованная вода",
-  turbo_blend: "Турбо-смесь",
-  wood: "Древесина",
-  leaves: "Трава",
-};
-
+/** Display name for simulation/HUD items (i18n-aware). */
 export function simItemName(itemId: string): string {
-  return SIM_ITEM_NAMES[itemId] ?? itemId;
+  const key = `items.${itemId}`;
+  const label = tGlobal(key);
+  return label === key ? itemId : label;
 }
 
 /**

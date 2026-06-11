@@ -1,0 +1,518 @@
+[
+  {
+    "id": "hub",
+    "category": "Special",
+    "name": "HUB",
+    "nameRu": "ХАБ",
+    "subcategory": "Особые строения",
+    "description": "Центральное здание вашей фабрики. Через ХАБ происходит разблокировка новых технологий посредством вехных заданий (Milestones). Имеет 6 входов для конвейерных лент для автоматической загрузки ресурсов.",
+    "modelPath": "/kits/City Kit Industrial/Models/GLB format/building-a.glb",
+    "iconPath": "/kits/City Kit Industrial/Previews/building-a.png"
+  },
+  {
+    "id": "space_elevator",
+    "category": "Special",
+    "name": "Space Elevator",
+    "nameRu": "Космический лифт",
+    "subcategory": "Особые строения",
+    "description": "Массивное сооружение, необходимое для глобальной прогрессии проекта. Доставка специальных деталей (Smart Plating, Versatile Framework и др.) открывает новые уровни технологий. Всего 5 фаз.",
+    "modelPath": "/kits/kenney_city-kit-commercial_2.1/Models/GLB format/low-detail-building-m.glb",
+    "iconPath": "/kits/kenney_city-kit-commercial_2.1/Previews/low-detail-building-m.png"
+  },
+  {
+    "id": "resource_sink",
+    "category": "Special",
+    "name": "AWESOME Sink",
+    "nameRu": "Утилизатор",
+    "subcategory": "Особые строения",
+    "description": "Уничтожает любые предметы (кроме радиоактивных отходов) и начисляет за них купоны AWESOME Shop. Идеален для утилизации излишков производства. Потребляет 30 МВт.",
+    "modelPath": "/kits/City Kit Industrial/Models/GLB format/building-o.glb",
+    "iconPath": "/kits/City Kit Industrial/Previews/building-o.png"
+  },
+  {
+    "id": "sawmill",
+    "category": "Production",
+    "name": "Sawmill",
+    "nameRu": "Лесопилка",
+    "subcategory": "Автоматическая добыча",
+    "description": "Первое производственное здание. Бесплатно вырабатывает древесину и траву — бесконечные ресурсы для сжигателя биомассы. 2 конвейерных выхода. Не потребляет электричество.",
+    "iconPath": "/kits/kenney_space-station-kit/Previews/structure.png"
+  },
+  {
+    "id": "constructor",
+    "category": "Production",
+    "name": "Constructor",
+    "nameRu": "Конструктор",
+    "subcategory": "Производство деталей",
+    "description": "Базовая производственная машина. Принимает 1 тип предмета на входе и производит 1 тип предмета на выходе. Используется для простых рецептов: железные пластины, провода, винты и др. Потребляет 4 МВт.",
+    "modelPath": "/kits/City Kit Industrial/Models/GLB format/building-p.glb",
+    "iconPath": "/kits/City Kit Industrial/Previews/building-p.png"
+  },
+  {
+    "id": "assembler",
+    "category": "Production",
+    "name": "Assembler",
+    "nameRu": "Сборщик",
+    "subcategory": "Производство деталей",
+    "description": "Комбинирует 2 типа предметов в один. Имеет 2 конвейерных входа и 1 выход. Производит промежуточные детали: усиленные пластины, роторы, модульные рамы и др. Потребляет 15 МВт.",
+    "modelPath": "/kits/City Kit Industrial/Models/GLB format/building-q.glb",
+    "iconPath": "/kits/City Kit Industrial/Previews/building-q.png"
+  },
+  {
+    "id": "manufacturer",
+    "category": "Production",
+    "name": "Manufacturer",
+    "nameRu": "Изготовитель",
+    "subcategory": "Производство деталей",
+    "description": "Продвинутая машина для сложных рецептов из 3-4 ингредиентов. Имеет 4 конвейерных входа и 1 выход. Производит компьютеры, тяжёлые модульные рамы, турбомоторы и др. Потребляет 55 МВт.",
+    "modelPath": "/kits/City Kit Industrial/Models/GLB format/building-t.glb",
+    "iconPath": "/kits/City Kit Industrial/Previews/building-t.png"
+  },
+  {
+    "id": "packager",
+    "category": "Production",
+    "name": "Packager",
+    "nameRu": "Упаковщик",
+    "subcategory": "Производство деталей",
+    "description": "Упаковывает жидкости/газы в канистры для транспортировки по конвейеру, или распаковывает обратно. 1 конвейерный вход/выход + 1 трубный вход/выход. Потребляет 10 МВт.",
+    "modelPath": "/kits/City Kit Industrial/Models/GLB format/building-r.glb",
+    "iconPath": "/kits/City Kit Industrial/Previews/building-r.png"
+  },
+  {
+    "id": "refinery",
+    "category": "Production",
+    "name": "Refinery",
+    "nameRu": "Очистительный завод",
+    "subcategory": "Производство деталей",
+    "description": "Перерабатывает нефть в пластик, резину, топливо; бокситы в алюминий; и др. 1 конвейерный и 1 трубный вход, 1 конвейерный и 1 трубный выход. Потребляет 30 МВт.",
+    "modelPath": "/kits/City Kit Industrial/Models/GLB format/building-l.glb",
+    "iconPath": "/kits/City Kit Industrial/Previews/building-l.png"
+  },
+  {
+    "id": "blender",
+    "category": "Production",
+    "name": "Blender",
+    "nameRu": "Смеситель",
+    "subcategory": "Производство деталей",
+    "description": "Смешивает твёрдые материалы с жидкостями/газами для создания продвинутых ресурсов. 2 конвейерных + 2 трубных входа, 1 конвейерный + 1 трубный выход. Потребляет 75 МВт.",
+    "modelPath": "/kits/City Kit Industrial/Models/GLB format/building-c.glb",
+    "iconPath": "/kits/City Kit Industrial/Previews/building-c.png"
+  },
+  {
+    "id": "particle_accelerator",
+    "category": "Production",
+    "name": "Particle Accelerator",
+    "nameRu": "Ускоритель частиц",
+    "subcategory": "Производство деталей",
+    "description": "Мощнейшая установка для производства ядерной пасты, плутониевых стержней и фиксония. 2 конвейерных входа + 1 трубный, 1 конвейерный выход. Потребление варьируется: 250–1500 МВт.",
+    "modelPath": "/kits/City Kit Industrial/Models/GLB format/building-g.glb",
+    "iconPath": "/kits/City Kit Industrial/Previews/building-g.png"
+  },
+  {
+    "id": "converter",
+    "category": "Production",
+    "name": "Converter",
+    "nameRu": "Преобразователь",
+    "subcategory": "Производство деталей",
+    "description": "Преобразует один материал в другой с использованием активированной СИМ и других ресурсов. 1 конвейерный и 1 трубный вход/выход. Потребляет 100 МВт.",
+    "modelPath": "/kits/City Kit Industrial/Models/GLB format/building-e.glb",
+    "iconPath": "/kits/City Kit Industrial/Previews/building-e.png"
+  },
+  {
+    "id": "quantum_encoder",
+    "category": "Production",
+    "name": "Quantum Encoder",
+    "nameRu": "Квантовый шифратор",
+    "subcategory": "Производство деталей",
+    "description": "Самая сложная и дорогая производственная машина в игре. Использует возбуждённую фотонную энергию из преобразователя для создания финальных компонентов. 1 конвейерный выход. Потребление: 0–2000 МВт.",
+    "modelPath": "/kits/City Kit Industrial/Models/GLB format/building-f.glb",
+    "iconPath": "/kits/City Kit Industrial/Previews/building-f.png"
+  },
+  {
+    "id": "miner_mk1",
+    "category": "Production",
+    "name": "Miner Mk.1",
+    "nameRu": "Буровая Ур.1",
+    "subcategory": "Добыча ресурсов",
+    "description": "Базовая буровая установка. Устанавливается на ресурсном узле. Скорость: бедное — 30/мин, обычное — 60/мин, богатое — 120/мин. 1 конвейерный выход. Потребляет 5 МВт."
+  },
+  {
+    "id": "miner_mk2",
+    "category": "Production",
+    "name": "Miner Mk.2",
+    "nameRu": "Буровая Ур.2",
+    "subcategory": "Добыча ресурсов",
+    "description": "Улучшенная буровая с удвоенной скоростью добычи. Бедное — 60/мин, обычное — 120/мин, богатое — 240/мин. 1 конвейерный выход. Потребляет 12 МВт."
+  },
+  {
+    "id": "miner_mk3",
+    "category": "Production",
+    "name": "Miner Mk.3",
+    "nameRu": "Буровая Ур.3",
+    "subcategory": "Добыча ресурсов",
+    "description": "Максимальная буровая установка с утроенной скоростью. Бедное — 120/мин, обычное — 240/мин, богатое — 480/мин. 1 конвейерный выход. Потребляет 30 МВт."
+  },
+  {
+    "id": "water_extractor",
+    "category": "Production",
+    "name": "Water Extractor",
+    "nameRu": "Экстрактор воды",
+    "subcategory": "Экстракторы",
+    "description": "Добывает воду из водоёмов и направляет её по трубам. Производит 120 м³/мин. 1 трубный выход. Потребляет 20 МВт.",
+    "iconPath": "/kits/kenney_building-kit/Previews/gutter-vertical-top.png"
+  },
+  {
+    "id": "oil_extractor",
+    "category": "Production",
+    "name": "Oil Extractor",
+    "nameRu": "Экстрактор нефти",
+    "subcategory": "Экстракторы",
+    "description": "Устанавливается на нефтяном узле для добычи сырой нефти. Производительность зависит от чистоты узла. 1 трубный выход. Потребляет 40 МВт.",
+    "iconPath": "/kits/kenney_building-kit/Previews/gutter-vertical-top.png"
+  },
+  {
+    "id": "pressure_booster",
+    "category": "Production",
+    "name": "Resource Well Pressurizer",
+    "nameRu": "Нагнетатель давления",
+    "subcategory": "Экстракторы",
+    "description": "Устанавливается на ресурсной скважине и создаёт давление для извлечения воды или азота. Активирует ближайшие точки добычи для установки экстракторов скважин. Потребляет 150 МВт.",
+    "iconPath": "/kits/kenney_building-kit/Previews/gutter-vertical-top.png"
+  },
+  {
+    "id": "well_extractor",
+    "category": "Production",
+    "name": "Resource Well Extractor",
+    "nameRu": "Экстрактор скважины",
+    "subcategory": "Экстракторы",
+    "description": "Устанавливается на активированных скважинах вокруг нагнетателя давления. Извлекает воду или азот. 1 трубный выход. Потребляет 0 МВт (питается от нагнетателя).",
+    "iconPath": "/kits/kenney_space-station-kit/Previews/pipe-bend.png"
+  },
+  {
+    "id": "smelter",
+    "category": "Production",
+    "name": "Smelter",
+    "nameRu": "Плавильня",
+    "subcategory": "Переплавка",
+    "description": "Базовая плавильня для переплавки одного типа руды в слитки. Железная руда → железные слитки, медная руда → медные слитки и т.д. 1 вход, 1 выход. Потребляет 4 МВт.",
+    "iconPath": "/kits/kenney_space-station-kit/Previews/structure.png"
+  },
+  {
+    "id": "foundry",
+    "category": "Production",
+    "name": "Foundry",
+    "nameRu": "Литейная",
+    "subcategory": "Переплавка",
+    "description": "Комбинирует 2 типа руды/слитков в сплав. Производит сталь (железо + уголь), алюминиевые слитки и др. 2 входа, 1 выход. Потребляет 16 МВт.",
+    "iconPath": "/kits/kenney_building-kit/Previews/plating-detailed-wide.png"
+  },
+  {
+    "id": "biomass_burner",
+    "category": "Power",
+    "name": "Biomass Burner",
+    "nameRu": "Сжигатель биомассы",
+    "subcategory": "Генераторы",
+    "description": "Первый генератор после лесопилки. Сжигает древесину или траву со склада (120 травы/мин или 30 древесины/мин → 30 МВт). Без топлива не работает. 1 конвейерный вход.",
+    "iconPath": "/kits/kenney_space-station-kit/Previews/wall-door-wide-banner.png"
+  },
+  {
+    "id": "coal_generator",
+    "category": "Power",
+    "name": "Coal Generator",
+    "nameRu": "Угольный генератор",
+    "subcategory": "Генераторы",
+    "description": "Генератор на угле. Нагревает воду до пара для производства электричества. 1 конвейерный вход (уголь) + 1 трубный вход (вода). Вырабатывает 75 МВт.",
+    "modelPath": "/kits/City Kit Industrial/Models/GLB format/building-n.glb",
+    "iconPath": "/kits/City Kit Industrial/Previews/building-n.png"
+  },
+  {
+    "id": "fuel_generator",
+    "category": "Power",
+    "name": "Fuel Generator",
+    "nameRu": "Топливный генератор",
+    "subcategory": "Генераторы",
+    "description": "Работает на жидком топливе (fuel), турботопливе или ракетном топливе, получаемом переработкой нефти. 1 трубный вход. Вырабатывает 250 МВт.",
+    "modelPath": "/kits/City Kit Industrial/Models/GLB format/building-m.glb",
+    "iconPath": "/kits/City Kit Industrial/Previews/building-m.png"
+  },
+  {
+    "id": "nuclear_power",
+    "category": "Power",
+    "name": "Nuclear Power Plant",
+    "nameRu": "Атомная электростанция",
+    "subcategory": "Генераторы",
+    "description": "Колоссальная электростанция. Работает на урановых/плутониевых/фиксониевых стержнях + вода. Производит ядерные отходы (кроме фиксония). 1 вход ленты + 1 трубный + 1 выход отходов. Вырабатывает 2500 МВт.",
+    "modelPath": "/kits/City Kit Industrial/Models/GLB format/chimney-large.glb",
+    "iconPath": "/kits/City Kit Industrial/Previews/chimney-large.png"
+  },
+  {
+    "id": "alien_extractor",
+    "category": "Power",
+    "name": "Alien Power Augmenter",
+    "nameRu": "Экстрактор инопланетной энергии",
+    "subcategory": "Генераторы",
+    "description": "Самый продвинутый источник энергии. Статически вырабатывает 500 МВт. Главный бонус: +30% ко всей мощности электросети, к которой подключён. Несколько экстракторов — каждый +30% от базовой мощности (без учёта других бонусов).",
+    "iconPath": "/kits/kenney_space-station-kit/Previews/pipe-end-colored.png"
+  },
+  {
+    "id": "alien_energy_extractor",
+    "category": "Power",
+    "name": "Alien Power Augmenter (model)",
+    "nameRu": "Экстрактор инопланетной энергии (3D)",
+    "subcategory": "Генераторы",
+    "description": "Та же роль, что у экстрактора из набора деталей, но отдельная glb-модель (`energy extractor.glb`). Старый вариант в меню сохранён.",
+    "modelPath": "/kits/models/energy%20extractor.glb",
+    "iconPath": "/kits/kenney_space-station-kit/Previews/pipe-end-colored.png"
+  },
+  {
+    "id": "power_pole_mk1",
+    "category": "Power",
+    "name": "Power Pole Mk.1",
+    "nameRu": "Электростолб Ур.1",
+    "subcategory": "Подача энергии",
+    "description": "Базовый электростолб. Позволяет подключить до 4 устройств (включая другие столбы). Дальность подключения — 50 м.",
+    "iconPath": "/kits/kenney_space-station-kit/Previews/pipe.png"
+  },
+  {
+    "id": "power_pole_mk2",
+    "category": "Power",
+    "name": "Power Pole Mk.2",
+    "nameRu": "Электростолб Ур.2",
+    "subcategory": "Подача энергии",
+    "description": "Улучшенный электростолб. Позволяет подключить до 7 устройств. Дальность подключения — 50 м.",
+    "iconPath": "/kits/kenney_space-station-kit/Previews/pipe-ring-colored.png"
+  },
+  {
+    "id": "power_pole_mk3",
+    "category": "Power",
+    "name": "Power Pole Mk.3",
+    "nameRu": "Электростолб Ур.3",
+    "subcategory": "Подача энергии",
+    "description": "Максимальный электростолб. Позволяет подключить до 10 устройств. Дальность подключения — 50 м.",
+    "iconPath": "/kits/kenney_space-station-kit/Previews/pipe-end-colored.png"
+  },
+  {
+    "id": "power_tower",
+    "category": "Power",
+    "name": "Power Line Tower",
+    "nameRu": "ЛЭП",
+    "subcategory": "Подача энергии",
+    "description": "Линия электропередач. Передаёт энергию на большие расстояния. До 3 подключений к другим ЛЭП (дальность 150 м) + 4 подключения к обычным электростолбам.",
+    "iconPath": "/kits/kenney_space-station-kit/Previews/structure-barrier-high.png"
+  },
+  {
+    "id": "power_storage",
+    "category": "Power",
+    "name": "Power Storage",
+    "nameRu": "Накопитель энергии",
+    "subcategory": "Накопление энергии",
+    "description": "Накапливает излишки вырабатываемой энергии и отдаёт их при пиковых нагрузках. Предотвращает блэкаут при резких скачках потребления. Ёмкость: 100 МВт·ч.",
+    "iconPath": "/kits/kenney_city-kit-commercial_2.1/Previews/low-detail-building-h.png"
+  },
+  {
+    "id": "conveyor_mk1",
+    "category": "Logistics",
+    "name": "Conveyor Belt Mk.1",
+    "nameRu": "Конвейер Ур.1",
+    "subcategory": "Конвейеры",
+    "description": "Базовая конвейерная лента. Перемещает предметы по горизонтали со скоростью 60 предм./мин. Не требует электричества. R — переключение режима укладки (прямая / L-угол / кривая)."
+  },
+  {
+    "id": "conveyor_mk2",
+    "category": "Logistics",
+    "name": "Conveyor Belt Mk.2",
+    "nameRu": "Конвейер Ур.2",
+    "subcategory": "Конвейеры",
+    "description": "Улучшенная конвейерная лента. Скорость: 120 предм./мин. Не требует электричества."
+  },
+  {
+    "id": "conveyor_mk3",
+    "category": "Logistics",
+    "name": "Conveyor Belt Mk.3",
+    "nameRu": "Конвейер Ур.3",
+    "subcategory": "Конвейеры",
+    "description": "Продвинутая конвейерная лента. Скорость: 270 предм./мин. Не требует электричества."
+  },
+  {
+    "id": "conveyor_mk4",
+    "category": "Logistics",
+    "name": "Conveyor Belt Mk.4",
+    "nameRu": "Конвейер Ур.4",
+    "subcategory": "Конвейеры",
+    "description": "Высокоскоростная конвейерная лента. Скорость: 480 предм./мин. Не требует электричества."
+  },
+  {
+    "id": "conveyor_mk5",
+    "category": "Logistics",
+    "name": "Conveyor Belt Mk.5",
+    "nameRu": "Конвейер Ур.5",
+    "subcategory": "Конвейеры",
+    "description": "Сверхскоростная конвейерная лента. Скорость: 780 предм./мин. Не требует электричества."
+  },
+  {
+    "id": "conveyor_mk6",
+    "category": "Logistics",
+    "name": "Conveyor Belt Mk.6",
+    "nameRu": "Конвейер Ур.6",
+    "subcategory": "Конвейеры",
+    "description": "Максимальная конвейерная лента. Скорость: 1200 предм./мин. Не требует электричества."
+  },
+  {
+    "id": "throughput_monitor",
+    "category": "Logistics",
+    "name": "Conveyor Ceiling Mount",
+    "nameRu": "Монитор пропускной способности",
+    "subcategory": "Конвейеры",
+    "description": "Устанавливается на конвейерную ленту. Замеряет поток предметов за минуту и отображает статистику. Не требует электричества. Чисто UI-элемент."
+  },
+  {
+    "id": "splitter",
+    "category": "Logistics",
+    "name": "Splitter",
+    "nameRu": "Разветвитель",
+    "subcategory": "Управление конвейерами",
+    "description": "Разделяет поток одной конвейерной ленты на 2 или 3 выхода. Предметы распределяются равномерно. 1 вход, до 3 выходов.",
+    "modelPath": "/kits/models/splitter.glb"
+  },
+  {
+    "id": "smart_splitter",
+    "category": "Logistics",
+    "name": "Smart Splitter",
+    "nameRu": "Умный разветвитель",
+    "subcategory": "Управление конвейерами",
+    "description": "..."
+  },
+  {
+    "id": "programmable_splitter",
+    "category": "Logistics",
+    "name": "Programmable Splitter",
+    "nameRu": "Программируемый разветвитель",
+    "subcategory": "Управление конвейерами",
+    "description": "..."
+  },
+  {
+    "id": "merger",
+    "category": "Logistics",
+    "name": "Merger",
+    "nameRu": "Соединитель",
+    "subcategory": "Управление конвейерами",
+    "description": "Объединяет потоки 2-3 конвейерных лент в одну. До 3 входов, 1 выход. Предметы чередуются из каждого входа.",
+    "modelPath": "/kits/models/connector.glb"
+  },
+  {
+    "id": "pipe_mk1",
+    "category": "Logistics",
+    "name": "Pipeline Mk.1",
+    "nameRu": "Трубопровод Ур.1",
+    "subcategory": "Трубопроводы",
+    "description": "Базовый трубопровод для транспортировки жидкостей и газов. Пропускная способность: 300 м³/мин. Не требует электричества."
+  },
+  {
+    "id": "pipe_mk2",
+    "category": "Logistics",
+    "name": "Pipeline Mk.2",
+    "nameRu": "Трубопровод Ур.2",
+    "subcategory": "Трубопроводы",
+    "description": "Улучшенный трубопровод с двойной пропускной способностью. 600 м³/мин. Не требует электричества."
+  },
+  {
+    "id": "railroad_track",
+    "category": "Logistics",
+    "name": "Railway",
+    "nameRu": "Ж/д пути",
+    "subcategory": "Железнодорожное сообщение",
+    "description": "Железнодорожные рельсы для прокладки маршрутов поездов. Поддерживают прямые, изогнутые участки, подъёмы и спуски.",
+    "modelPath": "/kits/kenney_train-kit/Models/OBJ format/railroad-straight.obj",
+    "iconPath": "/kits/kenney_train-kit/Previews/railroad-straight.png"
+  },
+  {
+    "id": "train_station",
+    "category": "Logistics",
+    "name": "Train Station",
+    "nameRu": "Ж/д станция",
+    "subcategory": "Железнодорожное сообщение",
+    "description": "Платформа для остановки поездов. Позволяет загружать и выгружать предметы через конвейерные порты. Можно настраивать расписание.",
+    "modelPath": "/kits/models/train-station.glb"
+  },
+  {
+    "id": "locomotive",
+    "category": "Logistics",
+    "name": "Electric Locomotive",
+    "nameRu": "Электровоз",
+    "subcategory": "Железнодорожное сообщение",
+    "description": "Тяговый модуль поезда. Работает от электросети через рельсы. Каждый поезд требует минимум 1 локомотив. Потребляет 25 МВт.",
+    "iconPath": "/kits/kenney_train-kit/Previews/train-electric-double-a.png"
+  },
+  {
+    "id": "freight_car",
+    "category": "Logistics",
+    "name": "Freight Car",
+    "nameRu": "Грузовой вагон",
+    "subcategory": "Железнодорожное сообщение",
+    "description": "Грузовой вагон для перевозки твёрдых предметов по железной дороге. Вместимость: 32 стака. Цепляется к локомотиву.",
+    "iconPath": "/kits/kenney_train-kit/Previews/train-carriage-container-red.png"
+  },
+  {
+    "id": "fluid_freight_car",
+    "category": "Logistics",
+    "name": "Fluid Freight Car",
+    "nameRu": "Цистерный вагон",
+    "subcategory": "Железнодорожное сообщение",
+    "description": "Вагон-цистерна для перевозки жидкостей и газов по железной дороге. Вместимость: 2400 м³. Цепляется к локомотиву.",
+    "iconPath": "/kits/kenney_train-kit/Previews/train-carriage-tank.png"
+  },
+  {
+    "id": "storage_small",
+    "category": "Organization",
+    "name": "Storage Container",
+    "nameRu": "Складской контейнер",
+    "subcategory": "Складирование предметов",
+    "description": "Хранит до 24 стаков предметов. 1 конвейерный вход и 1 выход. Отличный буфер между производственными цепочками.",
+    "modelPath": "/kits/City Kit Industrial/Models/GLB format/building-s.glb"
+  },
+  {
+    "id": "storage_large",
+    "category": "Organization",
+    "name": "Industrial Storage Container",
+    "nameRu": "Промышленный контейнер",
+    "subcategory": "Складирование предметов",
+    "description": "Хранит до 48 стаков предметов. 2 конвейерных входа и 2 выхода. Удвоенная ёмкость для массового хранения.",
+    "modelPath": "/kits/City Kit Industrial/Models/GLB format/building-i.glb"
+  },
+  {
+    "id": "fluid_buffer",
+    "category": "Organization",
+    "name": "Fluid Buffer",
+    "nameRu": "Цистерна",
+    "subcategory": "Хранение жидкостей",
+    "description": "Буфер для хранения жидкостей и газов. Вместимость: 400 м³. Имеет трубные порты для входа и выхода.",
+    "modelPath": "/kits/kenney_space-station-kit/Models/GLB format/container-tall.glb"
+  },
+  {
+    "id": "fluid_buffer_large",
+    "category": "Organization",
+    "name": "Industrial Fluid Buffer",
+    "nameRu": "Промышленная цистерна",
+    "subcategory": "Хранение жидкостей",
+    "description": "Увеличенный буфер для жидкостей. Вместимость: 2400 м³. Для масштабных жидкостных сетей и резервного хранения.",
+    "modelPath": "/kits/City Kit Industrial/Models/GLB format/detail-tank.glb"
+  },
+  {
+    "id": "loading_module",
+    "category": "Organization",
+    "name": "Loading Module",
+    "nameRu": "Модуль загрузки",
+    "subcategory": "Модули склада",
+    "description": "Принимает предметы с конвейера и автоматически загружает их на бесконечный склад игрока. 1 конвейерный вход. Без ограничений по скорости.",
+    "modelPath": "/kits/models/module-in.glb"
+  },
+  {
+    "id": "unloading_module",
+    "category": "Organization",
+    "name": "Unloading Module",
+    "nameRu": "Модуль выгрузки",
+    "subcategory": "Модули склада",
+    "description": "Выгружает выбранный тип предмета из бесконечного склада игрока на конвейер. 1 конвейерный выход. В модальном окне выбирается предмет из инвентаря.",
+    "modelPath": "/kits/models/module-out.glb"
+  }
+]

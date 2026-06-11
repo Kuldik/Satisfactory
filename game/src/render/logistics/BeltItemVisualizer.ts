@@ -74,9 +74,36 @@ export class BeltItemVisualizer {
     return clone;
   }
 
+  private applyTint(root: THREE.Object3D, tint: number): void {
+    root.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return;
+      const tintMat = (mat: THREE.Material | undefined): THREE.Material | undefined => {
+        if (!mat) return mat;
+        const next = mat.clone();
+        if (
+          next instanceof THREE.MeshStandardMaterial ||
+          next instanceof THREE.MeshPhysicalMaterial ||
+          next instanceof THREE.MeshLambertMaterial ||
+          next instanceof THREE.MeshPhongMaterial ||
+          next instanceof THREE.MeshBasicMaterial
+        ) {
+          next.color.set(tint);
+        }
+        return next;
+      };
+      if (Array.isArray(child.material)) {
+        child.material = child.material.map(tintMat).filter(Boolean) as THREE.Material[];
+      } else {
+        const next = tintMat(child.material);
+        if (next) child.material = next;
+      }
+    });
+  }
+
   private spawnInstance(
     template: THREE.Object3D,
     targetSize: number,
+    tint?: number,
   ): THREE.Object3D {
     const obj = template.clone(true);
     const box = new THREE.Box3().setFromObject(obj);
@@ -84,6 +111,9 @@ export class BeltItemVisualizer {
     const maxDim = Math.max(size.x, size.y, size.z);
     if (maxDim > 1e-5) {
       obj.scale.multiplyScalar(targetSize / maxDim);
+    }
+    if (tint !== undefined) {
+      this.applyTint(obj, tint);
     }
     obj.traverse((child) => {
       if (child instanceof THREE.Mesh) {
@@ -145,7 +175,9 @@ export class BeltItemVisualizer {
     segmentPaths: Map<string, BeltSegmentSnapshot[]>,
     prebuiltPaths?: Map<string, BeltPath>,
   ): void {
-    if (this.templates.size === 0) return;
+    if (this.templates.size === 0) {
+      void this.preload();
+    }
 
     const alive = new Set<string>();
     const paths = new Map<string, BeltPath>(prebuiltPaths);
@@ -172,7 +204,10 @@ export class BeltItemVisualizer {
       );
       if (slotIds.length === 0) continue;
 
-      const metersPerSec = belt.speedPerMin / 60;
+      const metersPerSec =
+        Number.isFinite(belt.speedPerMin) && belt.speedPerMin > 0
+          ? belt.speedPerMin / 60
+          : 1;
       const prev = this.phases.get(belt.beltCompositeId) ?? 0;
       const next = prev + metersPerSec * dt;
       this.phases.set(belt.beltCompositeId, next);
@@ -198,7 +233,7 @@ export class BeltItemVisualizer {
 
         let obj = this.active.get(id);
         if (!obj) {
-          obj = this.spawnInstance(template, model.targetSize);
+          obj = this.spawnInstance(template, model.targetSize, model.tint);
           this.active.set(id, obj);
           this.group.add(obj);
         }

@@ -2,25 +2,25 @@
 // HUD — heads-up display overlay
 // ============================================================
 
-import { type FC } from 'react';
-import { ENABLE_MULTI_FLOOR } from '../../core/constants.ts';
+import { type FC } from "react";
+import { ENABLE_MULTI_FLOOR } from "../../core/constants.ts";
 import type {
   GameState,
   BuilderMode,
   RailroadPlacementSubMode,
-} from '../../core/types.ts';
-import { GameMode, BUILDER_MODE_LABELS } from '../../core/types.ts';
-import { simItemName } from '../../sim/buildingCatalog.ts';
-import './HUD.css';
+} from "../../core/types.ts";
+import { GameMode } from "../../core/types.ts";
+import { simItemName } from "../../sim/buildingCatalog.ts";
+import { useTranslation } from "../../i18n/I18nContext.tsx";
+import { getActiveLocale } from "../../i18n/translate.ts";
+import "./HUD.css";
 
 interface HUDProps {
   gameState: GameState;
   onOpenBuildMenu: () => void;
   onOpenInventory: () => void;
-  /** DEV only — shows admin builder button when provided */
   onOpenAdminPanel?: () => void;
   isBuilderActive?: boolean;
-  /** DEV — режим снятия деталей конструктора */
   isDeconstructMode?: boolean;
   onToggleDeconstruct?: () => void;
   builderMode?: BuilderMode;
@@ -38,106 +38,77 @@ export const HUD: FC<HUDProps> = ({
   builderMode = "single",
   railroadPlacementSubMode = "straight",
 }) => {
+  const { t } = useTranslation();
+  const numberLocale = getActiveLocale() === "ru" ? "ru-RU" : "en-US";
+
   const formatTime = (seconds: number): string => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
-    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
   return (
     <div className="hud">
-      {/* Top bar */}
       <div className="hud-top">
-        <div className="hud-time">
-          ⏱ {formatTime(gameState.gameTime)}
-        </div>
+        <div className="hud-time">⏱ {formatTime(gameState.gameTime)}</div>
         {ENABLE_MULTI_FLOOR && (
           <div className="hud-floor">
-            Этаж: {gameState.currentFloor}
-            <button type="button" className="hud-btn" title="PageUp">
+            {t("hud.floor")}: {gameState.currentFloor}
+            <button type="button" className="hud-btn" title={t("hud.pageUp")}>
               ▲
             </button>
-            <button type="button" className="hud-btn" title="PageDown">
+            <button type="button" className="hud-btn" title={t("hud.pageDown")}>
               ▼
             </button>
           </div>
         )}
         <div className="hud-mode">
-          {gameState.mode === GameMode.BuildMode && '🔨 Режим строительства'}
-          {gameState.mode === GameMode.Playing && '🎮 Игра'}
-          {gameState.isPaused && ' ⏸ ПАУЗА'}
+          {gameState.mode === GameMode.BuildMode && `🔨 ${t("hud.modeBuild")}`}
+          {gameState.mode === GameMode.Playing && `🎮 ${t("hud.modePlaying")}`}
+          {gameState.isPaused && ` ⏸ ${t("hud.paused")}`}
         </div>
       </div>
 
       {gameState.sim &&
         (gameState.sim.buildingCount > 0 ||
           gameState.sim.inventory.length > 0) && (
-          <div
-            className="hud-sim"
-            style={{
-              position: "absolute",
-              top: 64,
-              left: 12,
-              minWidth: 196,
-              padding: "10px 12px",
-              borderRadius: 8,
-              background: "rgba(12, 16, 24, 0.82)",
-              border: "1px solid rgba(120, 150, 200, 0.35)",
-              color: "#e6edf6",
-              font: "12px/1.5 system-ui, sans-serif",
-              pointerEvents: "none",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 12,
-                color: gameState.sim.power.blackout ? "#ff7a7a" : "#9fe0a0",
-              }}
-            >
-              <span>⚡ {Math.round(gameState.sim.power.generationMW)} МВт</span>
-              <span style={{ opacity: 0.85 }}>
-                / {Math.round(gameState.sim.power.consumptionMW)} МВт
+          <div className="hud-sim">
+            <div className="hud-sim-power">
+              <span>
+                ⚡ {Math.round(gameState.sim.power.generationMW)}{" "}
+                {t("common.mw")}
+              </span>
+              <span>
+                / {Math.round(gameState.sim.power.consumptionMW)}{" "}
+                {t("common.mw")}
               </span>
             </div>
             {gameState.sim.power.blackout && (
-              <div style={{ color: "#ff7a7a", fontWeight: 700 }}>
-                ⚠ БЛЭКАУТ — производство остановлено
-              </div>
+              <div className="hud-sim-blackout">⚠ {t("hud.blackout")}</div>
             )}
             {gameState.sim.power.generationMW < 1 &&
               gameState.sim.logistics &&
               gameState.sim.logistics.linkCount > 0 &&
               gameState.sim.logistics.buildingInputs.length === 0 && (
-                <div style={{ opacity: 0.65, fontSize: 11, marginTop: 2 }}>
-                  Генерация ждёт доставку топлива по лентам
-                </div>
+                <div className="hud-sim-waiting">{t("hud.waitingFuel")}</div>
               )}
-            <div style={{ opacity: 0.7, marginTop: 2 }}>
-              Зданий в симуляции: {gameState.sim.buildingCount}
+            <div className="hud-sim-buildings">
+              {t("hud.buildingsInSim")}: {gameState.sim.buildingCount}
             </div>
             {gameState.sim.logistics && (
-              <div
-                style={{
-                  marginTop: 6,
-                  paddingTop: 6,
-                  borderTop: "1px solid rgba(120, 150, 200, 0.25)",
-                  fontSize: 11,
-                }}
-              >
-                <div style={{ opacity: 0.7, marginBottom: 2 }}>
-                  🔗 Логистика (тест)
+              <div className="hud-sim-logistics">
+                <div className="hud-sim-logistics-title">
+                  🔗 {t("hud.logisticsTest")}
                 </div>
                 <div>
-                  Порты: {gameState.sim.logistics.portCount} · Ленты:{" "}
-                  {gameState.sim.logistics.beltLineCount} · Связи:{" "}
-                  {gameState.sim.logistics.linkCount}
+                  {t("hud.ports")}: {gameState.sim.logistics.portCount} ·{" "}
+                  {t("hud.belts")}: {gameState.sim.logistics.beltLineCount} ·{" "}
+                  {t("hud.links")}: {gameState.sim.logistics.linkCount}
                 </div>
                 {gameState.sim.logistics.beltBuffers.length > 0 && (
-                  <div style={{ marginTop: 4 }}>
-                    <div style={{ opacity: 0.65 }}>На лентах:</div>
+                  <div className="hud-sim-section">
+                    <div>{t("hud.onBelts")}:</div>
                     {gameState.sim.logistics.beltBuffers.map((b) => (
                       <div key={b.beltCompositeId}>
                         {simItemName(b.itemId)}: {b.amount}
@@ -146,8 +117,8 @@ export const HUD: FC<HUDProps> = ({
                   </div>
                 )}
                 {gameState.sim.logistics.buildingInputs.length > 0 && (
-                  <div style={{ marginTop: 4 }}>
-                    <div style={{ opacity: 0.65 }}>У входов зданий:</div>
+                  <div className="hud-sim-section">
+                    <div>{t("hud.atBuildingInputs")}:</div>
                     {gameState.sim.logistics.buildingInputs.map((b, i) => (
                       <div key={`${b.compositeId}-${b.itemId}-${i}`}>
                         {simItemName(b.itemId)}: {b.amount}
@@ -158,27 +129,12 @@ export const HUD: FC<HUDProps> = ({
               </div>
             )}
             {gameState.sim.inventory.length > 0 && (
-              <div
-                style={{
-                  marginTop: 6,
-                  paddingTop: 6,
-                  borderTop: "1px solid rgba(120, 150, 200, 0.25)",
-                }}
-              >
-                <div style={{ opacity: 0.7, marginBottom: 2 }}>📦 Склад</div>
+              <div className="hud-sim-inventory">
+                <div>📦 {t("hud.warehouse")}</div>
                 {gameState.sim.inventory.map((s) => (
-                  <div
-                    key={s.itemId}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 12,
-                    }}
-                  >
+                  <div key={s.itemId} className="hud-sim-inventory-row">
                     <span>{simItemName(s.itemId)}</span>
-                    <span style={{ fontVariantNumeric: "tabular-nums" }}>
-                      {s.amount.toLocaleString("ru-RU")}
-                    </span>
+                    <span>{s.amount.toLocaleString(numberLocale)}</span>
                   </div>
                 ))}
               </div>
@@ -190,8 +146,8 @@ export const HUD: FC<HUDProps> = ({
         <div className="hud-deconstruct-banner" role="status">
           <span className="hud-deconstruct-banner__icon" aria-hidden />
           <div className="hud-deconstruct-banner__text">
-            <strong>Демонтаж</strong>
-            <span>Логистика (ленты, стойки, конвейерный kit): удерживай <strong>ЛКМ</strong> ~0,2 с. Прочие сборки из меню: ~2 с. Одиночная деталь конструктора (не логистика): <strong>ЛКМ</strong> сразу. Выкл: <strong>F</strong>, <strong>Esc</strong> или кнопка. ПКМ — камера.</span>
+            <strong>{t("hud.deconstructTitle")}</strong>
+            <span>{t("hud.deconstructHint")}</span>
           </div>
           {onToggleDeconstruct && (
             <button
@@ -199,74 +155,73 @@ export const HUD: FC<HUDProps> = ({
               className="hud-deconstruct-banner__btn"
               onClick={onToggleDeconstruct}
             >
-              Выкл
+              {t("hud.deconstructOff")}
             </button>
           )}
         </div>
       )}
 
-      {/* Bottom bar */}
       <div className="hud-bottom">
         <button className="hud-action-btn" onClick={onOpenBuildMenu} title="Q">
-          🏗️ Строительство (Q)
+          🏗️ {t("hud.build")}
         </button>
         <button className="hud-action-btn" onClick={onOpenInventory} title="B">
-          📦 Инвентарь (B)
+          📦 {t("hud.inventory")}
         </button>
         {onOpenAdminPanel && (
           <button
-            className={`hud-action-btn hud-action-btn-admin${isBuilderActive ? ' active' : ''}`}
+            className={`hud-action-btn hud-action-btn-admin${isBuilderActive ? " active" : ""}`}
             onClick={onOpenAdminPanel}
-            title="~ — Конструктор (DEV)"
+            title={t("hud.constructorTitle")}
           >
-            👑 Конструктор
+            👑 {t("hud.constructor")}
           </button>
         )}
         {onToggleDeconstruct && (
           <button
             type="button"
-            className={`hud-action-btn hud-action-btn-deconstruct${isDeconstructMode ? ' active' : ''}`}
+            className={`hud-action-btn hud-action-btn-deconstruct${isDeconstructMode ? " active" : ""}`}
             onClick={onToggleDeconstruct}
-            title="Снять детали конструктора (F)"
+            title={t("hud.deconstructTitleBtn")}
           >
-            🧹 Демонтаж (F)
+            🧹 {t("hud.deconstruct")}
           </button>
         )}
       </div>
 
-      {/* Build preview info */}
       {gameState.selectedBuilding && (
         <div className="hud-build-info">
-          Размещение: <strong>{gameState.selectedBuilding}</strong>
+          {t("hud.placement")}: <strong>{gameState.selectedBuilding}</strong>
           {/^conveyor_mk[1-6]$/.test(gameState.selectedBuilding) && (
             <span className="hud-mode-badge">
-              {BUILDER_MODE_LABELS[builderMode]}
+              {t(`builderMode.${builderMode}`)}
             </span>
           )}
           {gameState.selectedBuilding === "railroad_track" && (
             <span className="hud-mode-badge">
-              {railroadPlacementSubMode === "corner" ? "Колено" : "Прямая"} · geo8
+              {railroadPlacementSubMode === "corner"
+                ? t("hud.railroadCorner")
+                : t("hud.railroadStraight")}{" "}
+              · geo8
             </span>
           )}
           <span className="hud-hint">
             {gameState.selectedBuilding === "railroad_track"
-              ? "ЛКМ — поставить | T — прямая/колено | R — разворот / сторона колена | F — деконстр. | Esc — отмена"
-              : "ЛКМ — поставить | T — повернуть | R — режим | F — деконстр. | Ctrl — выравнивание | Esc — отмена"}
-            {/^conveyor_mk[1-6]$/.test(gameState.selectedBuilding) && (
-              <> · R: L-угол / кривая · 1-й ЛКМ начало, 2-й конец</>
-            )}
+              ? t("hud.hintRailroad")
+              : t("hud.hintDefault")}
+            {/^conveyor_mk[1-6]$/.test(gameState.selectedBuilding) &&
+              t("hud.hintConveyorExtra")}
           </span>
         </div>
       )}
 
-      {/* Controls hint (bottom right) */}
       <div className="hud-controls">
-        <div>Tab — тёмная / светлая тема</div>
-        <div>WASD — перемещение камеры</div>
-        <div>ПКМ / СКМ — вращение камеры</div>
-        <div>Shift+ЛКМ — перемещение мышью</div>
-        <div>Колесо — масштаб</div>
-        {ENABLE_MULTI_FLOOR && <div>PgUp/PgDn — этаж ↑↓</div>}
+        <div>{t("hud.controlsTheme")}</div>
+        <div>{t("hud.controlsMove")}</div>
+        <div>{t("hud.controlsRotate")}</div>
+        <div>{t("hud.controlsPan")}</div>
+        <div>{t("hud.controlsZoom")}</div>
+        {ENABLE_MULTI_FLOOR && <div>{t("hud.controlsFloor")}</div>}
       </div>
     </div>
   );

@@ -5591,7 +5591,6 @@ export class SceneManager {
       const key = link.beltChain.join("|");
       if (chainKeys.has(key)) continue;
       chainKeys.add(key);
-      for (const cid of link.beltChain) inChain.add(cid);
 
       const itemTotals = new Map<string, number>();
       let speedPerMin = link.beltSpeedPerMin;
@@ -5618,6 +5617,10 @@ export class SceneManager {
       const merged = mergeBeltPaths(chainPaths);
       if (!merged) continue;
 
+      for (const cid of link.beltChain) inChain.add(cid);
+      if (!Number.isFinite(speedPerMin) || speedPerMin <= 0) {
+        speedPerMin = link.beltSpeedPerMin;
+      }
       paths.set(key, merged);
       renderBelts.push({ beltCompositeId: key, speedPerMin, items });
     }

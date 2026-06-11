@@ -1,0 +1,36 @@
+.language-switcher {
+  position: fixed;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: rgba(12, 16, 24, 0.82);
+  border: 1px solid rgba(120, 150, 200, 0.35);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.language-switcher__btn {
+  min-width: 40px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #c8d4e8;
+  font: 600 12px/1 system-ui, sans-serif;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+}
+
+.language-switcher__btn:hover {
+  background: rgba(120, 150, 200, 0.15);
+}
+
+.language-switcher__btn.active {
+  background: rgba(56, 189, 248, 0.22);
+  color: #e6f4ff;
+}

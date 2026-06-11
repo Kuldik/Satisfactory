@@ -7,116 +7,120 @@
 
 import { useState, useCallback, type FC } from "react";
 import type { PortPlacementTemplate } from "../../buildings/buildingPortTypes.ts";
-import { BUILDER_MODE_LABELS } from "../../core/types.ts";
+import type { BuilderMode } from "../../core/types.ts";
 import {
   BUILDER_KIT_BASES,
   type BuilderKitId,
   type PartDef,
 } from "./builderPartTypes.ts";
 import { SPACE_STATION_BUILDER_PARTS } from "./spaceStationKitParts.ts";
+import { useTranslation, type TranslateFn } from "../../i18n/I18nContext.tsx";
 import "./AdminPanel.css";
 
+const PORTS_CATEGORY = "ports";
+const p = (name: string, label: string): PartDef => ({ name, label });
+
 const BASE_BUILDER_PARTS: Record<string, PartDef[]> = {
-  Пол: [
-    { name: "floor", label: "Пол" },
-    { name: "floor-half", label: "Пол ½" },
-    { name: "floor-quarter", label: "Пол ¼" },
-    { name: "floor-corner-diagonal", label: "Угол диаг." },
-    { name: "floor-corner-round", label: "Угол скруг." },
+  floor: [
+    p("floor", "Floor"),
+    p("floor-half", "Floor ½"),
+    p("floor-quarter", "Floor ¼"),
+    p("floor-corner-diagonal", "Corner diag."),
+    p("floor-corner-round", "Corner round"),
   ],
-  Стены: [
-    { name: "wall", label: "Стена" },
-    { name: "wall-half", label: "Стена ½" },
-    { name: "wall-low", label: "Низкая" },
-    { name: "wall-corner", label: "Угол" },
-    { name: "wall-corner-diagonal", label: "Угол диаг." },
-    { name: "wall-corner-round", label: "Угол скруг." },
-    { name: "wall-corner-column", label: "Кол. угол" },
-    { name: "wall-corner-column-bottom", label: "Кол. угол низ" },
-    { name: "wall-corner-column-small", label: "Кол. мал." },
-    { name: "wall-corner-column-small-bottom", label: "Кол. мал. низ" },
+  walls: [
+    p("wall", "Wall"),
+    p("wall-half", "Wall ½"),
+    p("wall-low", "Low"),
+    p("wall-corner", "Corner"),
+    p("wall-corner-diagonal", "Corner diag."),
+    p("wall-corner-round", "Corner round"),
+    p("wall-corner-column", "Col. corner"),
+    p("wall-corner-column-bottom", "Col. corner low"),
+    p("wall-corner-column-small", "Col. sm."),
+    p("wall-corner-column-small-bottom", "Col. sm. low"),
   ],
-  Окна: [
-    { name: "wall-window-square", label: "Квадр." },
-    { name: "wall-window-square-detailed", label: "Квадр. дет." },
-    { name: "wall-window-round", label: "Круглое" },
-    { name: "wall-window-round-detailed", label: "Круг. дет." },
-    { name: "wall-window-wide-square", label: "Шир. кв." },
-    { name: "wall-window-wide-square-detailed", label: "Шир. кв. д." },
-    { name: "wall-window-wide-round", label: "Шир. кр." },
-    { name: "wall-window-wide-round-detailed", label: "Шир. кр. д." },
+  windows: [
+    p("wall-window-square", "Sq."),
+    p("wall-window-square-detailed", "Sq. det."),
+    p("wall-window-round", "Round"),
+    p("wall-window-round-detailed", "Round det."),
+    p("wall-window-wide-square", "Wide sq."),
+    p("wall-window-wide-square-detailed", "Wide sq. det."),
+    p("wall-window-wide-round", "Wide rnd."),
+    p("wall-window-wide-round-detailed", "Wide rnd. det."),
   ],
-  Двери: [
-    { name: "wall-doorway-square", label: "Проём кв." },
-    { name: "wall-doorway-wide-square", label: "Проём шир. кв." },
-    { name: "wall-doorway-round", label: "Проём кр." },
-    { name: "wall-doorway-wide-round", label: "Проём шир. кр." },
-    { name: "door-rotate-square-a", label: "Дверь кв. A" },
-    { name: "door-rotate-square-b", label: "Дверь кв. B" },
-    { name: "door-rotate-square-c", label: "Дверь кв. C" },
-    { name: "door-rotate-square-d", label: "Дверь кв. D" },
-    { name: "door-rotate-round-a", label: "Дверь кр. A" },
-    { name: "door-rotate-round-b", label: "Дверь кр. B" },
-    { name: "door-rotate-round-c", label: "Дверь кр. C" },
-    { name: "door-rotate-round-d", label: "Дверь кр. D" },
+  doors: [
+    p("wall-doorway-square", "Sq. opening"),
+    p("wall-doorway-wide-square", "Wide sq. opening"),
+    p("wall-doorway-round", "Round opening"),
+    p("wall-doorway-wide-round", "Wide rnd. opening"),
+    p("door-rotate-square-a", "Door sq. A"),
+    p("door-rotate-square-b", "Door sq. B"),
+    p("door-rotate-square-c", "Door sq. C"),
+    p("door-rotate-square-d", "Door sq. D"),
+    p("door-rotate-round-a", "Door rnd. A"),
+    p("door-rotate-round-b", "Door rnd. B"),
+    p("door-rotate-round-c", "Door rnd. C"),
+    p("door-rotate-round-d", "Door rnd. D"),
   ],
-  Крыша: [
-    { name: "roof-flat-center", label: "Центр" },
-    { name: "roof-flat-side", label: "Бок" },
-    { name: "roof-flat-corner", label: "Угол" },
-    { name: "roof-flat-corner-inner", label: "Угол внутр." },
-    { name: "roof-flat-patch", label: "Заплатка" },
-    { name: "roof-flat-patch-large", label: "Заплатка бол." },
-    { name: "roof-flat-square", label: "Квадратная" },
+  roof: [
+    p("roof-flat-center", "Center"),
+    p("roof-flat-side", "Side"),
+    p("roof-flat-corner", "Corner"),
+    p("roof-flat-corner-inner", "Inner corner"),
+    p("roof-flat-patch", "Patch"),
+    p("roof-flat-patch-large", "Large patch"),
+    p("roof-flat-square", "Square"),
   ],
-  Лестницы: [
-    { name: "stairs-open", label: "Открытая" },
-    { name: "stairs-open-short", label: "Откр. кор." },
-    { name: "stairs-closed", label: "Закрытая" },
-    { name: "stairs-closed-short", label: "Закр. кор." },
-    { name: "stairs-center", label: "Центральная" },
-    { name: "stairs-center-short", label: "Центр. кор." },
-    { name: "stairs-sides", label: "С боками" },
-    { name: "stairs-sides-short", label: "Боков. кор." },
+  stairs: [
+    p("stairs-open", "Open"),
+    p("stairs-open-short", "Open short"),
+    p("stairs-closed", "Closed"),
+    p("stairs-closed-short", "Closed short"),
+    p("stairs-center", "Center"),
+    p("stairs-center-short", "Center short"),
+    p("stairs-sides", "With sides"),
+    p("stairs-sides-short", "Sides short"),
   ],
-  Колонны: [
-    { name: "column", label: "Колонна" },
-    { name: "column-thin", label: "Тонкая" },
-    { name: "column-wide", label: "Широкая" },
+  columns: [
+    p("column", "Column"),
+    p("column-thin", "Thin"),
+    p("column-wide", "Wide"),
   ],
-  Бордюры: [
-    { name: "border", label: "Бордюр" },
-    { name: "border-corner", label: "Угол" },
-    { name: "border-corner-diagonal", label: "Угол диаг." },
-    { name: "border-corner-round", label: "Угол скруг." },
-    { name: "border-corner-small", label: "Угол мал." },
-    { name: "border-high", label: "Высокий" },
-    { name: "border-high-corner", label: "Выс. угол" },
-    { name: "border-high-corner-diagonal", label: "Выс. диаг." },
-    { name: "border-high-corner-round", label: "Выс. скруг." },
-    { name: "border-high-corner-small", label: "Выс. мал." },
+  borders: [
+    p("border", "Border"),
+    p("border-corner", "Corner"),
+    p("border-corner-diagonal", "Corner diag."),
+    p("border-corner-round", "Corner round"),
+    p("border-corner-small", "Corner sm."),
+    p("border-high", "High"),
+    p("border-high-corner", "High corner"),
+    p("border-high-corner-diagonal", "High diag."),
+    p("border-high-corner-round", "High round"),
+    p("border-high-corner-small", "High sm."),
   ],
-  Детали: [
-    { name: "composition-detail_circle", label: "Круг (детализация)" },
-    { name: "composition-detail_vertical_pipe", label: "Вертикальная труба" },
-    { name: "plating", label: "Обшивка" },
-    { name: "plating-wide", label: "Обш. шир." },
-    { name: "plating-detailed", label: "Обш. дет." },
-    { name: "plating-detailed-wide", label: "Обш. дет. шир." },
-    { name: "detail-pipe", label: "Труба" },
-    { name: "gutter-vertical", label: "Водосток" },
-    { name: "gutter-vertical-bottom", label: "Вод. низ" },
-    { name: "gutter-vertical-short", label: "Вод. кор." },
-    { name: "gutter-vertical-top", label: "Вод. верх" },
-    { name: "gutter-vertical-wall", label: "Вод. стена" },
+  details: [
+    p("composition-detail_circle", "Circle (detail)"),
+    p("composition-detail_vertical_pipe", "Vertical pipe"),
+    p("plating", "Plating"),
+    p("plating-wide", "Plating wide"),
+    p("plating-detailed", "Plating det."),
+    p("plating-detailed-wide", "Plating det. wide"),
+    p("detail-pipe", "Pipe"),
+    p("gutter-vertical", "Gutter"),
+    p("gutter-vertical-bottom", "Gutter low"),
+    p("gutter-vertical-short", "Gutter short"),
+    p("gutter-vertical-top", "Gutter top"),
+    p("gutter-vertical-wall", "Gutter wall"),
   ],
-  Баррикады: [
-    { name: "barricade-doorway-a", label: "Проём A" },
-    { name: "barricade-doorway-b", label: "Проём B" },
-    { name: "barricade-doorway-c", label: "Проём C" },
-    { name: "barricade-window-a", label: "Окно A" },
-    { name: "barricade-window-b", label: "Окно B" },
-    { name: "barricade-window-c", label: "Окно C" },
+  barricades: [
+    p("barricade-doorway-a", "Opening A"),
+    p("barricade-doorway-b", "Opening B"),
+    p("barricade-doorway-c", "Opening C"),
+    p("barricade-window-a", "Window A"),
+    p("barricade-window-b", "Window B"),
+    p("barricade-window-c", "Window C"),
   ],
 };
 
@@ -126,11 +130,23 @@ const BUILDER_PARTS: Record<string, PartDef[]> = {
 };
 
 const PORT_BUILDER_PARTS: PartDef[] = [
-  { name: "port:conveyor:input", label: "Лента вход" },
-  { name: "port:conveyor:output", label: "Лента выход" },
-  { name: "port:pipe:input", label: "Труба вход" },
-  { name: "port:pipe:output", label: "Труба выход" },
+  p("port:conveyor:input", "Belt input"),
+  p("port:conveyor:output", "Belt output"),
+  p("port:pipe:input", "Pipe input"),
+  p("port:pipe:output", "Pipe output"),
 ];
+
+function partLabel(t: TranslateFn, part: PartDef): string {
+  const key = `admin.parts.${part.name}`;
+  const translated = t(key);
+  return translated !== key ? translated : part.label;
+}
+
+function categoryLabel(t: TranslateFn, catKey: string): string {
+  const key = `admin.categories.${catKey}`;
+  const translated = t(key);
+  return translated !== key ? translated : catKey;
+}
 
 function parsePortPartName(name: string): PortPlacementTemplate | null {
   if (!name.startsWith("port:")) return null;
@@ -187,7 +203,8 @@ export const AdminPanel: FC<AdminPanelProps> = ({
   onToggleDeconstructMode,
   onAdjustScale,
 }) => {
-  const [selectedCategory, setSelectedCategory] = useState("Пол");
+  const { t } = useTranslation();
+  const [selectedCategory, setSelectedCategory] = useState("floor");
   const [exportJson, setExportJson] = useState("");
   const [importJson, setImportJson] = useState("");
   const [importInfo, setImportInfo] = useState("");
@@ -195,7 +212,7 @@ export const AdminPanel: FC<AdminPanelProps> = ({
 
   const categories = Object.keys(BUILDER_PARTS);
   const currentParts =
-    selectedCategory === "Порты"
+    selectedCategory === PORTS_CATEGORY
       ? PORT_BUILDER_PARTS
       : (BUILDER_PARTS[selectedCategory] ?? []);
 
@@ -246,7 +263,9 @@ export const AdminPanel: FC<AdminPanelProps> = ({
   const handleImport = useCallback(async () => {
     const count = await onImportRequest(importJson);
     setImportInfo(
-      count > 0 ? `Импортировано: ${count}` : "Не удалось импортировать",
+      count > 0
+        ? t("admin.importOk", { count })
+        : t("admin.importFail"),
     );
   }, [importJson, onImportRequest]);
 
@@ -257,14 +276,11 @@ export const AdminPanel: FC<AdminPanelProps> = ({
       <div className="admin-panel" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="admin-header">
-          <span className="admin-title">👑 Конструктор (DEV)</span>
+          <span className="admin-title">👑 {t("admin.title")}</span>
           {isBuilderActive && (
-            <span className="admin-builder-hint">
-              ЛКМ — поставить · T — поворот · R — режим · F — деконструкция ·
-              +/- масштаб
-            </span>
+            <span className="admin-builder-hint">{t("admin.builderHint")}</span>
           )}
-          <button className="admin-close-btn" onClick={onClose}>
+          <button className="admin-close-btn" onClick={onClose} aria-label={t("admin.close")}>
             ✕
           </button>
         </div>
@@ -279,14 +295,14 @@ export const AdminPanel: FC<AdminPanelProps> = ({
                 className={`admin-cat-btn${selectedCategory === cat ? " active" : ""}`}
                 onClick={() => setSelectedCategory(cat)}
               >
-                {cat}
+                {categoryLabel(t, cat)}
               </button>
             ))}
             <button
-              className={`admin-cat-btn${selectedCategory === "Порты" ? " active" : ""}`}
-              onClick={() => setSelectedCategory("Порты")}
+              className={`admin-cat-btn${selectedCategory === PORTS_CATEGORY ? " active" : ""}`}
+              onClick={() => setSelectedCategory(PORTS_CATEGORY)}
             >
-              Порты
+              {t("admin.portsCategory")}
             </button>
           </div>
 
@@ -322,25 +338,25 @@ export const AdminPanel: FC<AdminPanelProps> = ({
                   {isComposition ? (
                     <span
                       className="admin-part-composition-icon"
-                      title={part.label}
+                      title={partLabel(t, part)}
                     >
                       ⭕
                     </span>
                   ) : isPort ? (
-                    <span className="admin-part-port-icon" title={part.label}>
+                    <span className="admin-part-port-icon" title={partLabel(t, part)}>
                       {portTemplate.type === "input" ? "⬇" : "⬆"}
                     </span>
                   ) : (
                     <img
                       src={`${kitBases.preview}/${part.name}.png`}
-                      alt={part.label}
+                      alt={partLabel(t, part)}
                       className="admin-part-img"
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.opacity = "0.25";
                       }}
                     />
                   )}
-                  <span className="admin-part-label">{part.label}</span>
+                  <span className="admin-part-label">{partLabel(t, part)}</span>
                 </button>
               );
             })}
@@ -348,23 +364,24 @@ export const AdminPanel: FC<AdminPanelProps> = ({
 
           {/* Right: composition panel */}
           <div className="admin-composition">
-            <div className="admin-comp-title">Сборка</div>
+            <div className="admin-comp-title">{t("admin.composition")}</div>
 
             <div className="admin-comp-stat">
-              Деталей: <strong>{placedCount}</strong>
+              {t("admin.partsLabel")}: <strong>{placedCount}</strong>
             </div>
             <div className="admin-comp-stat">
-              Портов: <strong>{portCount}</strong>
+              {t("admin.portsLabel")}: <strong>{portCount}</strong>
             </div>
             <div className="admin-comp-stat">
-              Масштаб: <strong>{builderScale.toFixed(2)}x</strong>
+              {t("admin.scale")}: <strong>{builderScale.toFixed(2)}x</strong>
             </div>
             <div className="admin-comp-stat">
-              Режим:{" "}
-              <strong>{BUILDER_MODE_LABELS[builderMode]}</strong>
+              {t("admin.mode")}:{" "}
+              <strong>{t(`builderMode.${builderMode}`)}</strong>
             </div>
             <div className="admin-comp-stat">
-              Деконстр.: <strong>{isDeconstructMode ? "ON" : "OFF"}</strong>
+              {t("admin.deconstruct")}:{" "}
+              <strong>{isDeconstructMode ? t("common.on") : t("common.off")}</strong>
             </div>
 
             <div className="admin-btn-row">
@@ -394,50 +411,47 @@ export const AdminPanel: FC<AdminPanelProps> = ({
                 className="admin-btn"
                 onClick={() => onSetBuilderMode("single")}
               >
-                Single
+                {t("builderMode.single")}
               </button>
               <button
                 className="admin-btn"
                 onClick={() => onSetBuilderMode("default")}
               >
-                L-угол
+                {t("builderMode.default")}
               </button>
               <button
                 className="admin-btn"
                 onClick={() => onSetBuilderMode("chord")}
               >
-                Прямая
+                {t("builderMode.chord")}
               </button>
               <button
                 className="admin-btn"
                 onClick={() => onSetBuilderMode("curve")}
               >
-                Кривая
+                {t("builderMode.curve")}
               </button>
               <button
                 className="admin-btn"
                 onClick={() => onSetBuilderMode("free")}
               >
-                Свободная кривая
+                {t("builderMode.free")}
               </button>
             </div>
             <button className="admin-btn" onClick={onToggleDeconstructMode}>
-              {isDeconstructMode ? "🟥 Выкл деконстр." : "🛠 Вкл деконстр."}
+              {isDeconstructMode
+                ? `🟥 ${t("admin.deconstructDisable")}`
+                : `🛠 ${t("admin.deconstructEnable")}`}
             </button>
 
-            <div className="admin-comp-hint">
-              После размещения всех деталей нажмите
-              <br />
-              «Сгенерировать JSON» — скопируйте и<br />
-              вставьте в код как новое строение.
-            </div>
+            <div className="admin-comp-hint">{t("admin.generateJsonHint")}</div>
 
             <button
               className="admin-btn admin-btn-export"
               onClick={handleExport}
               disabled={placedCount === 0}
             >
-              📄 Сгенерировать JSON
+              📄 {t("admin.generateJson")}
             </button>
 
             {exportJson && (
@@ -451,10 +465,10 @@ export const AdminPanel: FC<AdminPanelProps> = ({
                 />
                 <div className="admin-btn-row">
                   <button className="admin-btn" onClick={handleCopy}>
-                    {copied ? "✅ Скопировано" : "📋 Копировать"}
+                    {copied ? `✅ ${t("admin.copied")}` : `📋 ${t("admin.copy")}`}
                   </button>
                   <button className="admin-btn" onClick={handleDownload}>
-                    ⬇ Скачать
+                    ⬇ {t("admin.download")}
                   </button>
                 </div>
               </>
@@ -465,11 +479,11 @@ export const AdminPanel: FC<AdminPanelProps> = ({
               value={importJson}
               onChange={(e) => setImportJson(e.target.value)}
               rows={7}
-              placeholder='Вставь JSON: {"parts":[...], "ports":[...]}'
+              placeholder={t("admin.importPlaceholder")}
               spellCheck={false}
             />
             <button className="admin-btn" onClick={handleImport}>
-              📥 Импорт JSON в сцену
+              📥 {t("admin.importToScene")}
             </button>
             {importInfo && <div className="admin-comp-hint">{importInfo}</div>}
 
@@ -478,7 +492,7 @@ export const AdminPanel: FC<AdminPanelProps> = ({
               onClick={handleClear}
               disabled={placedCount === 0}
             >
-              🗑 Очистить сборку
+              🗑 {t("admin.clearComposition")}
             </button>
           </div>
         </div>

@@ -8,6 +8,7 @@ import {
   getRollingStockDefaultId,
   setRollingStockDefaultId,
 } from "../../../train/rollingStockDefaults.ts";
+import { useTranslation } from "../../../i18n/I18nContext.tsx";
 import "../BuildMenu.css";
 
 export type RollingStockPickResult = {
@@ -27,16 +28,17 @@ export const RollingStockModelPicker: FC<Props> = ({
   onCancel,
   onPick,
 }) => {
+  const { t } = useTranslation();
   const variants = ROLLING_STOCK_VARIANTS[kind];
   const initialDefaultId = useMemo(() => getRollingStockDefaultId(kind), [kind]);
   const [defaultId, setDefaultId] = useState<string | null>(initialDefaultId);
 
   const title =
     kind === "locomotive"
-      ? "Выбор электровоза"
+      ? t("rollingStock.locomotiveTitle")
       : kind === "freight_car"
-        ? "Выбор грузового вагона"
-        : "Выбор цистернового вагона";
+        ? t("rollingStock.freightTitle")
+        : t("rollingStock.fluidTitle");
 
   const applyDefault = (variantId: string): void => {
     const nextDefault = defaultId === variantId ? null : variantId;
@@ -50,7 +52,7 @@ export const RollingStockModelPicker: FC<Props> = ({
         <div className="rolling-picker-header">
           <div>
             <h3>{title}</h3>
-            <p>Выбери модель. Чекбокс справа сверху назначает моделью по умолчанию.</p>
+            <p>{t("rollingStock.hint")}</p>
           </div>
           <button className="rolling-picker-close" onClick={onCancel}>
             ×
@@ -70,7 +72,7 @@ export const RollingStockModelPicker: FC<Props> = ({
             >
               <label
                 className="rolling-default-toggle"
-                title="По умолчанию"
+                title={t("rollingStock.default")}
                 onClick={(e) => e.stopPropagation()}
               >
                 <input
@@ -97,7 +99,7 @@ export const RollingStockModelPicker: FC<Props> = ({
 
         <div className="rolling-picker-actions">
           <button className="rolling-picker-secondary" onClick={onCancel}>
-            Отмена
+            {t("common.cancel")}
           </button>
         </div>
       </div>

@@ -1,8 +1,5 @@
-// ============================================================
-// Центральный «бесконечный» лоадер на время загрузки GLB паттерна
-// ============================================================
-
 import "./PatternGhostLoadOverlay.css";
+import { useTranslation } from "../../i18n/I18nContext.tsx";
 
 const R = 36;
 const STROKE = 4;
@@ -10,6 +7,7 @@ const STROKE = 4;
 type Props = { visible: boolean };
 
 export function PatternGhostLoadOverlay({ visible }: Props) {
+  const { t } = useTranslation();
   if (!visible) return null;
 
   const vb = R * 2 + 8;
@@ -23,7 +21,7 @@ export function PatternGhostLoadOverlay({ visible }: Props) {
       role="status"
       aria-busy="true"
       aria-live="polite"
-      aria-label="Загрузка голограммы постройки"
+      aria-label={t("overlays.patternLoadingAria")}
     >
       <svg
         className="pattern-ghost-load-overlay__svg"
@@ -52,7 +50,7 @@ export function PatternGhostLoadOverlay({ visible }: Props) {
         />
       </svg>
       <span className="pattern-ghost-load-overlay__hint">
-        Загрузка голограммы…
+        {t("overlays.patternLoading")}
       </span>
     </div>
   );

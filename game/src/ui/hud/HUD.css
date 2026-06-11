@@ -255,3 +255,81 @@
   line-height: 1.6;
   pointer-events: none;
 }
+
+.hud-sim {
+  position: absolute;
+  top: 64px;
+  left: 12px;
+  min-width: 196px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(12, 16, 24, 0.82);
+  border: 1px solid rgba(120, 150, 200, 0.35);
+  color: #e6edf6;
+  font: 12px/1.5 system-ui, sans-serif;
+  pointer-events: none;
+}
+
+.hud-sim-power {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #9fe0a0;
+}
+
+.hud-sim-blackout {
+  color: #ff7a7a;
+  font-weight: 700;
+}
+
+.hud-sim-waiting {
+  opacity: 0.65;
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.hud-sim-buildings {
+  opacity: 0.7;
+  margin-top: 2px;
+}
+
+.hud-sim-logistics {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(120, 150, 200, 0.25);
+  font-size: 11px;
+}
+
+.hud-sim-logistics-title {
+  opacity: 0.7;
+  margin-bottom: 2px;
+}
+
+.hud-sim-section {
+  margin-top: 4px;
+}
+
+.hud-sim-section > div:first-child {
+  opacity: 0.65;
+}
+
+.hud-sim-inventory {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(120, 150, 200, 0.25);
+}
+
+.hud-sim-inventory > div:first-child {
+  opacity: 0.7;
+  margin-bottom: 2px;
+}
+
+.hud-sim-inventory-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hud-sim-inventory-row span:last-child {
+  font-variant-numeric: tabular-nums;
+}

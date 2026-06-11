@@ -1,9 +1,5 @@
-// ============================================================
-// Круг прогресса при удержании ЛКМ для сноса сборной постройки
-// Обновление через ref — без setState на каждом кадре (плавный FPS).
-// ============================================================
-
 import { forwardRef, useImperativeHandle, useRef } from "react";
+import { useTranslation } from "../../i18n/I18nContext.tsx";
 import "./DeconstructHoldOverlay.css";
 
 const R = 36;
@@ -20,6 +16,7 @@ export const DeconstructHoldOverlay = forwardRef<
   DeconstructHoldOverlayHandle,
   object
 >(function DeconstructHoldOverlay(_props, ref) {
+  const { t } = useTranslation();
   const rootRef = useRef<HTMLDivElement>(null);
   const fillRef = useRef<SVGCircleElement>(null);
 
@@ -55,7 +52,7 @@ export const DeconstructHoldOverlay = forwardRef<
       aria-valuenow={0}
       aria-valuemin={0}
       aria-valuemax={100}
-      aria-label="Удерживайте для полного сноса сборки"
+      aria-label={t("overlays.deconstructHold")}
     >
       <svg
         className="deconstruct-hold-overlay__svg"
@@ -84,7 +81,9 @@ export const DeconstructHoldOverlay = forwardRef<
           transform={`rotate(-90 ${R + 4} ${R + 4})`}
         />
       </svg>
-      <span className="deconstruct-hold-overlay__hint">Снос сборки</span>
+      <span className="deconstruct-hold-overlay__hint">
+        {t("overlays.deconstructProgress")}
+      </span>
     </div>
   );
 });
