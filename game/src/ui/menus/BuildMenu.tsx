@@ -57,6 +57,11 @@ const ALL_BUILDINGS: BuildMenuItem[] = [
     iconPath: '/kits/City Kit Industrial/Previews/building-o.png',
     description: 'Уничтожает любые предметы (кроме радиоактивных отходов) и начисляет за них купоны AWESOME Shop. Идеален для утилизации излишков производства. Потребляет 30 МВт.' },
   // ============ PRODUCTION ============
+  // — Старт игры —
+  { id: 'sawmill', name: 'Sawmill', nameRu: 'Лесопилка', category: BuildingCategory.Production, subcategory: 'Автоматическая добыча',
+    iconPath: '/kits/kenney_space-station-kit/Previews/structure.png',
+    description: 'Первое производственное здание. Бесплатно вырабатывает древесину и траву — бесконечные ресурсы для сжигателя биомассы. 2 конвейерных выхода. Не потребляет электричество.' },
+
   // — Производство деталей —
   { id: 'constructor', name: 'Constructor', nameRu: 'Конструктор', category: BuildingCategory.Production, subcategory: 'Производство деталей',
     modelPath: '/kits/City Kit Industrial/Models/GLB format/building-p.glb',
@@ -125,16 +130,11 @@ const ALL_BUILDINGS: BuildMenuItem[] = [
     iconPath: '/kits/kenney_building-kit/Previews/plating-detailed-wide.png',
     description: 'Комбинирует 2 типа руды/слитков в сплав. Производит сталь (железо + уголь), алюминиевые слитки и др. 2 входа, 1 выход. Потребляет 16 МВт.' },
 
-  // — Лесопилка —
-  { id: 'sawmill', name: 'Sawmill', nameRu: 'Лесопилка', category: BuildingCategory.Production, subcategory: 'Автоматическая добыча',
-    iconPath: '/kits/kenney_space-station-kit/Previews/structure.png',
-    description: 'Уникальное строение, автоматически производящее древесину и траву — бесконечные ресурсы для биомассы. 2 конвейерных выхода: один для древесины, другой для травы. Потребляет 10 МВт.' },
-
   // ============ POWER ============
   // — Генераторы —
   { id: 'biomass_burner', name: 'Biomass Burner', nameRu: 'Сжигатель биомассы', category: BuildingCategory.Power, subcategory: 'Генераторы',
     iconPath: '/kits/kenney_space-station-kit/Previews/wall-door-wide-banner.png',
-    description: 'Самый первый генератор. Сжигает древесину, листву, биомассу или твёрдое биотопливо для выработки энергии. 1 конвейерный вход. Вырабатывает 30 МВт.' },
+    description: 'Первый генератор после лесопилки. Сжигает древесину или траву со склада (120 травы/мин или 30 древесины/мин → 30 МВт). Без топлива не работает. 1 конвейерный вход.' },
   { id: 'coal_generator', name: 'Coal Generator', nameRu: 'Угольный генератор', category: BuildingCategory.Power, subcategory: 'Генераторы',
     modelPath: '/kits/City Kit Industrial/Models/GLB format/building-n.glb',
     iconPath: '/kits/City Kit Industrial/Previews/building-n.png',

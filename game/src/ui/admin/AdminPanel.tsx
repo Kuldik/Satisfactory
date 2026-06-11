@@ -6,7 +6,7 @@
 // ============================================================
 
 import { useState, useCallback, type FC } from "react";
-import type { BuilderMode } from "../../core/types.ts";
+import type { PortPlacementTemplate } from "../../buildings/buildingPortTypes.ts";
 import { BUILDER_MODE_LABELS } from "../../core/types.ts";
 import {
   BUILDER_KIT_BASES,
@@ -125,15 +125,40 @@ const BUILDER_PARTS: Record<string, PartDef[]> = {
   ...SPACE_STATION_BUILDER_PARTS,
 };
 
+const PORT_BUILDER_PARTS: PartDef[] = [
+  { name: "port:conveyor:input", label: "Лента вход" },
+  { name: "port:conveyor:output", label: "Лента выход" },
+  { name: "port:pipe:input", label: "Труба вход" },
+  { name: "port:pipe:output", label: "Труба выход" },
+];
+
+function parsePortPartName(name: string): PortPlacementTemplate | null {
+  if (!name.startsWith("port:")) return null;
+  const seg = name.split(":");
+  if (seg.length < 3) return null;
+  const kind = seg[1];
+  const type = seg[2];
+  if (kind !== "conveyor" && kind !== "pipe") return null;
+  if (type !== "input" && type !== "output") return null;
+  const tierRaw = seg[3];
+  const pipeTier =
+    kind === "pipe" && (tierRaw === "1" || tierRaw === "2")
+      ? (Number(tierRaw) as 1 | 2)
+      : undefined;
+  return { kind, type, ...(pipeTier !== undefined ? { pipeTier } : {}) };
+}
+
 interface AdminPanelProps {
   isOpen: boolean;
   isBuilderActive: boolean;
   isDeconstructMode: boolean;
   placedCount: number;
+  portCount: number;
   builderScale: number;
   builderMode: BuilderMode;
   onClose: () => void;
   onSelectPart: (partPath: string) => void;
+  onSelectPort: (template: PortPlacementTemplate) => void;
   onSelectComposition?: (compositionId: string) => void | Promise<void>;
   onClearComposition: () => void;
   onExportRequest: () => string;
@@ -148,10 +173,12 @@ export const AdminPanel: FC<AdminPanelProps> = ({
   isBuilderActive,
   isDeconstructMode,
   placedCount,
+  portCount,
   builderScale,
   builderMode,
   onClose,
   onSelectPart,
+  onSelectPort,
   onSelectComposition,
   onClearComposition,
   onExportRequest,
@@ -167,7 +194,10 @@ export const AdminPanel: FC<AdminPanelProps> = ({
   const [copied, setCopied] = useState(false);
 
   const categories = Object.keys(BUILDER_PARTS);
-  const currentParts = BUILDER_PARTS[selectedCategory] ?? [];
+  const currentParts =
+    selectedCategory === "Порты"
+      ? PORT_BUILDER_PARTS
+      : (BUILDER_PARTS[selectedCategory] ?? []);
 
   const handleExport = useCallback(() => {
     let raw = "";
@@ -252,6 +282,12 @@ export const AdminPanel: FC<AdminPanelProps> = ({
                 {cat}
               </button>
             ))}
+            <button
+              className={`admin-cat-btn${selectedCategory === "Порты" ? " active" : ""}`}
+              onClick={() => setSelectedCategory("Порты")}
+            >
+              Порты
+            </button>
           </div>
 
           {/* Center: parts grid */}
@@ -261,16 +297,21 @@ export const AdminPanel: FC<AdminPanelProps> = ({
               const compositionId = isComposition
                 ? part.name.replace("composition-", "")
                 : null;
+              const portTemplate = parsePortPartName(part.name);
+              const isPort = portTemplate !== null;
               const kit: BuilderKitId = part.kit ?? "building";
               const kitBases = BUILDER_KIT_BASES[kit];
               return (
                 <button
-                  key={`${kit}-${part.name}`}
-                  className={`admin-part-item${isComposition ? " admin-part-composition" : ""}`}
+                  key={isPort ? part.name : `${kit}-${part.name}`}
+                  className={`admin-part-item${isComposition ? " admin-part-composition" : ""}${isPort ? " admin-part-port" : ""}`}
                   title={part.name}
                   onClick={() => {
                     if (isComposition && compositionId && onSelectComposition) {
                       onSelectComposition(compositionId);
+                      onClose();
+                    } else if (portTemplate) {
+                      onSelectPort(portTemplate);
                       onClose();
                     } else if (!isComposition) {
                       onSelectPart(`${kitBases.model}/${part.name}.glb`);
@@ -284,6 +325,10 @@ export const AdminPanel: FC<AdminPanelProps> = ({
                       title={part.label}
                     >
                       ⭕
+                    </span>
+                  ) : isPort ? (
+                    <span className="admin-part-port-icon" title={part.label}>
+                      {portTemplate.type === "input" ? "⬇" : "⬆"}
                     </span>
                   ) : (
                     <img
@@ -307,6 +352,9 @@ export const AdminPanel: FC<AdminPanelProps> = ({
 
             <div className="admin-comp-stat">
               Деталей: <strong>{placedCount}</strong>
+            </div>
+            <div className="admin-comp-stat">
+              Портов: <strong>{portCount}</strong>
             </div>
             <div className="admin-comp-stat">
               Масштаб: <strong>{builderScale.toFixed(2)}x</strong>
@@ -417,7 +465,7 @@ export const AdminPanel: FC<AdminPanelProps> = ({
               value={importJson}
               onChange={(e) => setImportJson(e.target.value)}
               rows={7}
-              placeholder='Вставь JSON вида {"parts":[...]}'
+              placeholder='Вставь JSON: {"parts":[...], "ports":[...]}'
               spellCheck={false}
             />
             <button className="admin-btn" onClick={handleImport}>

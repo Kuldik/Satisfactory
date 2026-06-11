@@ -21,19 +21,28 @@ import {
   proceduralPipeTubeRadiusLogical,
   proceduralPipeTubeRadiusWorld,
 } from "../buildings/logistics/proceduralPipeGeometry.ts";
-import type { BuilderMode, RailroadPlacementSubMode } from "../core/types.ts";
-import { CONVEYOR_PLACEMENT_MODES } from "../core/types.ts";
-import type { ConveyorPlacementMode } from "../core/types.ts";
+import type {
+  BeltEndpointSnapshot,
+  BuildingPortSnapshot,
+  LogisticsSnapshot,
+} from "../sim/logisticsTypes.ts";
+import { CONVEYOR_PLACEMENT_MODES, CONVEYOR_SPEEDS, ConveyorTier } from "../core/types.ts";
+import type { BuilderMode, ConveyorPlacementMode, RailroadPlacementSubMode } from "../core/types.ts";
 import { CameraController } from "./CameraController.ts";
 import { GridRenderer } from "./GridRenderer.ts";
 import { ModelGallery } from "./ModelGallery.ts";
 import type { PatternPart } from "../buildings/BuildingPatterns.ts";
 import { getBuildingPrefab } from "../buildings/BuildingPrefabs.ts";
 import {
-  getBuildingPorts,
-  PORT_MODEL_INPUT,
-  PORT_MODEL_OUTPUT,
-} from "../buildings/BuildingPorts.ts";
+  resolveBuildingPortDefinitions,
+  resolveBuildingPortDefinitionsForPrefab,
+} from "../buildings/resolveBuildingPorts.ts";
+import type {
+  BuilderPortDraft,
+  PortPlacementTemplate,
+} from "../buildings/buildingPortTypes.ts";
+import { defaultPortId, transformPortToWorld } from "../buildings/buildingPortTypes.ts";
+import { createPortGizmo } from "./builder/portGizmo.ts";
 import {
   measureScaledTrainMetrics,
   resolvePrefabFitScale,
@@ -89,6 +98,19 @@ import {
   computeConveyorPathSegments,
   getPlacementSegmentStep,
 } from "./builder/conveyorPathSegments.ts";
+import { BeltItemVisualizer } from "./logistics/BeltItemVisualizer.ts";
+import {
+  buildBeltPathFromSegments,
+  mergeBeltPaths,
+  orderBeltSegmentsByConnectivity,
+  type BeltPath,
+  type BeltSegmentSnapshot,
+} from "./logistics/beltPath.ts";
+import type { BeltVisualState } from "../sim/simItemModels.ts";
+import {
+  buildConveyorSupplyLinks,
+  LOGISTICS_SNAP_RADIUS,
+} from "../sim/conveyorGraph.ts";
 import {
   computeRailroadCornerSegment,
   computeRailroadStraightSegments,
@@ -327,6 +349,10 @@ export class SceneManager {
     depthWrite: false,
   });
   private builderPlaced: BuilderPlacedPartRecord[] = [];
+  /** Admin-конструктор: невидимые порты (экспорт → ports[] в JSON). */
+  private builderPortDrafts: BuilderPortDraft[] = [];
+  private builderPortTemplate: PortPlacementTemplate | null = null;
+  private readonly builderPortGizmoGroup = new THREE.Group();
   /**
    * Реестр «логических зданий» для симуляции: compositeId → {buildingId, позиция}.
    * Заполняется при постановке паттернов; читается через getPlacedBuildingSnapshot
@@ -334,17 +360,25 @@ export class SceneManager {
    */
   private readonly placedBuildings = new Map<
     string,
-    { buildingId: string; x: number; y: number; z: number }
+    { buildingId: string; x: number; y: number; z: number; rotY?: number }
   >();
   private readonly builderPlacedGroup = new THREE.Group();
   private readonly builderLinePreviewGroup = new THREE.Group();
+  private beltItemVisualizer: BeltItemVisualizer | null = null;
+  /** Завершается после restoreBuilderState (порты, части). */
+  private readonly builderRestorePromise: Promise<void>;
+  private builderRestorePending = false;
   private readonly glbCache = new Map<string, THREE.Group>();
-  /** World-space port positions from placed buildings — used for conveyor auto-snap. */
+  /** World-space port positions — снап лент и sim. */
   private readonly placedPorts: Array<{
     worldPos: THREE.Vector3;
     worldDir: number;
     type: "input" | "output";
+    kind: "conveyor" | "pipe";
+    portIndex: number;
+    portId: string;
     buildingPivot: THREE.Group;
+    compositeId?: string;
   }> = [];
   private readonly ghostMaterialOk = new THREE.MeshStandardMaterial({
     color: 0x38bdf8,
@@ -420,6 +454,8 @@ export class SceneManager {
     // Builder placed parts group (always in scene, starts empty)
     this.builderPlacedGroup.name = "builder-placed";
     this.scene.add(this.builderPlacedGroup);
+    this.builderPortGizmoGroup.name = "builder-port-gizmos";
+    this.scene.add(this.builderPortGizmoGroup);
     this.builderLinePreviewGroup.name = "builder-line-preview";
     this.scene.add(this.builderLinePreviewGroup);
 
@@ -429,8 +465,22 @@ export class SceneManager {
     // Load model gallery from all kits
     this.loadModelGallery();
 
+    this.beltItemVisualizer = new BeltItemVisualizer(this.scene, (path) =>
+      this.loadModelRoot(path),
+    );
+    void this.beltItemVisualizer.preload();
+
     // Restore persisted builder state (DEV helper)
-    void this.restoreBuilderState();
+    this.builderRestorePromise = this.restoreBuilderState();
+  }
+
+  /** Дождаться восстановления builder-state (порты, ленты). */
+  whenBuilderReady(): Promise<void> {
+    return this.builderRestorePromise;
+  }
+
+  isBuilderRestoring(): boolean {
+    return this.builderRestorePending;
   }
 
   private setupLighting(): void {
@@ -863,6 +913,7 @@ export class SceneManager {
   /** Load a part as ghost (translucent blue hologram) and track it */
   async setBuilderGhost(partPath: string): Promise<void> {
     this.clearBuilderGhost();
+    this.builderPortTemplate = null;
     this.builderGhostRotY = 0;
     this.builderCurrentPartPath = partPath;
 
@@ -1394,6 +1445,14 @@ export class SceneManager {
 
   /** Place the ghost part permanently and record it */
   placeBuilderPart(): boolean {
+    if (
+      this.builderPortTemplate &&
+      this.builderGhostPivot &&
+      this.prefabPlacementScale === null
+    ) {
+      return this.placeBuilderPortDraft();
+    }
+
     if (this.builderDeconstructMode && this.prefabPlacementScale === null) {
       if (this.deconstructHovered) {
         if (this.deconstructHovered.userData.compositeId) {
@@ -1881,6 +1940,7 @@ export class SceneManager {
         compositeId,
         this.prefabMenuBuildingId ?? undefined,
         this.builderGhostCurrentPos,
+        this.builderGhostRotY,
       );
       this.persistBuilderState();
       if (this.prefabPlacementScale !== null) {
@@ -2005,12 +2065,15 @@ export class SceneManager {
     this.pipeJunctionManhattanCornerWorld.set(0, 0, 0);
     this.builderLinePreviewGroup.clear();
     this.builderGhostInvalid = false;
+    this.builderPortTemplate = null;
   }
 
   /** Remove all placed parts from scene and memory */
   clearBuilderComposition(): void {
     this.builderPlacedGroup.clear();
     this.builderPlaced = [];
+    this.builderPortDrafts = [];
+    this.rebuildBuilderPortGizmos();
     this.placedBuildings.clear();
     this.placedPorts.length = 0;
     this.conveyorEndpoints.length = 0;
@@ -2020,16 +2083,87 @@ export class SceneManager {
     this.persistBuilderState();
   }
 
+  /** Admin: выбрать тип порта для установки (вместо GLB-детали). */
+  setBuilderPortGhost(template: PortPlacementTemplate): void {
+    this.clearBuilderGhost();
+    this.setBuilderDeconstructMode(false);
+    this.builderPortTemplate = template;
+    this.builderCurrentPartPath = "";
+    this.builderGhostRotY = 0;
+
+    const gizmo = createPortGizmo(template.kind, template.type, true);
+    const pivot = new THREE.Group();
+    pivot.name = "builder-port-ghost";
+    pivot.add(gizmo);
+    this.scene.add(pivot);
+    this.builderGhostPivot = pivot;
+    this.builderGhostModelRoot = gizmo;
+    this.updateBuilderGhostPosition(
+      this.builderPointerNDC.x,
+      this.builderPointerNDC.y,
+    );
+  }
+
+  getBuilderPortCount(): number {
+    return this.builderPortDrafts.length;
+  }
+
+  private placeBuilderPortDraft(): boolean {
+    const t = this.builderPortTemplate;
+    if (!t || !this.builderGhostPivot) return false;
+    const pos = this.builderGhostCurrentPos;
+    const draft: BuilderPortDraft = {
+      id: defaultPortId(t.kind, t.type, this.builderPortDrafts),
+      kind: t.kind,
+      type: t.type,
+      x: pos.x,
+      y: pos.y,
+      z: pos.z,
+      direction: this.builderGhostRotY,
+      ...(t.pipeTier !== undefined ? { pipeTier: t.pipeTier } : {}),
+    };
+    this.builderPortDrafts.push(draft);
+    this.rebuildBuilderPortGizmos();
+    this.persistBuilderState();
+    return true;
+  }
+
+  private rebuildBuilderPortGizmos(): void {
+    this.builderPortGizmoGroup.clear();
+    for (const p of this.builderPortDrafts) {
+      const gizmo = createPortGizmo(p.kind, p.type, false);
+      gizmo.position.set(p.x, p.y, p.z);
+      gizmo.rotation.y = p.direction;
+      gizmo.userData.isBuilderPortDraft = true;
+      gizmo.userData.portDraftId = p.id;
+      this.builderPortGizmoGroup.add(gizmo);
+    }
+  }
+
+  private compositionCentroid(): { cx: number; cz: number } {
+    const xs: number[] = [];
+    const zs: number[] = [];
+    for (const p of this.builderPlaced) {
+      xs.push(p.x);
+      zs.push(p.z);
+    }
+    for (const p of this.builderPortDrafts) {
+      xs.push(p.x);
+      zs.push(p.z);
+    }
+    if (xs.length === 0) return { cx: 0, cz: 0 };
+    return {
+      cx: xs.reduce((a, b) => a + b, 0) / xs.length,
+      cz: zs.reduce((a, b) => a + b, 0) / zs.length,
+    };
+  }
+
   /** Serialize current composition to JSON (positions relative to centroid) */
   exportBuilderComposition(): string {
-    if (this.builderPlaced.length === 0) return '{ "parts": [] }';
-
-    const cx =
-      this.builderPlaced.reduce((s, p) => s + p.x, 0) /
-      this.builderPlaced.length;
-    const cz =
-      this.builderPlaced.reduce((s, p) => s + p.z, 0) /
-      this.builderPlaced.length;
+    const { cx, cz } = this.compositionCentroid();
+    if (this.builderPlaced.length === 0 && this.builderPortDrafts.length === 0) {
+      return JSON.stringify({ parts: [], ports: [] }, null, 2);
+    }
 
     return JSON.stringify(
       {
@@ -2048,6 +2182,21 @@ export class SceneManager {
           if (p.menuBuildingId) row.menuBuildingId = p.menuBuildingId;
           return row;
         }),
+        ports: this.builderPortDrafts.map((p) => {
+          const row: Record<string, unknown> = {
+            id: p.id,
+            kind: p.kind,
+            type: p.type,
+            position: {
+              x: +(p.x - cx).toFixed(3),
+              y: +p.y.toFixed(3),
+              z: +(p.z - cz).toFixed(3),
+            },
+            direction: +p.direction.toFixed(4),
+          };
+          if (p.pipeTier !== undefined) row.pipeTier = p.pipeTier;
+          return row;
+        }),
       },
       null,
       2,
@@ -2063,6 +2212,14 @@ export class SceneManager {
         scale?: number;
         compositeId?: string;
       }>;
+      ports?: Array<{
+        id?: string;
+        kind?: "conveyor" | "pipe";
+        type?: "input" | "output";
+        position?: { x?: number; y?: number; z?: number };
+        direction?: number;
+        pipeTier?: 1 | 2;
+      }>;
     };
     try {
       parsed = JSON.parse(json);
@@ -2070,9 +2227,14 @@ export class SceneManager {
       return 0;
     }
     const parts = parsed.parts ?? [];
-    if (!Array.isArray(parts) || parts.length === 0) return 0;
+    const portRows = parsed.ports ?? [];
+    if (
+      (!Array.isArray(parts) || parts.length === 0) &&
+      (!Array.isArray(portRows) || portRows.length === 0)
+    ) {
+      return 0;
+    }
 
-    // Import near the current pointer position if available.
     const anchor = this.builderHasPointer
       ? (this.getGridPositionUnderMouse(
           this.builderPointerNDC.x,
@@ -2095,7 +2257,6 @@ export class SceneManager {
     const anyCompositeInFile = parts.some(
       (p) => typeof p.compositeId === "string" && p.compositeId.length > 0,
     );
-    /** Старые JSON без compositeId — вся вставка одна сборка (удержание ЛКМ). */
     const importAsOneBatchId = anyCompositeInFile
       ? undefined
       : this.newCompositeId();
@@ -2133,6 +2294,31 @@ export class SceneManager {
       this.builderScale = previousScale;
       if (ok) count += 1;
     }
+
+    this.builderPortDrafts = [];
+    for (const pr of portRows) {
+      if (pr.kind !== "conveyor" && pr.kind !== "pipe") continue;
+      if (pr.type !== "input" && pr.type !== "output") continue;
+      const id =
+        typeof pr.id === "string" && pr.id.length > 0
+          ? pr.id
+          : defaultPortId(pr.kind, pr.type, this.builderPortDrafts);
+      this.builderPortDrafts.push({
+        id,
+        kind: pr.kind,
+        type: pr.type,
+        x: anchor.x + (pr.position?.x ?? 0),
+        y: anchor.y + (pr.position?.y ?? 0),
+        z: anchor.z + (pr.position?.z ?? 0),
+        direction: typeof pr.direction === "number" ? pr.direction : 0,
+        ...(pr.pipeTier === 1 || pr.pipeTier === 2
+          ? { pipeTier: pr.pipeTier }
+          : {}),
+      });
+      count += 1;
+    }
+    this.rebuildBuilderPortGizmos();
+
     if (count > 0) this.persistBuilderState();
     return count;
   }
@@ -2480,6 +2666,8 @@ export class SceneManager {
       }
       removed += 1;
     }
+    this.removePortsForComposite(compositeId);
+    this.placedBuildings.delete(compositeId);
     if (
       this.deconstructHovered &&
       this.deconstructHovered.userData.compositeId === compositeId
@@ -2699,14 +2887,17 @@ export class SceneManager {
     compositeId: string | undefined,
     menuBuildingId: string | undefined,
     worldPos: THREE.Vector3,
+    rotY?: number,
   ): void {
     if (!compositeId || !menuBuildingId) return;
     if (isLogisticsMenuBuildingId(menuBuildingId)) return;
+    if (this.placedBuildings.has(compositeId)) return;
     this.placedBuildings.set(compositeId, {
       buildingId: menuBuildingId,
       x: worldPos.x,
       y: worldPos.y,
       z: worldPos.z,
+      rotY,
     });
   }
 
@@ -2970,65 +3161,75 @@ export class SceneManager {
   }
 
   /**
-   * Load and attach I/O port models to a placed building, and register
-   * world-space port positions for conveyor auto-snap.
+   * Регистрация портов здания для снапа лент + dev-gizmo.
    */
+  private registerBuildingPorts(
+    buildingPivot: THREE.Group,
+    buildingId: string,
+    anchor: { x: number; y: number; z: number },
+    buildingRotY: number,
+    prefabScale?: number,
+  ): void {
+    const defs =
+      prefabScale !== undefined
+        ? resolveBuildingPortDefinitionsForPrefab(buildingId, prefabScale)
+        : resolveBuildingPortDefinitions(buildingId);
+    if (defs.length === 0) return;
+
+    const showGizmo = import.meta.env.DEV;
+
+    for (let portIndex = 0; portIndex < defs.length; portIndex++) {
+      const def = defs[portIndex]!;
+      const world = transformPortToWorld(def, anchor, buildingRotY);
+
+      this.placedPorts.push({
+        worldPos: new THREE.Vector3(world.x, world.y, world.z),
+        worldDir: world.direction,
+        type: def.type,
+        kind: def.kind,
+        portIndex,
+        portId: def.id,
+        buildingPivot,
+        compositeId:
+          typeof buildingPivot.userData?.compositeId === "string"
+            ? buildingPivot.userData.compositeId
+            : undefined,
+      });
+
+      if (!showGizmo) continue;
+
+      const gizmo = createPortGizmo(def.kind, def.type, false);
+      gizmo.position.set(world.x, world.y, world.z);
+      gizmo.rotation.y = world.direction;
+      gizmo.userData.isPort = true;
+      gizmo.userData.portType = def.type;
+      gizmo.userData.portKind = def.kind;
+      gizmo.userData.ownerBuilding = buildingPivot;
+      if (typeof buildingPivot.userData?.compositeId === "string") {
+        gizmo.userData.compositeId = buildingPivot.userData.compositeId;
+      }
+      this.builderPlacedGroup.add(gizmo);
+    }
+  }
+
+  /** @deprecated alias */
   private async attachBuildingPorts(
     buildingPivot: THREE.Group,
     buildingId: string,
     buildingScale: number,
     buildingRotY: number,
   ): Promise<void> {
-    const ports = getBuildingPorts(buildingId);
-    if (!ports) return;
-
-    const bx = buildingPivot.position.x;
-    const by = buildingPivot.position.y;
-    const bz = buildingPivot.position.z;
-    const cosR = Math.cos(buildingRotY);
-    const sinR = Math.sin(buildingRotY);
-
-    for (const port of ports) {
-      const lx = port.localPos.x * buildingScale;
-      const ly = port.localPos.y * buildingScale;
-      const lz = port.localPos.z * buildingScale;
-      const wx = bx + lx * cosR - lz * sinR;
-      const wz = bz + lx * sinR + lz * cosR;
-      const wy = by + ly;
-      const wDir = port.direction + buildingRotY;
-
-      this.placedPorts.push({
-        worldPos: new THREE.Vector3(wx, wy, wz),
-        worldDir: wDir,
-        type: port.type,
-        buildingPivot,
-      });
-
-      const modelPath =
-        port.type === "input" ? PORT_MODEL_INPUT : PORT_MODEL_OUTPUT;
-      await this.ensureCached(modelPath);
-      const portOriginal = this.glbCache.get(modelPath);
-      if (!portOriginal) continue;
-
-      const portModel = portOriginal.clone(true);
-      const portScale = 3;
-      portModel.scale.setScalar(portScale);
-      portModel.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-        }
-      });
-
-      const portPivot = new THREE.Group();
-      portPivot.add(portModel);
-      portPivot.position.set(wx, wy, wz);
-      portPivot.rotation.y = wDir;
-      portPivot.userData.isPort = true;
-      portPivot.userData.portType = port.type;
-      portPivot.userData.ownerBuilding = buildingPivot;
-      this.builderPlacedGroup.add(portPivot);
-    }
+    this.registerBuildingPorts(
+      buildingPivot,
+      buildingId,
+      {
+        x: buildingPivot.position.x,
+        y: buildingPivot.position.y,
+        z: buildingPivot.position.z,
+      },
+      buildingRotY,
+      buildingScale,
+    );
   }
 
   /**
@@ -3573,6 +3774,7 @@ export class SceneManager {
   findNearestPort(
     worldPos: THREE.Vector3,
     maxRadius: number,
+    kind: "conveyor" | "pipe" = "conveyor",
   ): {
     worldPos: THREE.Vector3;
     worldDir: number;
@@ -3581,6 +3783,7 @@ export class SceneManager {
     let best: (typeof this.placedPorts)[number] | null = null;
     let bestDist = maxRadius;
     for (const port of this.placedPorts) {
+      if (port.kind !== kind) continue;
       const dx = port.worldPos.x - worldPos.x;
       const dz = port.worldPos.z - worldPos.z;
       const dist = Math.hypot(dx, dz);
@@ -3594,8 +3797,15 @@ export class SceneManager {
 
   /** Remove all port registrations and port scene objects tied to a building. */
   private removePortsForBuilding(buildingPivot: THREE.Group): void {
+    const compositeId =
+      typeof buildingPivot.userData?.compositeId === "string"
+        ? buildingPivot.userData.compositeId
+        : undefined;
     for (let i = this.placedPorts.length - 1; i >= 0; i--) {
-      if (this.placedPorts[i].buildingPivot === buildingPivot) {
+      if (
+        this.placedPorts[i].buildingPivot === buildingPivot ||
+        (compositeId && this.placedPorts[i].compositeId === compositeId)
+      ) {
         this.placedPorts.splice(i, 1);
       }
     }
@@ -3603,8 +3813,24 @@ export class SceneManager {
     for (const child of this.builderPlacedGroup.children) {
       if (
         child.userData.isPort &&
-        child.userData.ownerBuilding === buildingPivot
+        (child.userData.ownerBuilding === buildingPivot ||
+          (compositeId && child.userData.compositeId === compositeId))
       ) {
+        portPivots.push(child);
+      }
+    }
+    for (const p of portPivots) this.builderPlacedGroup.remove(p);
+  }
+
+  private removePortsForComposite(compositeId: string): void {
+    for (let i = this.placedPorts.length - 1; i >= 0; i--) {
+      if (this.placedPorts[i].compositeId === compositeId) {
+        this.placedPorts.splice(i, 1);
+      }
+    }
+    const portPivots: THREE.Object3D[] = [];
+    for (const child of this.builderPlacedGroup.children) {
+      if (child.userData.isPort && child.userData.compositeId === compositeId) {
         portPivots.push(child);
       }
     }
@@ -5150,6 +5376,319 @@ export class SceneManager {
   }
 
   /**
+   * Снапшот логистики для симуляции: порты зданий + концы лент.
+   * Вычисляется из placedBuildings и builderPlaced (не зависит от conveyorEndpoints).
+   */
+  getLogisticsSnapshot(): LogisticsSnapshot {
+    const ports = this.collectBuildingPorts();
+
+    const byComposite = new Map<string, BuilderPlacedPartRecord[]>();
+    for (const p of this.builderPlaced) {
+      if (!p.compositeId || !isConveyorBeltMenuId(p.menuBuildingId)) continue;
+      const list = byComposite.get(p.compositeId) ?? [];
+      list.push(p);
+      byComposite.set(p.compositeId, list);
+    }
+
+    const belts: BeltEndpointSnapshot[] = [];
+    for (const [compositeId, rawSegs] of byComposite) {
+      let ordered = orderBeltSegmentsByConnectivity(
+        rawSegs.map((p) => ({
+          x: p.x,
+          y: p.y,
+          z: p.z,
+          rotY: p.rotY,
+          segmentStep: p.segmentStep,
+        })),
+      );
+      ordered = this.orientBeltSegmentsToFlow(ordered, ports);
+      if (ordered.length === 0) continue;
+      const first = ordered[0]!;
+      const last = ordered[ordered.length - 1]!;
+      const step = first.segmentStep ?? GRID_CELL_SIZE;
+      const beltId = rawSegs[0]?.menuBuildingId ?? "conveyor_mk1";
+      const speed = this.conveyorSpeedPerMin(beltId);
+      const dir0 = first.rotY;
+      const dir1 = last.rotY;
+      belts.push({
+        compositeId,
+        beltId,
+        role: "start",
+        x: first.x - Math.sin(dir0) * step,
+        y: first.y,
+        z: first.z - Math.cos(dir0) * step,
+        direction: dir0,
+        speedPerMin: speed,
+      });
+      belts.push({
+        compositeId,
+        beltId,
+        role: "end",
+        x: last.x + Math.sin(dir1) * step,
+        y: last.y,
+        z: last.z + Math.cos(dir1) * step,
+        direction: dir1,
+        speedPerMin: speed,
+      });
+    }
+
+    return { ports, belts };
+  }
+
+  private collectBuildingPorts(): BuildingPortSnapshot[] {
+    const ports: BuildingPortSnapshot[] = [];
+    for (const [compositeId, b] of this.placedBuildings) {
+      const defs = resolveBuildingPortDefinitions(b.buildingId);
+      if (defs.length === 0) continue;
+      const rotY = b.rotY ?? this.inferCompositeRotY(compositeId) ?? 0;
+      const anchor = { x: b.x, y: b.y, z: b.z };
+      for (let portIndex = 0; portIndex < defs.length; portIndex++) {
+        const def = defs[portIndex]!;
+        const world = transformPortToWorld(def, anchor, rotY);
+        ports.push({
+          compositeId,
+          buildingId: b.buildingId,
+          portIndex,
+          portId: def.id,
+          type: def.type,
+          kind: def.kind,
+          x: world.x,
+          y: world.y,
+          z: world.z,
+          direction: world.direction,
+        });
+      }
+    }
+    return ports;
+  }
+
+  /** Развернуть цепочку сегментов, если выход здания ближе к «хвосту», а не к start. */
+  private orientBeltSegmentsToFlow(
+    ordered: BeltSegmentSnapshot[],
+    ports: BuildingPortSnapshot[],
+  ): BeltSegmentSnapshot[] {
+    if (ordered.length < 2) return ordered;
+
+    const first = ordered[0]!;
+    const last = ordered[ordered.length - 1]!;
+    const step = first.segmentStep ?? GRID_CELL_SIZE;
+    const startX = first.x - Math.sin(first.rotY) * step;
+    const startZ = first.z - Math.cos(first.rotY) * step;
+    const endX = last.x + Math.sin(last.rotY) * step;
+    const endZ = last.z + Math.cos(last.rotY) * step;
+
+    let nearStart = 0;
+    let nearEnd = 0;
+    let minOutToStart = Infinity;
+    let minOutToEnd = Infinity;
+
+    for (const p of ports) {
+      if (p.type !== "output" || p.kind !== "conveyor") continue;
+      const ds = Math.hypot(p.x - startX, p.z - startZ);
+      const de = Math.hypot(p.x - endX, p.z - endZ);
+      if (ds <= LOGISTICS_SNAP_RADIUS) nearStart++;
+      if (de <= LOGISTICS_SNAP_RADIUS) nearEnd++;
+      minOutToStart = Math.min(minOutToStart, ds);
+      minOutToEnd = Math.min(minOutToEnd, de);
+    }
+
+    if (nearEnd > nearStart) return [...ordered].reverse();
+    if (nearStart === 0 && nearEnd === 0 && minOutToEnd < minOutToStart) {
+      return [...ordered].reverse();
+    }
+    return ordered;
+  }
+
+  /** Сегменты лент по compositeId (для 3D-предметов на ленте). */
+  getBeltSegmentPaths(): Map<string, BeltSegmentSnapshot[]> {
+    const outputPorts = this.collectBuildingPorts();
+    const byComposite = new Map<string, BeltSegmentSnapshot[]>();
+    const rawByComposite = new Map<string, BeltSegmentSnapshot[]>();
+    for (const p of this.builderPlaced) {
+      if (!p.compositeId || !isConveyorBeltMenuId(p.menuBuildingId)) continue;
+      const snap: BeltSegmentSnapshot = {
+        x: p.x,
+        y: p.y,
+        z: p.z,
+        rotY: p.rotY,
+        segmentStep: p.segmentStep,
+        surfaceY: this.beltSurfaceYForRecord(p),
+      };
+      const list = rawByComposite.get(p.compositeId) ?? [];
+      list.push(snap);
+      rawByComposite.set(p.compositeId, list);
+    }
+    for (const [compositeId, segs] of rawByComposite) {
+      let ordered = orderBeltSegmentsByConnectivity(segs);
+      ordered = this.orientBeltSegmentsToFlow(ordered, outputPorts);
+      byComposite.set(compositeId, ordered);
+    }
+    return byComposite;
+  }
+
+  /** World Y верхней поверхности ленты по bbox размещённого сегмента. */
+  private beltSurfaceYForRecord(rec: BuilderPlacedPartRecord): number {
+    const pivot = this.findPivotForBuilderRecord(rec);
+    if (pivot) {
+      const box = new THREE.Box3().setFromObject(pivot);
+      if (Number.isFinite(box.max.y)) {
+        return box.max.y;
+      }
+    }
+    return rec.y + 1.05;
+  }
+
+  private findPivotForBuilderRecord(
+    rec: BuilderPlacedPartRecord,
+  ): THREE.Object3D | null {
+    for (const pivot of this.builderPlacedGroup.children) {
+      if (pivot.userData?.builderRecord === rec) {
+        return pivot;
+      }
+    }
+    for (const pivot of this.builderPlacedGroup.children) {
+      const r = pivot.userData?.builderRecord as
+        | BuilderPlacedPartRecord
+        | undefined;
+      if (!r || r.compositeId !== rec.compositeId) continue;
+      if (
+        Math.hypot(r.x - rec.x, r.z - rec.z) < 0.05 &&
+        Math.abs(r.y - rec.y) < 0.05
+      ) {
+        return pivot;
+      }
+    }
+    return null;
+  }
+
+  /** Кадровое обновление mesh предметов на лентах. */
+  updateBeltItemVisuals(dt: number, belts: BeltVisualState[]): void {
+    const segmentPaths = this.getBeltSegmentPaths();
+    const { belts: renderBelts, paths } = this.buildChainBeltVisualPayload(
+      belts,
+      segmentPaths,
+    );
+    this.beltItemVisualizer?.update(dt, renderBelts, segmentPaths, paths);
+  }
+
+  /**
+   * Объединить буферы и пути всех линий в цепочке supply-link — предметы
+   * видны на всей трассе (в т.ч. на этажах и длинных L-образных лентах).
+   */
+  private buildChainBeltVisualPayload(
+    belts: BeltVisualState[],
+    segmentPaths: Map<string, BeltSegmentSnapshot[]>,
+  ): { belts: BeltVisualState[]; paths: Map<string, BeltPath> } {
+    const beltById = new Map(belts.map((b) => [b.beltCompositeId, b]));
+    const links = buildConveyorSupplyLinks(this.getLogisticsSnapshot());
+    const chainKeys = new Set<string>();
+    const inChain = new Set<string>();
+    const renderBelts: BeltVisualState[] = [];
+    const paths = new Map<string, BeltPath>();
+
+    for (const link of links) {
+      if (link.beltChain.length === 0) continue;
+      const key = link.beltChain.join("|");
+      if (chainKeys.has(key)) continue;
+      chainKeys.add(key);
+      for (const cid of link.beltChain) inChain.add(cid);
+
+      const itemTotals = new Map<string, number>();
+      let speedPerMin = link.beltSpeedPerMin;
+      for (const cid of link.beltChain) {
+        const b = beltById.get(cid);
+        if (!b) continue;
+        speedPerMin = Math.min(speedPerMin, b.speedPerMin);
+        for (const it of b.items) {
+          itemTotals.set(it.itemId, (itemTotals.get(it.itemId) ?? 0) + it.amount);
+        }
+      }
+      const items = [...itemTotals.entries()]
+        .map(([itemId, amount]) => ({ itemId, amount }))
+        .filter((it) => it.amount > 0.08);
+      if (items.length === 0) continue;
+
+      const chainPaths: BeltPath[] = [];
+      for (const cid of link.beltChain) {
+        const segs = segmentPaths.get(cid);
+        if (!segs?.length) continue;
+        const built = buildBeltPathFromSegments(cid, segs);
+        if (built && built.totalLength > 1e-4) chainPaths.push(built);
+      }
+      const merged = mergeBeltPaths(chainPaths);
+      if (!merged) continue;
+
+      paths.set(key, merged);
+      renderBelts.push({ beltCompositeId: key, speedPerMin, items });
+    }
+
+    for (const belt of belts) {
+      if (inChain.has(belt.beltCompositeId)) continue;
+      renderBelts.push(belt);
+    }
+
+    return { belts: renderBelts, paths };
+  }
+
+  private inferCompositeRotY(compositeId: string): number | null {
+    const part = this.builderPlaced.find((p) => p.compositeId === compositeId);
+    return part ? part.rotY : null;
+  }
+
+  private inferCompositeScale(compositeId: string): number {
+    const part = this.builderPlaced.find((p) => p.compositeId === compositeId);
+    return part?.scale ?? this.builderScale;
+  }
+
+  private conveyorSpeedPerMin(beltId: string): number {
+    const m = /^conveyor_mk(\d)$/.exec(beltId);
+    if (!m) return CONVEYOR_SPEEDS[ConveyorTier.Mk1];
+    const tier = Number(m[1]) as ConveyorTier;
+    return CONVEYOR_SPEEDS[tier] ?? CONVEYOR_SPEEDS[ConveyorTier.Mk1];
+  }
+
+  private hasPortsForComposite(compositeId: string): boolean {
+    for (const p of this.placedPorts) {
+      if (p.compositeId === compositeId) return true;
+    }
+    return false;
+  }
+
+  /** Убрать gizmo портов и pattern-anchor перед restore. */
+  private clearBuildingPortAttachments(): void {
+    for (let i = this.builderPlacedGroup.children.length - 1; i >= 0; i--) {
+      const child = this.builderPlacedGroup.children[i]!;
+      if (child.userData?.isPort || child.userData?.isPatternAnchor) {
+        this.builderPlacedGroup.remove(child);
+      }
+    }
+    this.placedPorts.length = 0;
+  }
+
+  /** После restore: порты JSON-паттернов (лесопилка, биомасса и т.д.). */
+  private async ensureBuildingPortsAttached(): Promise<void> {
+    for (const [compositeId, b] of this.placedBuildings) {
+      if (this.hasPortsForComposite(compositeId)) continue;
+      if (resolveBuildingPortDefinitions(b.buildingId).length === 0) continue;
+      const rotY = b.rotY ?? this.inferCompositeRotY(compositeId) ?? 0;
+      const anchorPivot = new THREE.Group();
+      anchorPivot.position.set(b.x, b.y, b.z);
+      anchorPivot.rotation.y = rotY;
+      anchorPivot.userData.compositeId = compositeId;
+      anchorPivot.userData.menuBuildingId = b.buildingId;
+      anchorPivot.userData.isPatternAnchor = true;
+      anchorPivot.visible = false;
+      this.builderPlacedGroup.add(anchorPivot);
+      this.registerBuildingPorts(
+        anchorPivot,
+        b.buildingId,
+        { x: b.x, y: b.y, z: b.z },
+        rotY,
+      );
+    }
+  }
+
+  /**
    * Снапшот логических зданий для симуляции. Прунит записи, у которых не
    * осталось ни одной части (после сноса), и возвращает только живые здания.
    */
@@ -5160,6 +5699,13 @@ export class SceneManager {
     y: number;
     z: number;
   }> {
+    if (this.builderRestorePending) {
+      return Array.from(this.placedBuildings.entries()).map(([compositeId, b]) => ({
+        compositeId,
+        ...b,
+      }));
+    }
+
     const aliveComposites = new Set<string>();
     for (const p of this.builderPlaced) {
       if (!p.compositeId) continue;
@@ -5176,6 +5722,7 @@ export class SceneManager {
           x: p.x,
           y: p.y,
           z: p.z,
+          rotY: p.rotY,
         });
       }
     }
@@ -5188,6 +5735,7 @@ export class SceneManager {
     }> = [];
     for (const [compositeId, b] of this.placedBuildings) {
       if (!aliveComposites.has(compositeId)) {
+        this.removePortsForComposite(compositeId);
         this.placedBuildings.delete(compositeId);
         continue;
       }
@@ -5204,7 +5752,9 @@ export class SceneManager {
       return;
     }
     if (!raw) return;
+    this.builderRestorePending = true;
     try {
+      this.clearBuildingPortAttachments();
       const parsed = JSON.parse(raw) as {
         scale?: number;
         mode?: string;
@@ -5255,6 +5805,7 @@ export class SceneManager {
             x: typeof b.x === "number" ? b.x : 0,
             y: typeof b.y === "number" ? b.y : 0,
             z: typeof b.z === "number" ? b.z : 0,
+            rotY: typeof b.rotY === "number" ? b.rotY : undefined,
           });
         }
       }
@@ -5366,12 +5917,16 @@ export class SceneManager {
           restoredCompositeId,
           menuId,
           new THREE.Vector3(part.x, part.y, part.z),
+          part.rotY,
         );
       }
       this.builderCurrentPartPath = "";
       this.rebuildRailroadEndpointsFromPlacedParts();
+      await this.ensureBuildingPortsAttached();
     } catch {
       // Ignore corrupted JSON.
+    } finally {
+      this.builderRestorePending = false;
     }
   }
 
@@ -5539,7 +6094,24 @@ export class SceneManager {
           x: anchor.x,
           y: anchor.y,
           z: anchor.z,
+          rotY: rot,
         });
+        if (resolveBuildingPortDefinitions(patternBuildingId).length > 0) {
+          const anchorPivot = new THREE.Group();
+          anchorPivot.position.copy(anchor);
+          anchorPivot.rotation.y = rot;
+          anchorPivot.userData.compositeId = patternCompositeId;
+          anchorPivot.userData.menuBuildingId = patternBuildingId;
+          anchorPivot.userData.isPatternAnchor = true;
+          anchorPivot.visible = false;
+          this.builderPlacedGroup.add(anchorPivot);
+          this.registerBuildingPorts(
+            anchorPivot,
+            patternBuildingId,
+            { x: anchor.x, y: anchor.y, z: anchor.z },
+            rot,
+          );
+        }
       }
       this.persistBuilderState();
       // Убрать композитный призрак — иначе мышь продолжит двигать паттерн, а не демонтаж/hover по поставленным частям

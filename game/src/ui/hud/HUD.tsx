@@ -107,9 +107,56 @@ export const HUD: FC<HUDProps> = ({
                 ⚠ БЛЭКАУТ — производство остановлено
               </div>
             )}
+            {gameState.sim.power.generationMW < 1 &&
+              gameState.sim.logistics &&
+              gameState.sim.logistics.linkCount > 0 &&
+              gameState.sim.logistics.buildingInputs.length === 0 && (
+                <div style={{ opacity: 0.65, fontSize: 11, marginTop: 2 }}>
+                  Генерация ждёт доставку топлива по лентам
+                </div>
+              )}
             <div style={{ opacity: 0.7, marginTop: 2 }}>
               Зданий в симуляции: {gameState.sim.buildingCount}
             </div>
+            {gameState.sim.logistics && (
+              <div
+                style={{
+                  marginTop: 6,
+                  paddingTop: 6,
+                  borderTop: "1px solid rgba(120, 150, 200, 0.25)",
+                  fontSize: 11,
+                }}
+              >
+                <div style={{ opacity: 0.7, marginBottom: 2 }}>
+                  🔗 Логистика (тест)
+                </div>
+                <div>
+                  Порты: {gameState.sim.logistics.portCount} · Ленты:{" "}
+                  {gameState.sim.logistics.beltLineCount} · Связи:{" "}
+                  {gameState.sim.logistics.linkCount}
+                </div>
+                {gameState.sim.logistics.beltBuffers.length > 0 && (
+                  <div style={{ marginTop: 4 }}>
+                    <div style={{ opacity: 0.65 }}>На лентах:</div>
+                    {gameState.sim.logistics.beltBuffers.map((b) => (
+                      <div key={b.beltCompositeId}>
+                        {simItemName(b.itemId)}: {b.amount}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {gameState.sim.logistics.buildingInputs.length > 0 && (
+                  <div style={{ marginTop: 4 }}>
+                    <div style={{ opacity: 0.65 }}>У входов зданий:</div>
+                    {gameState.sim.logistics.buildingInputs.map((b, i) => (
+                      <div key={`${b.compositeId}-${b.itemId}-${i}`}>
+                        {simItemName(b.itemId)}: {b.amount}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {gameState.sim.inventory.length > 0 && (
               <div
                 style={{

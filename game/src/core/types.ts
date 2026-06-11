@@ -293,4 +293,25 @@ export interface SimulationSummary {
   inventory: ItemStack[];
   /** Число зданий, участвующих в симуляции. */
   buildingCount: number;
+  /** Отладка логистики (конвейерный граф, фаза теста). */
+  logistics?: LogisticsDebugSummary;
+}
+
+/** Краткая сводка конвейерной логистики для HUD/дебага. */
+export interface LogisticsDebugSummary {
+  portCount: number;
+  beltLineCount: number;
+  linkCount: number;
+  /** Буферы на лентах (itemId + кол-во). */
+  beltBuffers: Array<{
+    beltCompositeId: string;
+    itemId: string;
+    amount: number;
+  }>;
+  /** Предметы у входов зданий с ленты. */
+  buildingInputs: Array<{
+    compositeId: string;
+    itemId: string;
+    amount: number;
+  }>;
 }

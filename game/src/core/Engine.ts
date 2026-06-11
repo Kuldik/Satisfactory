@@ -18,6 +18,7 @@ import {
   isPipeLineMenuId,
 } from '../buildings/logistics/pipeKitModels.ts';
 import { isRailroadTrackMenuId } from '../buildings/logistics/railroadKitModels.ts';
+import type { PortPlacementTemplate } from '../buildings/buildingPortTypes.ts';
 
 export class Engine {
   private sceneManager: SceneManager;
@@ -107,6 +108,13 @@ export class Engine {
     // Process input (every frame)
     this.inputManager.update();
 
+    if (!this.gameState.isPaused) {
+      this.sceneManager.updateBeltItemVisuals(
+        deltaTime / 1000,
+        this.simulation.getBeltVisualState(),
+      );
+    }
+
     // Render (every frame, interpolated)
     this.sceneManager.render();
 
@@ -116,23 +124,24 @@ export class Engine {
 
   /** Fixed-rate simulation tick */
   private tick(dt: number): void {
-    // Симуляция работает над снапшотом размещённых зданий из визуального мира.
+    if (this.sceneManager.isBuilderRestoring()) return;
+
     const snapshot = this.sceneManager.getPlacedBuildingSnapshot();
-    this.simulation.update(dt, snapshot);
+    const logistics = this.sceneManager.getLogisticsSnapshot();
+    this.simulation.update(dt, snapshot, logistics);
     this.gameState.gameTime = this.simulation.getGameTime();
 
-    // Сводку в UI отдаём троттлингом (~3 раза/сек), а не каждый тик.
     this.summaryAccumulator += dt;
     if (this.summaryAccumulator >= 0.33) {
       this.summaryAccumulator = 0;
-      this.gameState.sim = this.simulation.getSummary();
+      this.gameState.sim = this.simulation.getSummary(logistics);
       this.notifyStateChange();
     }
   }
 
   /** Текущая сводка симуляции (энергия/склад) для UI. */
   getSimulationSummary() {
-    return this.simulation.getSummary();
+    return this.simulation.getSummary(this.sceneManager.getLogisticsSnapshot());
   }
 
   /** Загрузить сохранённое состояние симуляции (склад/время). Визуальный мир восстанавливает SceneManager. */
@@ -146,7 +155,9 @@ export class Engine {
         inventory: data.inventory,
       });
       this.gameState.gameTime = this.simulation.getGameTime();
-      this.gameState.sim = this.simulation.getSummary();
+      this.gameState.sim = this.simulation.getSummary(
+        this.sceneManager.getLogisticsSnapshot(),
+      );
       this.notifyStateChange();
     } catch (err) {
       console.warn('[Engine] loadPersisted failed:', err);
@@ -277,6 +288,14 @@ export class Engine {
 
   async enterBuilderPartMode(partPath: string): Promise<void> {
     await this.sceneManager.setBuilderGhost(partPath);
+  }
+
+  enterBuilderPortMode(template: PortPlacementTemplate): void {
+    this.sceneManager.setBuilderPortGhost(template);
+  }
+
+  getBuilderPortCount(): number {
+    return this.sceneManager.getBuilderPortCount();
   }
 
   updateBuilderGhost(

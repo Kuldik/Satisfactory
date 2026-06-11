@@ -17,11 +17,12 @@ import { hasPrefabBuilding } from "./buildings/BuildingPrefabs.ts";
 import { BuildMenu } from "./ui/menus/BuildMenu.tsx";
 import { AdminPanel } from "./ui/admin/AdminPanel.tsx";
 import { useGameEngine } from "./hooks/useGameEngine.ts";
-import { useDeconstructCompositeHold } from "./hooks/useDeconstructCompositeHold.ts";
+import type { PortPlacementTemplate } from "./buildings/buildingPortTypes.ts";
 import { useBuilderKeyboard } from "./hooks/useBuilderKeyboard.ts";
 import { useWindowShortcutGuards } from "./hooks/useWindowShortcutGuards.ts";
 import { useAdminPanelHotkey } from "./hooks/useAdminPanelHotkey.ts";
 import { useThemeHotkey } from "./hooks/useThemeHotkey.ts";
+import { useDeconstructCompositeHold } from "./hooks/useDeconstructCompositeHold.ts";
 import "./App.css";
 
 const IS_DEV = true; // TODO: revert to `import.meta.env.DEV !== false` for dev-only access
@@ -44,6 +45,7 @@ function App() {
     useState<RailroadPlacementSubMode>("straight");
   const [builderScale, setBuilderScale] = useState(1);
   const [placedCount, setPlacedCount] = useState(0);
+  const [portCount, setPortCount] = useState(0);
   const [patternGhostLoading, setPatternGhostLoading] = useState(false);
 
   const mouseDownPos = useRef<{ x: number; y: number } | null>(null);
@@ -57,6 +59,12 @@ function App() {
     setBuilderMode,
     setIsDeconstructMode,
   );
+
+  const refreshBuilderCounts = useCallback(() => {
+    if (!engineRef.current) return;
+    setPlacedCount(engineRef.current.getBuilderPlacedCount());
+    setPortCount(engineRef.current.getBuilderPortCount());
+  }, [engineRef]);
 
   const {
     overlayRef: deconstructHoldOverlayRef,
@@ -169,10 +177,23 @@ function App() {
     [engineRef],
   );
 
+  const handleSelectBuilderPort = useCallback(
+    (template: PortPlacementTemplate) => {
+      if (!engineRef.current) return;
+      if (engineRef.current.isBuilderDeconstructMode()) {
+        engineRef.current.setBuilderDeconstructMode(false);
+        setIsDeconstructMode(false);
+      }
+      setIsBuilderActive(true);
+      engineRef.current.enterBuilderPortMode(template);
+    },
+    [engineRef],
+  );
+
   const handleClearComposition = useCallback(() => {
     engineRef.current?.clearBuilderComposition();
-    setPlacedCount(engineRef.current?.getBuilderPlacedCount() ?? 0);
-  }, [engineRef]);
+    refreshBuilderCounts();
+  }, [engineRef, refreshBuilderCounts]);
 
   const handleExportRequest = useCallback(
     () => engineRef.current?.exportBuilderComposition() ?? '{"parts":[]}',
@@ -183,10 +204,10 @@ function App() {
     async (json: string): Promise<number> => {
       if (!engineRef.current) return 0;
       const count = await engineRef.current.importBuilderComposition(json);
-      setPlacedCount(engineRef.current.getBuilderPlacedCount());
+      refreshBuilderCounts();
       return count;
     },
-    [engineRef],
+    [engineRef, refreshBuilderCounts],
   );
 
   const handleSetBuilderMode = useCallback(
@@ -304,7 +325,7 @@ function App() {
       if (!isBuilderActive && !isDeconstructMode) return;
       if (e.button === 0) {
         engineRef.current.placeBuilderPart();
-        setPlacedCount(engineRef.current.getBuilderPlacedCount());
+        refreshBuilderCounts();
       } else if (e.button === 2) {
         if (!isDeconstructMode) {
           engineRef.current.cancelBuilderGhost();
@@ -377,10 +398,12 @@ function App() {
           isBuilderActive={isBuilderActive}
           isDeconstructMode={isDeconstructMode}
           placedCount={placedCount}
+          portCount={portCount}
           builderScale={builderScale}
           builderMode={builderMode}
           onClose={() => setIsAdminOpen(false)}
           onSelectPart={handleSelectBuilderPart}
+          onSelectPort={handleSelectBuilderPort}
           onSelectComposition={handleSelectComposition}
           onClearComposition={handleClearComposition}
           onExportRequest={handleExportRequest}

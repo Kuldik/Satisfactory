@@ -57,8 +57,10 @@ export function useGameEngine(
 
     engine.start();
     engine.getSceneManager().setVisualTheme(getDocumentSceneTheme());
-    // Восстановить состояние симуляции (склад/время) из последнего сейва.
-    void engine.loadPersisted();
+    void engine
+      .getSceneManager()
+      .whenBuilderReady()
+      .then(() => engine.loadPersisted());
 
     const onSceneTheme = (e: Event): void => {
       const mode = (e as CustomEvent<{ mode?: string }>).detail?.mode;

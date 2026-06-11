@@ -21,12 +21,21 @@ export interface BuildingSimSpec {
   kind: SimBuildingKind;
   /** Потребление, МВт (майнеры/производители). */
   powerMW?: number;
-  /** Выработка, МВт (генераторы). TODO фаза 2: учитывать топливо/воду. */
+  /** Выработка, МВт (генераторы). Без топлива на входе — 0 (см. inputs). */
   generationMW?: number;
-  /** Вход — вычитается из глобального склада (производители). */
+  /** Вход — вычитается из глобального склада (производители и генераторы). */
   inputs?: SimItemFlow[];
+  /**
+   * Для генераторов с несколькими видами топлива: `any` — достаточно одного
+   * (сжигатель биомассы: древесина ИЛИ трава).
+   */
+  inputMode?: "all" | "any";
   /** Выход — добавляется в глобальный склад. */
   outputs?: SimItemFlow[];
+  /**
+   * Если true — ввод/вывод только через подключённые ленты (не глобальный склад).
+   */
+  requireConveyorIo?: boolean;
 }
 
 /** Производные предметы вне `ResourceType` (слитки/детали) — для отображения. */
@@ -117,11 +126,12 @@ const SIM_CATALOG: Record<string, BuildingSimSpec> = Object.assign(
     ],
     outputs: [{ itemId: "steel_ingot", perMin: 45 }],
   },
+  /** Один выходной порт: wood + leaves на одной ленте (leaves ×2). */
   sawmill: {
     kind: "producer",
-    powerMW: 10,
+    powerMW: 0,
     outputs: [
-      { itemId: "wood", perMin: 60 },
+      { itemId: "wood", perMin: 30 },
       { itemId: "leaves", perMin: 60 },
     ],
   },
@@ -176,8 +186,16 @@ const SIM_CATALOG: Record<string, BuildingSimSpec> = Object.assign(
     outputs: [{ itemId: "turbo_blend", perMin: 20 }],
   },
 
-  // — Генераторы (фаза 1: бесплатное топливо) —
-  biomass_burner: { kind: "generator", generationMW: 30 },
+  // — Генераторы —
+  biomass_burner: {
+    kind: "generator",
+    generationMW: 30,
+    inputMode: "any",
+    inputs: [
+      { itemId: "leaves", perMin: 120 },
+      { itemId: "wood", perMin: 30 },
+    ],
+  },
   coal_generator: { kind: "generator", generationMW: 75 },
   fuel_generator: { kind: "generator", generationMW: 250 },
   nuclear_power: { kind: "generator", generationMW: 2500 },

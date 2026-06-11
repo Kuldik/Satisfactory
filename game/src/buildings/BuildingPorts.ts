@@ -1,12 +1,7 @@
 // ============================================================
-// BuildingPorts — per-building I/O port definitions.
-// Ports are placed as visual connectors (wall-doorway models)
-// and used for auto-snapping conveyor endpoints.
+// BuildingPorts — LEGACY fallback для GLB-префабов без ports[] в JSON.
+// Новые composite-здания: ports[] в JSON паттерна (см. buildingPortTypes.ts).
 // ============================================================
-
-const BUILDING_KIT_DIR = "/kits/kenney_building-kit/Models/GLB format/";
-export const PORT_MODEL_INPUT = `${BUILDING_KIT_DIR}wall-doorway-square.glb`;
-export const PORT_MODEL_OUTPUT = `${BUILDING_KIT_DIR}wall-doorway-round.glb`;
 
 export interface BuildingPort {
   type: "input" | "output";
@@ -16,13 +11,8 @@ export interface BuildingPort {
   direction: number;
 }
 
-/**
- * Port definitions keyed by buildingId.
- * Coordinates are in the model's local space — they get transformed
- * by the building's world rotation and scale at placement time.
- * The user fills in exact coordinates per building as they tune layouts.
- */
-export const BUILDING_PORTS: Record<string, BuildingPort[]> = {
+/** @deprecated Используй resolveBuildingPortDefinitions(). Оставлено для GLB fallback. */
+export const LEGACY_BUILDING_PORTS: Record<string, BuildingPort[]> = {
   // ---- Production ----
   constructor: [
     { type: "input", localPos: { x: -0.5, y: 0.15, z: 0 }, direction: Math.PI },
@@ -74,12 +64,18 @@ export const BUILDING_PORTS: Record<string, BuildingPort[]> = {
     { type: "output", localPos: { x: 0.5, y: 0.15, z: 0 }, direction: 0 },
   ],
   sawmill: [
+    { type: "output", localPos: { x: 0.5, y: 0.15, z: -0.2 }, direction: 0 },
+    { type: "output", localPos: { x: 0.5, y: 0.15, z: 0.2 }, direction: 0 },
+  ],
+  biomass_burner: [
     { type: "input", localPos: { x: -0.5, y: 0.15, z: 0 }, direction: Math.PI },
-    { type: "output", localPos: { x: 0.5, y: 0.15, z: 0 }, direction: 0 },
   ],
 };
 
+/** @deprecated */
+export const BUILDING_PORTS = LEGACY_BUILDING_PORTS;
+
 export function getBuildingPorts(buildingId: string): BuildingPort[] | null {
-  const ports = BUILDING_PORTS[buildingId];
+  const ports = LEGACY_BUILDING_PORTS[buildingId];
   return ports && ports.length > 0 ? ports : null;
 }

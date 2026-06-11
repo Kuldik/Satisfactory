@@ -740,5 +740,18 @@
       "rotationY": 0,
       "scale": 3
     }
+  ],
+  "ports": [
+    {
+      "id": "conveyor_input_1",
+      "kind": "conveyor",
+      "type": "input",
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 7.894
+      },
+      "direction": 3.1416
+    }
   ]
 }
