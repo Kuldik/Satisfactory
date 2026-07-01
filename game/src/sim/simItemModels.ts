@@ -35,10 +35,3 @@ export function getSimItemModel(itemId: string): SimItemModelDef | null {
 export function allSimItemModelPaths(): string[] {
   return [...new Set(Object.values(SIM_ITEM_MODELS).map((d) => d.path))];
 }
-
-/** Состояние ленты для 3D-визуализации (читается каждый кадр). */
-export interface BeltVisualState {
-  beltCompositeId: string;
-  speedPerMin: number;
-  items: Array<{ itemId: string; amount: number }>;
-}

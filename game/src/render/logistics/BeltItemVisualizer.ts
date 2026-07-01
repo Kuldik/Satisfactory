@@ -3,30 +3,22 @@
 // ============================================================
 
 import * as THREE from "three";
-import type { BeltVisualState } from "../../sim/simItemModels.ts";
-import {
-  allSimItemModelPaths,
-  getSimItemModel,
-} from "../../sim/simItemModels.ts";
-import {
-  buildBeltPathFromSegments,
-  sampleBeltPath,
-  type BeltPath,
-  type BeltSegmentSnapshot,
-} from "./beltPath.ts";
+import type { BeltLaneVisual } from "../../sim/logisticsTypes.ts";
+import { allSimItemModelPaths, getSimItemModel } from "../../sim/simItemModels.ts";
+import { sampleBeltPath, type BeltPath } from "./beltPath.ts";
 
-/** Расстояние между центрами соседних предметов на ленте (м). */
-const ITEM_SLOT_SPACING_M = 2.35;
-const MAX_SLOTS_PER_BELT = 96;
-const MIN_AMOUNT_FOR_ONE = 0.08;
+/** Порог рассинхрона рендер-позиции с sim (нормир.) — при превышении делаем snap. */
+const RESYNC_THRESHOLD_01 = 0.05;
 
 export type LoadModelRootFn = (path: string) => Promise<THREE.Object3D>;
 
 export class BeltItemVisualizer {
   private readonly group = new THREE.Group();
   private readonly templates = new Map<string, THREE.Object3D>();
-  private readonly active = new Map<string, THREE.Object3D>();
-  private readonly phases = new Map<string, number>();
+  /** id предмета → mesh (стабильно на всё время жизни предмета). */
+  private readonly active = new Map<number, THREE.Object3D>();
+  /** id предмета → отрисованная позиция [0..1] для межкадровой интерполяции. */
+  private readonly renderPos = new Map<number, number>();
   private preloadPromise: Promise<void> | null = null;
 
   constructor(
@@ -124,125 +116,61 @@ export class BeltItemVisualizer {
     return obj;
   }
 
-  /** Слоты с фиксированным шагом — wood/leaves в одной очереди, без наслоения. */
-  private buildSlotItemIds(
-    items: Array<{ itemId: string; amount: number }>,
-    maxSlots: number,
-  ): string[] {
-    const total = items.reduce((s, i) => s + i.amount, 0);
-    if (total < MIN_AMOUNT_FOR_ONE || maxSlots <= 0) return [];
-
-    let slotCount = Math.min(
-      maxSlots,
-      Math.max(1, Math.ceil(total)),
-    );
-
-    const queues: string[][] = [];
-    let assigned = 0;
-    for (let t = 0; t < items.length; t++) {
-      const { itemId, amount } = items[t]!;
-      const isLast = t === items.length - 1;
-      const n = isLast
-        ? slotCount - assigned
-        : Math.min(
-            slotCount - assigned,
-            Math.max(0, Math.round((slotCount * amount) / total)),
-          );
-      if (n > 0) {
-        queues.push(Array.from({ length: n }, () => itemId));
-        assigned += n;
-      }
-    }
-
-    const out: string[] = [];
-    let hasAny = true;
-    while (hasAny && out.length < slotCount) {
-      hasAny = false;
-      for (const q of queues) {
-        const next = q.shift();
-        if (next) {
-          out.push(next);
-          hasAny = true;
-        }
-      }
-    }
-    return out;
-  }
-
+  /**
+   * Отрисовать дискретные предметы полос: один mesh на предмет (по стабильному id),
+   * позиция берётся из sim (pos01) с лёгкой межкадровой интерполяцией вперёд.
+   */
   update(
     dt: number,
-    belts: BeltVisualState[],
-    segmentPaths: Map<string, BeltSegmentSnapshot[]>,
-    prebuiltPaths?: Map<string, BeltPath>,
+    lanes: BeltLaneVisual[],
+    paths: Map<string, BeltPath>,
   ): void {
     if (this.templates.size === 0) {
       void this.preload();
     }
 
-    const alive = new Set<string>();
-    const paths = new Map<string, BeltPath>(prebuiltPaths);
+    const alive = new Set<number>();
 
-    for (const [compositeId, segments] of segmentPaths) {
-      if (paths.has(compositeId)) continue;
-      const path = buildBeltPathFromSegments(compositeId, segments);
-      if (path && path.totalLength > 1e-4) {
-        paths.set(compositeId, path);
-      }
-    }
+    for (const lane of lanes) {
+      const path = paths.get(lane.laneKey);
+      if (!path || path.totalLength <= 1e-4) continue;
+      const total = path.totalLength;
+      const itemScale = path.itemScale ?? 1;
+      const advance01 = total > 0 ? (lane.speedMps * dt) / total : 0;
 
-    for (const belt of belts) {
-      const path = paths.get(belt.beltCompositeId);
-      if (!path) continue;
-
-      const maxByLength = Math.max(
-        1,
-        Math.floor(path.totalLength / ITEM_SLOT_SPACING_M),
-      );
-      const slotIds = this.buildSlotItemIds(
-        belt.items,
-        Math.min(MAX_SLOTS_PER_BELT, maxByLength),
-      );
-      if (slotIds.length === 0) continue;
-
-      const metersPerSec =
-        Number.isFinite(belt.speedPerMin) && belt.speedPerMin > 0
-          ? belt.speedPerMin / 60
-          : 1;
-      const prev = this.phases.get(belt.beltCompositeId) ?? 0;
-      const next = prev + metersPerSec * dt;
-      this.phases.set(belt.beltCompositeId, next);
-
-      const totalLen = Math.max(path.totalLength, 1e-4);
-
-      for (let i = 0; i < slotIds.length; i++) {
-        const itemId = slotIds[i]!;
-        const model = getSimItemModel(itemId);
+      for (const item of lane.items) {
+        const model = getSimItemModel(item.itemId);
         if (!model) continue;
         const template = this.templates.get(model.path);
         if (!template) continue;
 
-        const id = `${belt.beltCompositeId}:slot:${i}:${itemId}`;
-        alive.add(id);
+        alive.add(item.id);
+        const target = item.pos01;
 
-        // i = последний слот — сзади (у источника); новые предметы попадают туда.
-        const backOffset =
-          (slotIds.length - 1 - i) * ITEM_SLOT_SPACING_M;
-        const dist =
-          ((next - backOffset) % totalLen + totalLen) % totalLen;
-        const sample = sampleBeltPath(path, dist);
+        // Межкадровая интерполяция: рендер-позиция движется вперёд, не обгоняя sim.
+        let rp = this.renderPos.get(item.id);
+        if (rp === undefined) {
+          rp = target;
+        } else {
+          rp += advance01;
+          if (rp > target) rp = target;
+          if (target - rp > RESYNC_THRESHOLD_01) rp = target;
+        }
+        this.renderPos.set(item.id, rp);
 
-        let obj = this.active.get(id);
+        const sample = sampleBeltPath(path, rp * total);
+
+        let obj = this.active.get(item.id);
         if (!obj) {
-          obj = this.spawnInstance(template, model.targetSize, model.tint);
-          this.active.set(id, obj);
+          obj = this.spawnInstance(
+            template,
+            model.targetSize * itemScale,
+            model.tint,
+          );
+          this.active.set(item.id, obj);
           this.group.add(obj);
         }
-
-        obj.position.set(
-          sample.x,
-          sample.y + model.yOffset,
-          sample.z,
-        );
+        obj.position.set(sample.x, sample.y + model.yOffset, sample.z);
         obj.rotation.y = sample.direction;
       }
     }
@@ -251,6 +179,7 @@ export class BeltItemVisualizer {
       if (alive.has(id)) continue;
       this.group.remove(obj);
       this.active.delete(id);
+      this.renderPos.delete(id);
     }
   }
 
@@ -259,6 +188,7 @@ export class BeltItemVisualizer {
       this.group.remove(obj);
     }
     this.active.clear();
+    this.renderPos.clear();
     this.group.parent?.remove(this.group);
   }
 }

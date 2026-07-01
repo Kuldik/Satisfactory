@@ -30,7 +30,9 @@ export const LOGISTICS_MENU_BUILDING_IDS = new Set<string>([
   "fluid_freight_car",
 ]);
 
-export function isLogisticsMenuBuildingId(id: string | null | undefined): boolean {
+export function isLogisticsMenuBuildingId(
+  id: string | null | undefined,
+): boolean {
   return !!id && LOGISTICS_MENU_BUILDING_IDS.has(id);
 }
 
@@ -41,6 +43,33 @@ export function isLogisticsConveyorKitPath(partPath: string): boolean {
     partPath.includes("/kits/models/splitter.glb") ||
     partPath.includes("/kits/models/connector.glb")
   );
+}
+
+/** Номер тира ленты (1..6) из menu id, либо null. */
+export function conveyorTierNumber(
+  id: string | null | undefined,
+): number | null {
+  const m = id ? /^conveyor_mk([1-6])$/.exec(id) : null;
+  return m ? Number(m[1]) : null;
+}
+
+/** Масштаб предметов на ленте: mk1 — 1×, начиная с mk2 — 2×. */
+export function beltItemSizeScale(id: string | null | undefined): number {
+  const tier = conveyorTierNumber(id);
+  return tier !== null && tier >= 2 ? 2 : 1;
+}
+
+/**
+ * Доля высоты bbox ленты до несущей поверхности (0..1). У mk5/mk6 высокие
+ * борта/ограждение, поэтому верх bbox лежит выше настила — опускаем предметы.
+ */
+export function beltSurfaceHeightFraction(
+  id: string | null | undefined,
+): number {
+  const tier = conveyorTierNumber(id);
+  if (tier === 6) return 0.6;
+  if (tier === 5) return 0.92;
+  return 1;
 }
 
 /** Назначенные модели по уровням (имена файлов в GLB format) */

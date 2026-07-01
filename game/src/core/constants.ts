@@ -29,6 +29,9 @@ export const MAX_SAVE_SLOTS = 5;
 /** Save data version */
 export const SAVE_VERSION = 1;
 
+/** Расстояние между центрами соседних предметов на ленте (м) — общий контракт sim/визуала. */
+export const BELT_ITEM_SPACING_M = 2.35;
+
 /** Simulation tick rate (ticks per second) */
 export const TICK_RATE = 30;
 

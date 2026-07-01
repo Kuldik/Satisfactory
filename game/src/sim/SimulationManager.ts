@@ -16,12 +16,17 @@ import {
   type BuildingSimSpec,
 } from "./buildingCatalog.ts";
 import {
-  buildConveyorSupplyLinks,
+  buildConveyorFlowLanes,
   collectBeltLines,
   summarizeLogistics,
 } from "./conveyorGraph.ts";
-import type { ConveyorSupplyLink, LogisticsSnapshot } from "./logisticsTypes.ts";
-import type { BeltVisualState } from "./simItemModels.ts";
+import type {
+  BeltLaneVisual,
+  ConveyorFlowLane,
+  LogisticsSnapshot,
+} from "./logisticsTypes.ts";
+import { parseBeltChainMemberRef } from "./logisticsTypes.ts";
+import { BELT_ITEM_SPACING_M } from "../core/constants.ts";
 
 /** Минимальное описание логического здания из визуального мира. */
 export interface PlacedBuildingSnapshot {
@@ -41,35 +46,49 @@ interface SimEntity {
   effectiveGenerationMW: number;
 }
 
-interface BeltBuffer {
-  items: Map<string, number>;
-  maxAmount: number;
-  speedPerMin: number;
+/** Один дискретный предмет на полосе: стабильный id + позиция вдоль полосы (м). */
+interface BeltLaneItem {
+  id: number;
+  itemId: string;
+  /** Позиция от входа полосы (0) к приёмнику (lengthM), метры. */
+  pos: number;
 }
 
-function beltBufferTotal(buf: BeltBuffer): number {
-  let total = 0;
-  for (const amount of buf.items.values()) total += amount;
-  return total;
+/** Полоса = одна цепочка лент (supply-link). Хранит дискретные предметы по позиции. */
+interface BeltLane {
+  key: string;
+  /** compositeId лент по порядку от источника к приёмнику. */
+  memberIds: string[];
+  /** Приёмник в конце цепочки, если он подключён; иначе null (тупик). */
+  sinkCompositeId: string | null;
+  /** Полная длина полосы (сумма арк-длин лент), м. */
+  lengthM: number;
+  /** Пропускная способность ленты, предм./мин (по тиру). */
+  speedPerMin: number;
+  /** Линейная скорость движения, м/с. */
+  speedMps: number;
+  /** Предметы, отсортированы по возрастанию pos (items[0] — только что вошёл). */
+  items: BeltLaneItem[];
+  /** Накопитель дробных единиц на вход по itemId. */
+  emitAccum: Map<string, number>;
 }
 
 const SIM_SAVE_VERSION = 1;
 const SUMMARY_TOP_ITEMS = 16;
 const EPSILON = 1e-6;
-/** Сколько «минут» ленты держим в буфере (бэкпрешер). */
-const BELT_BUFFER_MINUTES = 2;
 
 const EMPTY_LOGISTICS: LogisticsSnapshot = { ports: [], belts: [] };
 
 export class SimulationManager {
   private readonly entities = new Map<string, SimEntity>();
   private readonly inventory = new Map<string, number>();
-  /** compositeId ленты → буфер предметов на ленте. */
-  private readonly beltBuffers = new Map<string, BeltBuffer>();
+  /** ключ цепочки (beltChain.join("|")) → полоса с дискретными предметами. */
+  private readonly lanes = new Map<string, BeltLane>();
   /** compositeId здания → itemId → кол-во у входных портов с ленты. */
   private readonly buildingInputs = new Map<string, Map<string, number>>();
 
-  private supplyLinks: ConveyorSupplyLink[] = [];
+  private flowLanes: ConveyorFlowLane[] = [];
+  private nextItemId = 1;
   private gameTime = 0;
   private generationMW = 0;
   private consumptionMW = 0;
@@ -116,35 +135,127 @@ export class SimulationManager {
   }
 
   private syncLogistics(logistics: LogisticsSnapshot): void {
-    this.supplyLinks = buildConveyorSupplyLinks(logistics);
+    this.flowLanes = buildConveyorFlowLanes(logistics);
     const lines = collectBeltLines(logistics);
-    const aliveBelts = new Set(lines.map((l) => l.compositeId));
-
-    for (const id of this.beltBuffers.keys()) {
-      if (!aliveBelts.has(id)) this.beltBuffers.delete(id);
+    const lenById = new Map<string, number>();
+    const speedById = new Map<string, number>();
+    for (const l of lines) {
+      lenById.set(l.compositeId, l.lengthM);
+      speedById.set(l.compositeId, l.speedPerMin);
     }
 
-    for (const line of lines) {
-      if (!this.beltBuffers.has(line.compositeId)) {
-        this.beltBuffers.set(line.compositeId, {
-          items: new Map(),
-          maxAmount: line.speedPerMin * BELT_BUFFER_MINUTES,
-          speedPerMin: line.speedPerMin,
+    // Группируем полосы потока в цепочки по ключу beltChain.
+    const chainByKey = new Map<
+      string,
+      { members: string[]; sink: string | null }
+    >();
+    for (const lane of this.flowLanes) {
+      const key = lane.beltChain.join("|");
+      if (key.length === 0) continue;
+      const existing = chainByKey.get(key);
+      if (!existing) {
+        chainByKey.set(key, {
+          members: lane.beltChain,
+          sink: lane.sinkCompositeId,
         });
-      } else {
-        const buf = this.beltBuffers.get(line.compositeId)!;
-        buf.speedPerMin = line.speedPerMin;
-        buf.maxAmount = line.speedPerMin * BELT_BUFFER_MINUTES;
+      } else if (!existing.sink && lane.sinkCompositeId) {
+        existing.sink = lane.sinkCompositeId;
       }
     }
+
+    for (const [key, c] of chainByKey) {
+      const lengthM = c.members.reduce(
+        (s, id) => s + (lenById.get(parseBeltChainMemberRef(id).compositeId) ?? 0),
+        0,
+      );
+      let speedPerMin = Infinity;
+      for (const id of c.members) {
+        speedPerMin = Math.min(
+          speedPerMin,
+          speedById.get(parseBeltChainMemberRef(id).compositeId) ?? Infinity,
+        );
+      }
+      if (!Number.isFinite(speedPerMin) || speedPerMin <= 0) speedPerMin = 60;
+      const speedMps = (speedPerMin / 60) * BELT_ITEM_SPACING_M;
+
+      let lane = this.lanes.get(key);
+      let transferredFromPrefix = false;
+      if (!lane) {
+        let bestOldKey: string | null = null;
+        let bestOldMembers = 0;
+        for (const [oldKey, oldLane] of this.lanes) {
+          if (chainByKey.has(oldKey)) continue;
+          if (!this.isLanePrefix(oldLane.memberIds, c.members)) continue;
+          if (oldLane.memberIds.length > bestOldMembers) {
+            bestOldKey = oldKey;
+            bestOldMembers = oldLane.memberIds.length;
+          }
+        }
+        if (bestOldKey) {
+          lane = this.lanes.get(bestOldKey);
+          this.lanes.delete(bestOldKey);
+          if (lane) {
+            lane.key = key;
+            this.lanes.set(key, lane);
+            transferredFromPrefix = true;
+          }
+        }
+      }
+      if (!lane) {
+        this.lanes.set(key, {
+          key,
+          memberIds: c.members,
+          sinkCompositeId: c.sink,
+          lengthM,
+          speedPerMin,
+          speedMps,
+          items: [],
+          emitAccum: new Map(),
+        });
+        continue;
+      }
+      // Геометрия изменилась — масштабируем позиции, чтобы не было скачков.
+      if (
+        !transferredFromPrefix &&
+        lane.lengthM > EPSILON &&
+        Math.abs(lane.lengthM - lengthM) > 1e-3
+      ) {
+        const k = lengthM / lane.lengthM;
+        for (const it of lane.items) it.pos *= k;
+      }
+      lane.memberIds = c.members;
+      lane.sinkCompositeId = c.sink;
+      lane.lengthM = lengthM;
+      lane.speedPerMin = speedPerMin;
+      lane.speedMps = speedMps;
+      for (const it of lane.items) {
+        if (it.pos > lengthM) it.pos = lengthM;
+      }
+    }
+
+    for (const key of [...this.lanes.keys()]) {
+      if (!chainByKey.has(key)) this.lanes.delete(key);
+    }
+  }
+
+  private laneForChain(beltChain: string[]): BeltLane | undefined {
+    return this.lanes.get(beltChain.join("|"));
+  }
+
+  private isLanePrefix(prefix: string[], members: string[]): boolean {
+    if (prefix.length === 0 || prefix.length > members.length) return false;
+    for (let i = 0; i < prefix.length; i++) {
+      if (prefix[i] !== members[i]) return false;
+    }
+    return true;
   }
 
   private linksForOutput(
     compositeId: string,
     portIndex: number,
     itemId: string,
-  ): ConveyorSupplyLink[] {
-    return this.supplyLinks.filter(
+  ): ConveyorFlowLane[] {
+    return this.flowLanes.filter(
       (l) =>
         l.sourceCompositeId === compositeId &&
         l.sourcePortIndex === portIndex &&
@@ -171,7 +282,7 @@ export class SimulationManager {
   }
 
   private hasInputSupplyLink(compositeId: string, itemId: string): boolean {
-    return this.supplyLinks.some(
+    return this.flowLanes.some(
       (l) => l.sinkCompositeId === compositeId && l.itemId === itemId,
     );
   }
@@ -185,7 +296,7 @@ export class SimulationManager {
     if (defs.some((d) => d.kind === "conveyor" && d.type === "input")) {
       return true;
     }
-    return this.supplyLinks.some((l) => l.sinkCompositeId === compositeId);
+    return this.flowLanes.some((l) => l.sinkCompositeId === compositeId);
   }
 
   /** Топливо: при conveyor-input / ленте — только buildingInputs; иначе — склад. */
@@ -315,15 +426,15 @@ export class SimulationManager {
     }
   }
 
-  /** Общий буфер ленты: лимит по сумме всех выходов на belt, не по каждому отдельно. */
+  /** Бэкпрешер: пауза машины, если у выхода уже ждёт неразмещённая единица (accum ≥ 1). */
   private applySharedBeltBackpressure(
     compositeId: string,
     buildingId: string,
     outputs: NonNullable<BuildingSimSpec["outputs"]>,
-    perMinToTick: number,
+    _perMinToTick: number,
     fraction: number,
   ): number {
-    const wantPerBelt = new Map<string, number>();
+    void _perMinToTick;
     for (let outIdx = 0; outIdx < outputs.length; outIdx++) {
       const out = outputs[outIdx]!;
       const links = this.linksForOutput(
@@ -332,20 +443,13 @@ export class SimulationManager {
         out.itemId,
       );
       if (links.length === 0) continue;
-      const beltId = links[0]!.beltChain[0]!;
-      wantPerBelt.set(
-        beltId,
-        (wantPerBelt.get(beltId) ?? 0) + out.perMin * perMinToTick,
-      );
-    }
-    for (const [beltId, totalWant] of wantPerBelt) {
-      const buf = this.beltBuffers.get(beltId);
-      if (!buf) continue;
-      const headroom = buf.maxAmount - beltBufferTotal(buf);
-      if (headroom <= EPSILON || totalWant <= EPSILON) {
-        fraction = Math.min(fraction, 0);
-      } else {
-        fraction = Math.min(fraction, headroom / totalWant);
+      const lane = this.laneForChain(links[0]!.beltChain);
+      if (!lane) {
+        fraction = 0;
+        continue;
+      }
+      if ((lane.emitAccum.get(out.itemId) ?? 0) >= 1 - EPSILON) {
+        fraction = 0;
       }
     }
     return fraction;
@@ -358,11 +462,6 @@ export class SimulationManager {
     perMinToTick: number,
     fraction: number,
   ): void {
-    const pendingByBelt = new Map<
-      string,
-      Array<{ itemId: string; amount: number }>
-    >();
-
     for (let outIdx = 0; outIdx < outputs.length; outIdx++) {
       const out = outputs[outIdx]!;
       const amount = out.perMin * perMinToTick * fraction;
@@ -372,24 +471,14 @@ export class SimulationManager {
         this.outputPortIndexForOutput(buildingId, outIdx),
         out.itemId,
       );
-      if (links.length > 0) {
-        const beltId = links[0]!.beltChain[0]!;
-        const list = pendingByBelt.get(beltId) ?? [];
-        list.push({ itemId: out.itemId, amount });
-        pendingByBelt.set(beltId, list);
+      const lane = links.length > 0 ? this.laneForChain(links[0]!.beltChain) : undefined;
+      if (lane) {
+        lane.emitAccum.set(
+          out.itemId,
+          (lane.emitAccum.get(out.itemId) ?? 0) + amount,
+        );
       } else {
         this.addToPool(this.inventory, out.itemId, amount);
-      }
-    }
-
-    for (const [beltId, pending] of pendingByBelt) {
-      const buf = this.beltBuffers.get(beltId);
-      if (!buf) continue;
-      const total = pending.reduce((sum, p) => sum + p.amount, 0);
-      const headroom = buf.maxAmount - beltBufferTotal(buf);
-      const scale = total <= EPSILON ? 0 : Math.min(1, headroom / total);
-      for (const { itemId, amount } of pending) {
-        this.pushToBelt(beltId, itemId, amount * scale);
       }
     }
   }
@@ -402,52 +491,66 @@ export class SimulationManager {
     return specOutputPortIndex(buildingId, outputIdx);
   }
 
-  private pushToBelt(
-    beltCompositeId: string,
-    itemId: string,
-    amount: number,
-  ): void {
-    if (amount <= EPSILON) return;
-    const buf = this.beltBuffers.get(beltCompositeId);
-    if (!buf) return;
-    const headroom = buf.maxAmount - beltBufferTotal(buf);
-    if (headroom <= EPSILON) return;
-    const add = Math.min(amount, headroom);
-    buf.items.set(itemId, (buf.items.get(itemId) ?? 0) + add);
+  /** Дискретное движение: сдвиг предметов, доставка в приёмник, спавн на входе. */
+  private runBeltFlow(dt: number): void {
+    const spacing = BELT_ITEM_SPACING_M;
+    for (const lane of this.lanes.values()) {
+      const len = lane.lengthM;
+      if (len <= EPSILON) continue;
+      const v = lane.speedMps;
+      // Без приёмника головной предмет упирается в конец ленты (backpressure).
+      const headCap = lane.sinkCompositeId ? Infinity : len;
+
+      // Сдвиг с головы (наибольший pos) к хвосту: нельзя обгонять предмет впереди.
+      for (let i = lane.items.length - 1; i >= 0; i--) {
+        const it = lane.items[i]!;
+        let target = it.pos + v * dt;
+        const cap =
+          i < lane.items.length - 1
+            ? lane.items[i + 1]!.pos - spacing
+            : headCap;
+        target = Math.min(target, cap);
+        if (target < it.pos) target = it.pos;
+        it.pos = target;
+      }
+
+      // Доставка: головные предметы, дошедшие до конца, — по 1 единице в приёмник.
+      if (lane.sinkCompositeId) {
+        const sink = lane.sinkCompositeId;
+        while (
+          lane.items.length > 0 &&
+          lane.items[lane.items.length - 1]!.pos >= len - EPSILON
+        ) {
+          const done = lane.items.pop()!;
+          const store = this.getBuildingInputStore(sink);
+          this.addToPool(store, done.itemId, 1);
+        }
+      }
+
+      this.spawnLaneItems(lane, spacing);
+    }
   }
 
-  private runBeltFlow(dt: number): void {
-    const perMinToTick = dt / 60;
-    for (const [beltId, buf] of this.beltBuffers) {
-      const total = beltBufferTotal(buf);
-      if (total <= EPSILON) continue;
-      const budget = buf.speedPerMin * perMinToTick;
+  /** Спавн целых единиц на входе полосы (pos=0), пока вход свободен и есть накопленное. */
+  private spawnLaneItems(lane: BeltLane, spacing: number): void {
+    let guard = 128;
+    while (guard-- > 0) {
+      const entryBlocked =
+        lane.items.length > 0 && lane.items[0]!.pos < spacing - EPSILON;
+      if (entryBlocked) break;
 
-      for (const [itemId, amount] of [...buf.items.entries()]) {
-        if (amount <= EPSILON) continue;
-        const transfer = Math.min(amount, (amount / total) * budget);
-        if (transfer <= EPSILON) continue;
-
-        let moved = false;
-        for (const link of this.supplyLinks) {
-          if (link.itemId !== itemId) continue;
-          const segIdx = link.beltChain.indexOf(beltId);
-          if (segIdx < 0) continue;
-
-          buf.items.set(itemId, amount - transfer);
-          if ((buf.items.get(itemId) ?? 0) <= EPSILON) buf.items.delete(itemId);
-
-          if (segIdx < link.beltChain.length - 1) {
-            this.pushToBelt(link.beltChain[segIdx + 1]!, itemId, transfer);
-          } else {
-            const store = this.getBuildingInputStore(link.sinkCompositeId);
-            this.addToPool(store, itemId, transfer);
-          }
-          moved = true;
-          break;
+      let bestItem: string | null = null;
+      let bestAccum = 1 - EPSILON;
+      for (const [itemId, acc] of lane.emitAccum) {
+        if (acc >= 1 - EPSILON && acc > bestAccum) {
+          bestAccum = acc;
+          bestItem = itemId;
         }
-        if (!moved) continue;
       }
+      if (!bestItem) break;
+
+      lane.emitAccum.set(bestItem, (lane.emitAccum.get(bestItem) ?? 0) - 1);
+      lane.items.unshift({ id: this.nextItemId++, itemId: bestItem, pos: 0 });
     }
   }
 
@@ -516,19 +619,20 @@ export class SimulationManager {
     return this.gameTime;
   }
 
-  /** Состояние лент для 3D-визуализации (каждый кадр). */
-  getBeltVisualState(): BeltVisualState[] {
-    const out: BeltVisualState[] = [];
-    for (const [beltCompositeId, buf] of this.beltBuffers) {
-      const items: Array<{ itemId: string; amount: number }> = [];
-      for (const [itemId, amount] of buf.items) {
-        if (amount > EPSILON) items.push({ itemId, amount });
-      }
-      if (items.length === 0) continue;
+  /** Полосы с дискретными предметами для 3D-визуализации (каждый кадр). */
+  getBeltVisualState(): BeltLaneVisual[] {
+    const out: BeltLaneVisual[] = [];
+    for (const lane of this.lanes.values()) {
+      if (lane.items.length === 0 || lane.lengthM <= EPSILON) continue;
       out.push({
-        beltCompositeId,
-        speedPerMin: buf.speedPerMin,
-        items,
+        laneKey: lane.key,
+        memberCompositeIds: lane.memberIds,
+        speedMps: lane.speedMps,
+        items: lane.items.map((it) => ({
+          id: it.id,
+          itemId: it.itemId,
+          pos01: Math.min(1, Math.max(0, it.pos / lane.lengthM)),
+        })),
       });
     }
     return out;
@@ -544,15 +648,17 @@ export class SimulationManager {
     const beltBuffers: NonNullable<
       SimulationSummary["logistics"]
     >["beltBuffers"] = [];
-    for (const [beltCompositeId, buf] of this.beltBuffers) {
-      for (const [itemId, amount] of buf.items) {
-        if (amount > EPSILON) {
-          beltBuffers.push({
-            beltCompositeId,
-            itemId,
-            amount: Math.floor(amount * 10) / 10,
-          });
-        }
+    for (const lane of this.lanes.values()) {
+      const counts = new Map<string, number>();
+      for (const it of lane.items) {
+        counts.set(it.itemId, (counts.get(it.itemId) ?? 0) + 1);
+      }
+      for (const [itemId, amount] of counts) {
+        beltBuffers.push({
+          beltCompositeId: `${lane.key}:${itemId}`,
+          itemId,
+          amount,
+        });
       }
     }
 
@@ -615,7 +721,7 @@ export class SimulationManager {
     }
     if (typeof data.gameTime === "number") this.gameTime = data.gameTime;
     this.inventory.clear();
-    this.beltBuffers.clear();
+    this.lanes.clear();
     this.buildingInputs.clear();
     if (data.inventory) {
       for (const [itemId, amount] of Object.entries(data.inventory)) {

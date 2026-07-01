@@ -26,6 +26,7 @@ import type {
   BuildingPortSnapshot,
   LogisticsSnapshot,
 } from "../sim/logisticsTypes.ts";
+import { parseBeltChainMemberRef } from "../sim/logisticsTypes.ts";
 import { CONVEYOR_PLACEMENT_MODES, CONVEYOR_SPEEDS, ConveyorTier } from "../core/types.ts";
 import type { BuilderMode, ConveyorPlacementMode, RailroadPlacementSubMode } from "../core/types.ts";
 import { CameraController } from "./CameraController.ts";
@@ -52,6 +53,8 @@ import {
   usesConveyorGalleryFitScale,
 } from "../buildings/logistics/conveyorFitScale.ts";
 import {
+  beltItemSizeScale,
+  beltSurfaceHeightFraction,
   isConveyorBeltMenuId,
   isLogisticsConveyorKitPath,
   isLogisticsMenuBuildingId,
@@ -103,14 +106,11 @@ import {
   buildBeltPathFromSegments,
   mergeBeltPaths,
   orderBeltSegmentsByConnectivity,
+  reverseBeltPath,
   type BeltPath,
   type BeltSegmentSnapshot,
 } from "./logistics/beltPath.ts";
-import type { BeltVisualState } from "../sim/simItemModels.ts";
-import {
-  buildConveyorSupplyLinks,
-  LOGISTICS_SNAP_RADIUS,
-} from "../sim/conveyorGraph.ts";
+import type { BeltLaneVisual } from "../sim/logisticsTypes.ts";
 import {
   computeRailroadCornerSegment,
   computeRailroadStraightSegments,
@@ -1717,7 +1717,9 @@ export class SceneManager {
             ? seg.partPath
             : this.builderCurrentPartPath;
         const placementMeta =
-          isRailroadLine
+          isConveyorLine
+            ? { segmentStep: stepSeg }
+            : isRailroadLine
             ? {
                 segmentStep: stepSeg,
                 ...(seg.mirrorX ? { mirrorX: true } : {}),
@@ -5392,43 +5394,49 @@ export class SceneManager {
 
     const belts: BeltEndpointSnapshot[] = [];
     for (const [compositeId, rawSegs] of byComposite) {
-      let ordered = orderBeltSegmentsByConnectivity(
-        rawSegs.map((p) => ({
-          x: p.x,
-          y: p.y,
-          z: p.z,
-          rotY: p.rotY,
-          segmentStep: p.segmentStep,
-        })),
-      );
-      ordered = this.orientBeltSegmentsToFlow(ordered, ports);
+      const segsIn = rawSegs.map((p) => ({
+        x: p.x,
+        y: p.y,
+        z: p.z,
+        rotY: p.rotY,
+        segmentStep: p.segmentStep,
+      }));
+      const ordered = orderBeltSegmentsByConnectivity(segsIn);
       if (ordered.length === 0) continue;
-      const first = ordered[0]!;
-      const last = ordered[ordered.length - 1]!;
-      const step = first.segmentStep ?? GRID_CELL_SIZE;
       const beltId = rawSegs[0]?.menuBuildingId ?? "conveyor_mk1";
       const speed = this.conveyorSpeedPerMin(beltId);
-      const dir0 = first.rotY;
-      const dir1 = last.rotY;
+      // Полушаговый путь = физический край тайла. На нём концы соседних лент
+      // совпадают (стык 0), а до порта здания расстояние = полшага (< радиуса).
+      const path = buildBeltPathFromSegments(compositeId, ordered);
+      if (!path || path.points.length < 2) continue;
+      const first = path.points[0]!;
+      const second = path.points[1]!;
+      const last = path.points[path.points.length - 1]!;
+      const prev = path.points[path.points.length - 2]!;
+      const dir0 = Math.atan2(second.x - first.x, second.z - first.z);
+      const dir1 = Math.atan2(last.x - prev.x, last.z - prev.z);
+      const lengthM = path.totalLength;
       belts.push({
         compositeId,
         beltId,
         role: "start",
-        x: first.x - Math.sin(dir0) * step,
+        x: first.x,
         y: first.y,
-        z: first.z - Math.cos(dir0) * step,
+        z: first.z,
         direction: dir0,
         speedPerMin: speed,
+        lengthM,
       });
       belts.push({
         compositeId,
         beltId,
         role: "end",
-        x: last.x + Math.sin(dir1) * step,
+        x: last.x,
         y: last.y,
-        z: last.z + Math.cos(dir1) * step,
+        z: last.z,
         direction: dir1,
         speedPerMin: speed,
+        lengthM,
       });
     }
 
@@ -5462,46 +5470,8 @@ export class SceneManager {
     return ports;
   }
 
-  /** Развернуть цепочку сегментов, если выход здания ближе к «хвосту», а не к start. */
-  private orientBeltSegmentsToFlow(
-    ordered: BeltSegmentSnapshot[],
-    ports: BuildingPortSnapshot[],
-  ): BeltSegmentSnapshot[] {
-    if (ordered.length < 2) return ordered;
-
-    const first = ordered[0]!;
-    const last = ordered[ordered.length - 1]!;
-    const step = first.segmentStep ?? GRID_CELL_SIZE;
-    const startX = first.x - Math.sin(first.rotY) * step;
-    const startZ = first.z - Math.cos(first.rotY) * step;
-    const endX = last.x + Math.sin(last.rotY) * step;
-    const endZ = last.z + Math.cos(last.rotY) * step;
-
-    let nearStart = 0;
-    let nearEnd = 0;
-    let minOutToStart = Infinity;
-    let minOutToEnd = Infinity;
-
-    for (const p of ports) {
-      if (p.type !== "output" || p.kind !== "conveyor") continue;
-      const ds = Math.hypot(p.x - startX, p.z - startZ);
-      const de = Math.hypot(p.x - endX, p.z - endZ);
-      if (ds <= LOGISTICS_SNAP_RADIUS) nearStart++;
-      if (de <= LOGISTICS_SNAP_RADIUS) nearEnd++;
-      minOutToStart = Math.min(minOutToStart, ds);
-      minOutToEnd = Math.min(minOutToEnd, de);
-    }
-
-    if (nearEnd > nearStart) return [...ordered].reverse();
-    if (nearStart === 0 && nearEnd === 0 && minOutToEnd < minOutToStart) {
-      return [...ordered].reverse();
-    }
-    return ordered;
-  }
-
   /** Сегменты лент по compositeId (для 3D-предметов на ленте). */
   getBeltSegmentPaths(): Map<string, BeltSegmentSnapshot[]> {
-    const outputPorts = this.collectBuildingPorts();
     const byComposite = new Map<string, BeltSegmentSnapshot[]>();
     const rawByComposite = new Map<string, BeltSegmentSnapshot[]>();
     for (const p of this.builderPlaced) {
@@ -5513,14 +5483,14 @@ export class SceneManager {
         rotY: p.rotY,
         segmentStep: p.segmentStep,
         surfaceY: this.beltSurfaceYForRecord(p),
+        beltMenuId: p.menuBuildingId ?? undefined,
       };
       const list = rawByComposite.get(p.compositeId) ?? [];
       list.push(snap);
       rawByComposite.set(p.compositeId, list);
     }
     for (const [compositeId, segs] of rawByComposite) {
-      let ordered = orderBeltSegmentsByConnectivity(segs);
-      ordered = this.orientBeltSegmentsToFlow(ordered, outputPorts);
+      const ordered = orderBeltSegmentsByConnectivity(segs);
       byComposite.set(compositeId, ordered);
     }
     return byComposite;
@@ -5531,8 +5501,9 @@ export class SceneManager {
     const pivot = this.findPivotForBuilderRecord(rec);
     if (pivot) {
       const box = new THREE.Box3().setFromObject(pivot);
-      if (Number.isFinite(box.max.y)) {
-        return box.max.y;
+      if (Number.isFinite(box.max.y) && Number.isFinite(box.min.y)) {
+        const frac = beltSurfaceHeightFraction(rec.menuBuildingId);
+        return box.min.y + (box.max.y - box.min.y) * frac;
       }
     }
     return rec.y + 1.05;
@@ -5562,75 +5533,43 @@ export class SceneManager {
   }
 
   /** Кадровое обновление mesh предметов на лентах. */
-  updateBeltItemVisuals(dt: number, belts: BeltVisualState[]): void {
+  updateBeltItemVisuals(dt: number, lanes: BeltLaneVisual[]): void {
     const segmentPaths = this.getBeltSegmentPaths();
-    const { belts: renderBelts, paths } = this.buildChainBeltVisualPayload(
-      belts,
-      segmentPaths,
-    );
-    this.beltItemVisualizer?.update(dt, renderBelts, segmentPaths, paths);
+    const paths = this.buildLaneBeltPaths(lanes, segmentPaths);
+    this.beltItemVisualizer?.update(dt, lanes, paths);
   }
 
   /**
-   * Объединить буферы и пути всех линий в цепочке supply-link — предметы
-   * видны на всей трассе (в т.ч. на этажах и длинных L-образных лентах).
+   * Слить пути всех лент полосы в один по её ключу — предметы видны на всей
+   * трассе (в т.ч. на этажах и длинных L-образных лентах). Ключ совпадает с
+   * `laneKey` из симуляции (beltChain.join("|")).
    */
-  private buildChainBeltVisualPayload(
-    belts: BeltVisualState[],
+  private buildLaneBeltPaths(
+    lanes: BeltLaneVisual[],
     segmentPaths: Map<string, BeltSegmentSnapshot[]>,
-  ): { belts: BeltVisualState[]; paths: Map<string, BeltPath> } {
-    const beltById = new Map(belts.map((b) => [b.beltCompositeId, b]));
-    const links = buildConveyorSupplyLinks(this.getLogisticsSnapshot());
-    const chainKeys = new Set<string>();
-    const inChain = new Set<string>();
-    const renderBelts: BeltVisualState[] = [];
+  ): Map<string, BeltPath> {
     const paths = new Map<string, BeltPath>();
-
-    for (const link of links) {
-      if (link.beltChain.length === 0) continue;
-      const key = link.beltChain.join("|");
-      if (chainKeys.has(key)) continue;
-      chainKeys.add(key);
-
-      const itemTotals = new Map<string, number>();
-      let speedPerMin = link.beltSpeedPerMin;
-      for (const cid of link.beltChain) {
-        const b = beltById.get(cid);
-        if (!b) continue;
-        speedPerMin = Math.min(speedPerMin, b.speedPerMin);
-        for (const it of b.items) {
-          itemTotals.set(it.itemId, (itemTotals.get(it.itemId) ?? 0) + it.amount);
-        }
-      }
-      const items = [...itemTotals.entries()]
-        .map(([itemId, amount]) => ({ itemId, amount }))
-        .filter((it) => it.amount > 0.08);
-      if (items.length === 0) continue;
-
+    for (const lane of lanes) {
+      if (paths.has(lane.laneKey)) continue;
       const chainPaths: BeltPath[] = [];
-      for (const cid of link.beltChain) {
+      for (const ref of lane.memberCompositeIds) {
+        const { compositeId: cid, reversed } = parseBeltChainMemberRef(ref);
         const segs = segmentPaths.get(cid);
         if (!segs?.length) continue;
         const built = buildBeltPathFromSegments(cid, segs);
-        if (built && built.totalLength > 1e-4) chainPaths.push(built);
+        if (built && built.totalLength > 1e-4) {
+          chainPaths.push(reversed ? reverseBeltPath(built) : built);
+        }
       }
       const merged = mergeBeltPaths(chainPaths);
-      if (!merged) continue;
-
-      for (const cid of link.beltChain) inChain.add(cid);
-      if (!Number.isFinite(speedPerMin) || speedPerMin <= 0) {
-        speedPerMin = link.beltSpeedPerMin;
+      if (merged) {
+        const entry = parseBeltChainMemberRef(lane.memberCompositeIds[0] ?? "");
+        const entrySegs = segmentPaths.get(entry.compositeId);
+        merged.itemScale = beltItemSizeScale(entrySegs?.[0]?.beltMenuId);
+        paths.set(lane.laneKey, merged);
       }
-      paths.set(key, merged);
-      renderBelts.push({ beltCompositeId: key, speedPerMin, items });
     }
-
-    for (const belt of belts) {
-      if (inChain.has(belt.beltCompositeId)) continue;
-      renderBelts.push(belt);
-    }
-
-    return { belts: renderBelts, paths };
+    return paths;
   }
 
   private inferCompositeRotY(compositeId: string): number | null {
@@ -5900,8 +5839,13 @@ export class SceneManager {
                 : {}),
             }
           : undefined;
+        const conveyorMeta =
+          isConveyorBeltMenuId(menuId) && typeof part.segmentStep === "number"
+            ? { segmentStep: part.segmentStep }
+            : undefined;
         const placementMeta =
           railroadMeta ??
+          conveyorMeta ??
           (part.mirrorX
             ? { ...(pipeSeg ?? { segmentStep: GRID_CELL_SIZE }), mirrorX: true }
             : pipeSeg);

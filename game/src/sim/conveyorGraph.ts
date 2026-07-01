@@ -8,9 +8,11 @@ import type {
   BeltEndpointSnapshot,
   BeltLineInfo,
   BuildingPortSnapshot,
+  ConveyorFlowLane,
   ConveyorSupplyLink,
   LogisticsSnapshot,
 } from "./logisticsTypes.ts";
+import { beltChainMemberRef } from "./logisticsTypes.ts";
 
 /** Радиус стыковки порта/конца ленты (м). Согласован с снапом билдера (~step×1.5–3). */
 export const LOGISTICS_SNAP_RADIUS = 4;
@@ -49,6 +51,7 @@ export function collectBeltLines(snapshot: LogisticsSnapshot): BeltLineInfo[] {
       compositeId,
       beltId: start.beltId,
       speedPerMin: start.speedPerMin,
+      lengthM: start.lengthM ?? end.lengthM ?? 0,
       start,
       end,
     });
@@ -193,6 +196,128 @@ export function buildConveyorSupplyLinks(
   return links;
 }
 
+/** Построить полосы потока от выхода `port` по itemId (тупик или приёмник). */
+function findFlowLanesForItem(
+  port: BuildingPortSnapshot,
+  itemId: string,
+  lines: BeltLineInfo[],
+  ports: BuildingPortSnapshot[],
+): ConveyorFlowLane[] {
+  const lanes: ConveyorFlowLane[] = [];
+  const mk1 = beltSpeedFromMenuId("conveyor_mk1");
+
+  type Frame = {
+    line: BeltLineInfo;
+    reversed: boolean;
+    beltChain: string[];
+    minSpeed: number;
+    visited: Set<string>;
+  };
+
+  const directedEnd = (line: BeltLineInfo, reversed: boolean) =>
+    reversed ? line.start : line.end;
+
+  const stack: Frame[] = [];
+  for (const line of lines) {
+    const toStart = distXZ(port, line.start);
+    const toEnd = distXZ(port, line.end);
+    const best = Math.min(toStart, toEnd);
+    if (best <= LOGISTICS_SNAP_RADIUS) {
+      const reversed = toEnd < toStart;
+      stack.push({
+        line,
+        reversed,
+        beltChain: [beltChainMemberRef(line.compositeId, reversed)],
+        minSpeed: line.speedPerMin,
+        visited: new Set([line.compositeId]),
+      });
+    }
+  }
+
+  const emit = (
+    f: Frame,
+    sink: BuildingPortSnapshot | null,
+  ): void => {
+    lanes.push({
+      sourceCompositeId: port.compositeId,
+      sourcePortIndex: port.portIndex,
+      sinkCompositeId: sink?.compositeId ?? null,
+      sinkPortIndex: sink?.portIndex ?? null,
+      itemId,
+      beltSpeedPerMin:
+        Number.isFinite(f.minSpeed) && f.minSpeed > EPS ? f.minSpeed : mk1,
+      beltChain: f.beltChain,
+    });
+  };
+
+  while (stack.length > 0) {
+    const f = stack.pop()!;
+    const end = directedEnd(f.line, f.reversed);
+
+    let sink: BuildingPortSnapshot | null = null;
+    for (const p of ports) {
+      if (p.type !== "input" || p.kind !== "conveyor") continue;
+      if (distXZ(end, p) <= LOGISTICS_SNAP_RADIUS) {
+        sink = p;
+        break;
+      }
+    }
+    if (sink) {
+      emit(f, sink);
+      continue;
+    }
+
+    let pushed = 0;
+    for (const n of lines) {
+      if (n.compositeId === f.line.compositeId || f.visited.has(n.compositeId)) {
+        continue;
+      }
+      const toStart = distXZ(end, n.start);
+      const toEnd = distXZ(end, n.end);
+      const best = Math.min(toStart, toEnd);
+      if (best > LOGISTICS_SNAP_RADIUS) continue;
+      const reversed = toEnd < toStart;
+      const visited = new Set(f.visited);
+      visited.add(n.compositeId);
+      stack.push({
+        line: n,
+        reversed,
+        beltChain: [
+          ...f.beltChain,
+          beltChainMemberRef(n.compositeId, reversed),
+        ],
+        minSpeed: Math.min(f.minSpeed, n.speedPerMin),
+        visited,
+      });
+      pushed++;
+    }
+    if (pushed === 0) {
+      emit(f, null);
+    }
+  }
+
+  return lanes;
+}
+
+/**
+ * Полосы потока для всех выходов: предметы движутся, даже если цепочка ещё
+ * не доведена до приёмника (или собрана из нескольких лент).
+ */
+export function buildConveyorFlowLanes(
+  snapshot: LogisticsSnapshot,
+): ConveyorFlowLane[] {
+  const lines = collectBeltLines(snapshot);
+  const lanes: ConveyorFlowLane[] = [];
+  for (const port of snapshot.ports) {
+    if (port.type !== "output" || port.kind !== "conveyor") continue;
+    const itemIds = itemsForConveyorOutputPort(port.buildingId, port.portIndex);
+    for (const itemId of itemIds) {
+      lanes.push(...findFlowLanesForItem(port, itemId, lines, snapshot.ports));
+    }
+  }
+  return lanes;
+}
+
 export function summarizeLogistics(snapshot: LogisticsSnapshot): {
   portCount: number;
   beltLineCount: number;
@@ -201,6 +326,7 @@ export function summarizeLogistics(snapshot: LogisticsSnapshot): {
   return {
     portCount: snapshot.ports.length,
     beltLineCount: collectBeltLines(snapshot).length,
-    linkCount: buildConveyorSupplyLinks(snapshot).length,
+    linkCount: buildConveyorFlowLanes(snapshot).filter((l) => l.sinkCompositeId)
+      .length,
   };
 }

@@ -10,6 +10,8 @@ export interface BeltSegmentSnapshot {
   segmentStep?: number;
   /** Верхняя поверхность ленты (world Y). Если нет — y + fallback. */
   surfaceY?: number;
+  /** menu id ленты (conveyor_mk1..mk6) для масштаба предметов. */
+  beltMenuId?: string;
 }
 
 export interface BeltPathPoint {
@@ -24,6 +26,8 @@ export interface BeltPath {
   /** Длина от начала до points[i], points.length === cumulative.length. */
   cumulative: number[];
   totalLength: number;
+  /** Множитель размера предметов на этой полосе (по тиру ленты). */
+  itemScale?: number;
 }
 
 export interface BeltPathSample {
@@ -45,33 +49,71 @@ function segmentSurfaceY(
   return seg.surfaceY ?? seg.y + fallbackAbovePivot;
 }
 
-/** Центры сегментов + вход/выход за полшага (как в getLogisticsSnapshot). */
+/**
+ * Оффсет между stored `rotY` сегмента ленты и его реальным направлением движения
+ * (модель ленты повёрнута на -PI/2, см. SceneManager.conveyorRotOffset).
+ * Направление потока = rotY - offset.
+ */
+const BELT_TRAVEL_ROT_OFFSET = -Math.PI / 2;
+
+/** Единичный вектор направления движения для одиночного сегмента (по rotY). */
+function travelDirFromRotY(rotY: number): { dx: number; dz: number } {
+  const t = rotY - BELT_TRAVEL_ROT_OFFSET;
+  return { dx: Math.sin(t), dz: Math.cos(t) };
+}
+
+function normalizeXZ(dx: number, dz: number): { dx: number; dz: number } | null {
+  const len = Math.hypot(dx, dz);
+  if (len <= 1e-6) return null;
+  return { dx: dx / len, dz: dz / len };
+}
+
+/** Центры сегментов + вход/выход за полшага по оси движения (по центрам, не rotY). */
 export function buildBeltPathFromSegments(
   compositeId: string,
   segments: BeltSegmentSnapshot[],
   defaultStep = 4,
+  stubScale = 0.5,
 ): BeltPath | null {
   if (segments.length === 0) return null;
   const first = segments[0]!;
   const last = segments[segments.length - 1]!;
   const step = first.segmentStep ?? defaultStep;
+  const stub = step * stubScale;
   const y0 = segmentSurfaceY(first);
   const yN = segmentSurfaceY(last);
 
+  // Направление входа: от центра[0] к центру[1] (иначе fallback по rotY первого).
+  const inDir =
+    segments.length >= 2
+      ? normalizeXZ(
+          segments[1]!.x - first.x,
+          segments[1]!.z - first.z,
+        ) ?? travelDirFromRotY(first.rotY)
+      : travelDirFromRotY(first.rotY);
+  // Направление выхода: от центра[n-2] к центру[n-1].
+  const outDir =
+    segments.length >= 2
+      ? normalizeXZ(
+          last.x - segments[segments.length - 2]!.x,
+          last.z - segments[segments.length - 2]!.z,
+        ) ?? travelDirFromRotY(last.rotY)
+      : travelDirFromRotY(last.rotY);
+
   const points: BeltPathPoint[] = [
     {
-      x: first.x - Math.sin(first.rotY) * step,
+      x: first.x - inDir.dx * stub,
       y: y0,
-      z: first.z - Math.cos(first.rotY) * step,
+      z: first.z - inDir.dz * stub,
     },
   ];
   for (const s of segments) {
     points.push({ x: s.x, y: segmentSurfaceY(s), z: s.z });
   }
   points.push({
-    x: last.x + Math.sin(last.rotY) * step,
+    x: last.x + outDir.dx * stub,
     y: yN,
-    z: last.z + Math.cos(last.rotY) * step,
+    z: last.z + outDir.dz * stub,
   });
 
   const cumulative: number[] = [0];
@@ -107,6 +149,20 @@ export function mergeBeltPaths(paths: BeltPath[]): BeltPath | null {
 
   return {
     compositeId: paths.map((p) => p.compositeId).join("|"),
+    points,
+    cumulative,
+    totalLength: cumulative[cumulative.length - 1] ?? 0,
+  };
+}
+
+export function reverseBeltPath(path: BeltPath): BeltPath {
+  const points = [...path.points].reverse();
+  const cumulative: number[] = [0];
+  for (let i = 1; i < points.length; i++) {
+    cumulative.push(cumulative[i - 1]! + dist(points[i - 1]!, points[i]!));
+  }
+  return {
+    ...path,
     points,
     cumulative,
     totalLength: cumulative[cumulative.length - 1] ?? 0,
@@ -201,8 +257,7 @@ export function sampleBeltPath(path: BeltPath, distance: number): BeltPathSample
     return { x: p.x, y: p.y, z: p.z, direction: 0 };
   }
 
-  let d = distance % total;
-  if (d < 0) d += total;
+  let d = Math.max(0, Math.min(total, distance));
 
   for (let i = 1; i < path.points.length; i++) {
     const segLen = path.cumulative[i]! - path.cumulative[i - 1]!;
